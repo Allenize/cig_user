@@ -1,64 +1,26 @@
-/* members.css */
-.members-container {
+/* document_tracking.css */
+.document-container {
     padding: 2rem;
     max-width: 1400px;
     margin: 0 auto;
     width: 100%;
 }
 
-.members-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+.document-header {
     margin-bottom: 2rem;
-    flex-wrap: wrap;
-    gap: 1rem;
 }
-.members-header h1 {
+.document-header h1 {
     font-size: 2rem;
     color: #1e3a3a;
     display: flex;
     align-items: center;
     gap: 0.8rem;
 }
-.members-header h1 i {
+.document-header h1 i {
     color: #2d6a4f;
     background: #e3f2eb;
     padding: 0.6rem;
     border-radius: 14px;
-}
-.header-actions {
-    display: flex;
-    gap: 0.8rem;
-    flex-wrap: wrap;
-}
-.btn-add, .btn-export {
-    padding: 0.7rem 1.5rem;
-    border: none;
-    border-radius: 40px;
-    font-weight: 600;
-    font-size: 0.95rem;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.6rem;
-    transition: all 0.2s;
-}
-.btn-add {
-    background: #2d6a4f;
-    color: white;
-}
-.btn-add:hover {
-    background: #1e4f3a;
-}
-.btn-export {
-    background: white;
-    color: #2d6a4f;
-    border: 1px solid #cbd5e0;
-}
-.btn-export:hover {
-    background: #f0f7f4;
-    border-color: #2d6a4f;
 }
 
 /* Search & Filter Bar */
@@ -100,7 +62,7 @@
     gap: 0.8rem;
     flex-wrap: wrap;
 }
-.filter-wrapper select {
+.filter-wrapper select, .filter-wrapper input[type="date"] {
     padding: 0.6rem 2rem 0.6rem 1rem;
     border: 1px solid #cbd5e0;
     border-radius: 40px;
@@ -114,6 +76,10 @@
     background-repeat: no-repeat;
     background-position: right 0.8rem center;
 }
+.filter-wrapper input[type="date"] {
+    padding-right: 1rem;
+    background-image: none;
+}
 
 /* Table Styles */
 .table-responsive {
@@ -124,12 +90,12 @@
     border: 1px solid #e9f0ec;
     padding: 0.5rem;
 }
-.members-table {
+.documents-table {
     width: 100%;
     border-collapse: collapse;
     min-width: 800px;
 }
-.members-table th {
+.documents-table th {
     text-align: left;
     padding: 1.2rem 1rem;
     background-color: #f4faf7;
@@ -138,15 +104,17 @@
     font-size: 0.9rem;
     border-bottom: 2px solid #cbdde0;
 }
-.members-table td {
+.documents-table td {
     padding: 1rem;
     border-bottom: 1px solid #e2f0e9;
     color: #2d4a42;
     vertical-align: middle;
 }
-.members-table tbody tr:hover {
+.documents-table tbody tr:hover {
     background-color: #f9fffc;
 }
+
+/* Status Badges (no emojis) */
 .status-badge {
     display: inline-block;
     padding: 0.3rem 1rem;
@@ -154,46 +122,70 @@
     font-size: 0.85rem;
     font-weight: 500;
 }
-.status-badge.active {
+.status-badge.pending {
+    background: #fff3cd;
+    color: #856404;
+}
+.status-badge.approved {
     background: #d0f0e4;
     color: #1b4d3e;
 }
-.status-badge.inactive {
+.status-badge.rejected {
     background: #fce8e8;
     color: #b91c1c;
-}
-.actions {
-    display: flex;
-    gap: 0.6rem;
-}
-.btn-edit, .btn-delete {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 0.9rem;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    padding: 0.3rem 0.8rem;
-    border-radius: 30px;
-    transition: all 0.2s;
-}
-.btn-edit {
-    color: #2d6a4f;
-    background: #e3f2eb;
-}
-.btn-edit:hover {
-    background: #c0e0d4;
-}
-.btn-delete {
-    color: #b91c1c;
-    background: #fce8e8;
-}
-.btn-delete:hover {
-    background: #fad1d1;
 }
 
-/* Modal Styles */
+/* Add to document_tracking.css */
+
+/* Header with upload button */
+.document-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+.document-header h1 {
+    font-size: 2rem;
+    color: #1e3a3a;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+}
+.document-header h1 i {
+    color: #2d6a4f;
+    background: #e3f2eb;
+    padding: 0.6rem;
+    border-radius: 14px;
+}
+
+/* Upload button */
+.btn-upload {
+    background: #2d6a4f;
+    color: white;
+    border: none;
+    padding: 0.8rem 1.8rem;
+    border-radius: 40px;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.8rem;
+    transition: background 0.2s;
+}
+.btn-upload:hover {
+    background: #1e4f3a;
+}
+.btn-upload i {
+    font-size: 1.2rem;
+}
+
+/* Modal Styles (reuse existing modal classes and add specific adjustments) */
+.upload-modal-content {
+    max-width: 550px;
+}
 .modal {
     display: none;
     position: fixed;
@@ -211,10 +203,9 @@
     padding: 2rem;
     border-radius: 28px;
     width: 90%;
-    max-width: 500px;
     box-shadow: 0 20px 40px rgba(0,40,0,0.2);
-    position: relative;
     border: 1px solid #e2f0e9;
+    position: relative;
 }
 .close-modal {
     position: absolute;
@@ -231,7 +222,15 @@
     color: #1e3a3a;
     margin-bottom: 1.5rem;
     font-size: 1.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
 }
+.modal-content h2 i {
+    color: #2d6a4f;
+}
+
+/* Form groups (reuse from members.css but ensure consistency) */
 .form-group {
     margin-bottom: 1.2rem;
 }
@@ -244,7 +243,10 @@
 .form-group label span {
     color: #b91c1c;
 }
-.form-group input, .form-group select {
+.form-group input[type="text"],
+.form-group input[type="file"],
+.form-group select,
+.form-group textarea {
     width: 100%;
     padding: 0.8rem 1rem;
     border: 1px solid #cbd5e0;
@@ -253,11 +255,24 @@
     transition: border 0.2s;
     background: white;
 }
-.form-group input:focus, .form-group select:focus {
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
     border-color: #2d6a4f;
     outline: none;
     box-shadow: 0 0 0 3px rgba(45,106,79,0.1);
 }
+.form-group small {
+    display: block;
+    margin-top: 0.3rem;
+    color: #6b9080;
+    font-size: 0.85rem;
+}
+.form-group textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
 .form-actions {
     display: flex;
     justify-content: flex-end;
@@ -292,30 +307,8 @@
     border-color: #2d6a4f;
     color: #1e3a3a;
 }
+
 @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .members-header {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    .header-actions {
-        justify-content: flex-start;
-    }
-    .search-filter-bar {
-        flex-direction: column;
-        align-items: stretch;
-        border-radius: 24px;
-    }
-    .filter-wrapper {
-        justify-content: space-between;
-    }
-    .modal-content {
-        margin: 10% auto;
-        padding: 1.5rem;
-    }
 }

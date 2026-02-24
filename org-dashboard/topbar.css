@@ -1,0 +1,102 @@
+/* topbar.css */
+
+.top-bar {
+    background: white;
+    padding: 0 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e2e8f0;
+    box-shadow: 0 2px 6px rgba(0, 40, 0, 0.02);
+    height: 70px;
+    flex-shrink: 0;
+}
+
+/* Menu toggle button (hamburger) */
+.menu-toggle {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #2d6a4f;
+    cursor: pointer;
+    display: none; /* hidden on desktop by default */
+    padding: 0.5rem;
+    margin-left: -0.5rem;
+}
+
+/* User info section (right side) */
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    position: relative;
+}
+
+.user-name {
+    font-weight: 500;
+    color: #1e3a3a;
+    font-size: 0.95rem;
+}
+
+.avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #a7d7c5;
+}
+
+/* Notification bell */
+.notification-bell {
+    position: relative;
+    cursor: pointer;
+    color: #2d6a4f;
+    font-size: 1.3rem;
+    display: flex;
+    align-items: center;
+}
+
+.notification-bell .badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #b91c1c;
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 400;
+    padding: 0.2rem 0.5rem;
+    border-radius: 10px;
+    min-width: 9px;
+    text-align: center;
+    border: 2px solid white;
+    line-height: 1;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .top-bar {
+        padding: 0 1rem;
+    }
+
+    /* Show menu toggle on mobile */
+    .menu-toggle {
+        display: block;
+    }
+
+
+    .user-name {
+        display: none; /* hide name on mobile to save space */
+    }
+
+    .notification-dropdown {
+        width: 300px;
+        right: -10px; /* align better on small screens */
+    }
+}
+
+/* On desktop, the menu toggle is hidden because sidebar is always visible */
+@media (min-width: 769px) {
+    .menu-toggle {
+        display: none;
+    }
+}

@@ -1,169 +1,286 @@
 <?php
 session_start();
-
 if (!isset($_SESSION['user_id'])) {
-    header("Location: index.php");
+    header("Location: /index.php");
     exit();
 }
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Members Management · Organization</title>
-  <!-- Google Fonts - Inter -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <!-- Font Awesome 6 -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-  <!-- Shared styles -->
-  <link rel="stylesheet" href="shared.css">
-  <!-- Members specific styles -->
-  <link rel="stylesheet" href="members.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Members Management - OrgHub</title>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Core Styles -->
+    <link rel="stylesheet" href="navbar.css">
+    <link rel="stylesheet" href="dashboard.css">  <!-- for top-bar, main layout -->
+    <link rel="stylesheet" href="members.css">
+    <link rel="stylesheet" href="topbar.css">  
+     <link rel="stylesheet" href="notifications.css">      <!-- page-specific styles -->
 </head>
 <body>
-  <div class="dashboard">
-    <!-- Sidebar -->
-    <aside class="sidebar" id="sidebar">
-      <div class="sidebar-header">
-        <div class="logo">Org<span>Hub</span></div>
-        <button class="close-sidebar" id="closeSidebar"><i class="fas fa-times"></i></button>
-      </div>
-      <nav class="sidebar-nav">
-        <ul>
-          <li><a href="dashboard.php"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
-          <li class="active"><a href="members.php"><i class="fas fa-users"></i> Members</a></li>
-          <li><a href="events.php"><i class="fas fa-calendar-alt"></i> Events</a></li>
-          <li ><a href="reports.php"><i class="fas fa-file-alt"></i> Reports</a></li>
-          <li><a href="documents.php"><i class="fas fa-folder"></i> Documents</a></li>
-          <li><a href="announcements.php"><i class="fas fa-bullhorn"></i> Announcements</a></li>
-          <li><a href="settings.php"><i class="fas fa-cog"></i> Settings</a></li>
-          <li class="logout"><a href="logout.php" id="logoutLink"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
-        </ul>
-      </nav>
-      <div class="sidebar-footer">
-        <p>© 2026 OrgHub</p>
-      </div>
-    </aside>
+    <!-- Include navbar -->
+    <?php include 'navbar.php'; ?>
+    <?php include 'topbar.php'; ?>
 
-    <!-- Main Content -->
+    <!-- Main content -->
     <main class="main-content">
-      <header class="top-bar">
-        <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
-        <div class="user-info">
-              <span class="user-name"><?php echo $_SESSION['user_name']; ?></span>
-          <img src="https://placehold.co/40x40/2d3748/white?text=JD" alt="User avatar" class="avatar">
-        </div>
-      </header>
+        <div class="members-container">
+            <!-- Header with title and actions -->
+            <div class="members-header">
+                <h1><i class="fas fa-users"></i> Members Management</h1>
+                <div class="header-actions">
+                    <button class="btn-add" id="openAddModal"><i class="fas fa-plus"></i> Add Member</button>
+                    <button class="btn-export"><i class="fas fa-file-pdf"></i> PDF</button>
+                    <button class="btn-export"><i class="fas fa-file-excel"></i> Excel</button>
+                </div>
+            </div>
 
-      <div class="content">
-        <div class="page-header">
-          <h1>Members Management</h1>
-          <button class="btn btn-primary" id="addMemberBtn"><i class="fas fa-plus"></i> Add Member</button>
-        </div>
+            <!-- Search and Filter Bar -->
+            <div class="search-filter-bar">
+                <div class="search-wrapper">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchInput" placeholder="Search by name, email, or position...">
+                </div>
+                <div class="filter-wrapper">
+                    <select id="positionFilter">
+                        <option value="">All Positions</option>
+                        <option value="President">President</option>
+                        <option value="Vice President">Vice President</option>
+                        <option value="Secretary">Secretary</option>
+                        <option value="Treasurer">Treasurer</option>
+                        <option value="Member">Member</option>
+                    </select>
+                    <select id="statusFilter">
+                        <option value="">All Status</option>
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                    </select>
+                </div>
+            </div>
 
-        <!-- Filters & Export -->
-        <div class="filters-row">
-          <div class="search-box">
-            <i class="fas fa-search"></i>
-            <input type="text" id="searchInput" placeholder="Search members...">
-          </div>
-          <div class="filter-group">
-            <select id="filterPosition">
-              <option value="">All Positions</option>
-              <option value="Manager">Manager</option>
-              <option value="Developer">Developer</option>
-              <option value="Designer">Designer</option>
-              <option value="Sales">Sales</option>
-            </select>
-            <select id="filterStatus">
-              <option value="">All Status</option>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-              <option value="Pending">Pending</option>
-            </select>
-          </div>
-          <div class="export-buttons">
-            <button class="btn btn-outline" id="exportExcel"><i class="fas fa-file-excel"></i> Excel</button>
-            <button class="btn btn-outline" id="exportPDF"><i class="fas fa-file-pdf"></i> PDF</button>
-          </div>
+            <!-- Members Table -->
+            <div class="table-responsive">
+                <table class="members-table" id="membersTable">
+                    <thead>
+                        <tr>
+                            <th>Full Name</th>
+                            <th>Position</th>
+                            <th>Contact Number</th>
+                            <th>Email</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Sample Data Rows -->
+                        <tr>
+                            <td>John Michael Santos</td>
+                            <td>President</td>
+                            <td>+63 912 345 6789</td>
+                            <td>john.santos@example.com</td>
+                            <td><span class="status-badge active">Active</span></td>
+                            <td class="actions">
+                                <button class="btn-edit" onclick="editMember(this)"><i class="fas fa-edit"></i> Edit</button>
+                                <button class="btn-delete" onclick="deleteMember(this)"><i class="fas fa-trash"></i> Delete</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Maria Consuelo Reyes</td>
+                            <td>Secretary</td>
+                            <td>+63 923 456 7890</td>
+                            <td>maria.reyes@example.com</td>
+                            <td><span class="status-badge active">Active</span></td>
+                            <td class="actions">
+                                <button class="btn-edit" onclick="editMember(this)"><i class="fas fa-edit"></i> Edit</button>
+                                <button class="btn-delete" onclick="deleteMember(this)"><i class="fas fa-trash"></i> Delete</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Robert Lim</td>
+                            <td>Treasurer</td>
+                            <td>+63 934 567 8901</td>
+                            <td>robert.lim@example.com</td>
+                            <td><span class="status-badge active">Active</span></td>
+                            <td class="actions">
+                                <button class="btn-edit" onclick="editMember(this)"><i class="fas fa-edit"></i> Edit</button>
+                                <button class="btn-delete" onclick="deleteMember(this)"><i class="fas fa-trash"></i> Delete</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Anna Marie Villanueva</td>
+                            <td>Member</td>
+                            <td>+63 945 678 9012</td>
+                            <td>anna.villanueva@example.com</td>
+                            <td><span class="status-badge inactive">Inactive</span></td>
+                            <td class="actions">
+                                <button class="btn-edit" onclick="editMember(this)"><i class="fas fa-edit"></i> Edit</button>
+                                <button class="btn-delete" onclick="deleteMember(this)"><i class="fas fa-trash"></i> Delete</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Carlos Mendoza</td>
+                            <td>Vice President</td>
+                            <td>+63 956 789 0123</td>
+                            <td>carlos.mendoza@example.com</td>
+                            <td><span class="status-badge active">Active</span></td>
+                            <td class="actions">
+                                <button class="btn-edit" onclick="editMember(this)"><i class="fas fa-edit"></i> Edit</button>
+                                <button class="btn-delete" onclick="deleteMember(this)"><i class="fas fa-trash"></i> Delete</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
-
-        <!-- Members Table -->
-        <div class="table-container">
-          <table id="membersTable">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Position</th>
-                <th>Contact Number</th>
-                <th>Email</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="tableBody">
-              <!-- Data injected by JavaScript -->
-            </tbody>
-          </table>
-        </div>
-      </div>
     </main>
-  </div>
 
-  <!-- Overlay for mobile sidebar -->
-  <div class="overlay" id="overlay"></div>
-
-  <!-- Add/Edit Member Modal -->
-  <div class="modal" id="memberModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2 id="modalTitle">Add Member</h2>
-        <span class="close-modal" id="closeModal">&times;</span>
-      </div>
-      <form id="memberForm">
-        <input type="hidden" id="memberId">
-        <div class="form-group">
-          <label for="name">Name *</label>
-          <input type="text" id="name" required>
+    <!-- Add/Edit Member Modal -->
+    <div id="memberModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" id="closeModal">&times;</span>
+            <h2 id="modalTitle">Add New Member</h2>
+            <form id="memberForm">
+                <input type="hidden" id="memberId" value="">
+                <div class="form-group">
+                    <label for="fullName">Full Name <span>*</span></label>
+                    <input type="text" id="fullName" required>
+                </div>
+                <div class="form-group">
+                    <label for="position">Position</label>
+                    <select id="position">
+                        <option value="President">President</option>
+                        <option value="Vice President">Vice President</option>
+                        <option value="Secretary">Secretary</option>
+                        <option value="Treasurer">Treasurer</option>
+                        <option value="Member">Member</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="contact">Contact Number</label>
+                    <input type="tel" id="contact" placeholder="+63 XXX XXX XXXX">
+                </div>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email">
+                </div>
+                <div class="form-group">
+                    <label for="status">Status</label>
+                    <select id="status">
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn-submit">Save Member</button>
+                    <button type="button" class="btn-cancel" id="cancelModal">Cancel</button>
+                </div>
+            </form>
         </div>
-        <div class="form-group">
-          <label for="position">Position *</label>
-          <select id="position" required>
-            <option value="">Select Position</option>
-            <option value="Manager">Manager</option>
-            <option value="Developer">Developer</option>
-            <option value="Designer">Designer</option>
-            <option value="Sales">Sales</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="contact">Contact Number</label>
-          <input type="tel" id="contact" placeholder="+1 234 567 890">
-        </div>
-        <div class="form-group">
-          <label for="email">Email *</label>
-          <input type="email" id="email" required>
-        </div>
-        <div class="form-group">
-          <label for="status">Status</label>
-          <select id="status">
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-            <option value="Pending">Pending</option>
-          </select>
-        </div>
-        <div class="modal-actions">
-          <button type="submit" class="btn btn-primary" id="saveMember">Save</button>
-          <button type="button" class="btn btn-outline" id="cancelModal">Cancel</button>
-        </div>
-      </form>
     </div>
-  </div>
 
-  <!-- Shared sidebar toggle script -->
-  <script src="shared.js"></script>
-  <!-- Members specific script -->
-  <script src="members.js"></script>
+    <!-- JavaScript -->
+    <script src="script.js"></script> <!-- sidebar toggle -->
+    <script>
+        // ========== MODAL FUNCTIONALITY ==========
+        const modal = document.getElementById('memberModal');
+        const openAddBtn = document.getElementById('openAddModal');
+        const closeModalBtn = document.getElementById('closeModal');
+        const cancelBtn = document.getElementById('cancelModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const memberForm = document.getElementById('memberForm');
+        const memberIdField = document.getElementById('memberId');
+
+        // Open modal for Add
+        openAddBtn.onclick = function() {
+            modalTitle.innerText = 'Add New Member';
+            memberForm.reset();
+            memberIdField.value = '';
+            modal.style.display = 'block';
+        }
+
+        // Close modal
+        function closeModal() {
+            modal.style.display = 'none';
+        }
+        closeModalBtn.onclick = closeModal;
+        cancelBtn.onclick = closeModal;
+        window.onclick = function(event) {
+            if (event.target == modal) closeModal();
+        }
+
+        // Simulate Edit: populate form with row data and open modal
+        window.editMember = function(button) {
+            const row = button.closest('tr');
+            const cells = row.querySelectorAll('td');
+            const name = cells[0].innerText;
+            const position = cells[1].innerText;
+            const contact = cells[2].innerText;
+            const email = cells[3].innerText;
+            const status = cells[4].querySelector('.status-badge').innerText;
+
+            modalTitle.innerText = 'Edit Member';
+            document.getElementById('fullName').value = name;
+            document.getElementById('position').value = position;
+            document.getElementById('contact').value = contact;
+            document.getElementById('email').value = email;
+            document.getElementById('status').value = status;
+            memberIdField.value = name; // simple placeholder
+
+            modal.style.display = 'block';
+        }
+
+        // Handle form submit (simulated)
+        memberForm.onsubmit = function(e) {
+            e.preventDefault();
+            alert('Member saved (simulated). In production, this would send data to the server.');
+            closeModal();
+        }
+
+        // Simulate Delete with confirmation
+        window.deleteMember = function(button) {
+            if (confirm('Are you sure you want to delete this member?')) {
+                const row = button.closest('tr');
+                row.remove(); // In real app, you'd send AJAX request
+                alert('Member deleted (simulated).');
+            }
+        }
+
+        // ========== SEARCH & FILTER ==========
+        const searchInput = document.getElementById('searchInput');
+        const positionFilter = document.getElementById('positionFilter');
+        const statusFilter = document.getElementById('statusFilter');
+        const tableRows = document.querySelectorAll('#membersTable tbody tr');
+
+        function filterTable() {
+            const searchTerm = searchInput.value.toLowerCase();
+            const positionVal = positionFilter.value.toLowerCase();
+            const statusVal = statusFilter.value.toLowerCase();
+
+            tableRows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                const name = cells[0].innerText.toLowerCase();
+                const position = cells[1].innerText.toLowerCase();
+                const email = cells[3].innerText.toLowerCase();
+                const status = cells[4].innerText.toLowerCase();
+
+                const matchesSearch = name.includes(searchTerm) || position.includes(searchTerm) || email.includes(searchTerm);
+                const matchesPosition = positionVal === '' || position === positionVal;
+                const matchesStatus = statusVal === '' || status.includes(statusVal);
+
+                if (matchesSearch && matchesPosition && matchesStatus) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        searchInput.addEventListener('input', filterTable);
+        positionFilter.addEventListener('change', filterTable);
+        statusFilter.addEventListener('change', filterTable);
+    </script>
 </body>
 </html>

@@ -1,0 +1,98 @@
+/* navbar.css */
+.sidebar {
+    width: 280px;
+    background-color: #ffffff;
+    border-right: 1px solid #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s ease;
+    box-shadow: 4px 0 10px rgba(0, 40, 0, 0.03);
+}
+
+.sidebar-header {
+    padding: 1.5rem 1.5rem 0.8rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #2d6a4f;
+}
+.logo span {
+    color: #40916c;
+}
+
+.close-sidebar {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #6b7280;
+    cursor: pointer;
+    display: none; /* hidden on desktop, shown on mobile via media query in dashboard.css */
+}
+
+.sidebar-nav {
+    flex: 1;
+    padding: 1rem 1rem 2rem 1rem;
+}
+
+.sidebar-nav ul {
+    list-style: none;
+}
+
+.sidebar-nav li {
+    margin-bottom: 0.5rem;
+    border-radius: 12px;
+    transition: background 0.2s;
+}
+
+.sidebar-nav li.active {
+    background-color: #d0f0e4;
+}
+.sidebar-nav li.active a {
+    color: #1b4d3e;
+    font-weight: 500;
+}
+
+.sidebar-nav a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0.9rem 1.5rem;
+    text-decoration: none;
+    color: #2d3e3a;
+    font-size: 1rem;
+    border-radius: 12px;
+    transition: all 0.2s;
+}
+
+.sidebar-nav a i {
+    width: 24px;
+    color: #40916c;
+    font-size: 1.2rem;
+}
+
+.sidebar-nav li:not(.active):hover a {
+    background-color: #f0f7f4;
+}
+
+.logout {
+    margin-top: 2rem;
+    padding-top: 15rem;
+}
+.logout a {
+    color: #b91c1c;
+}
+.logout a i {
+    color: #b91c1c;
+}
+
+.sidebar-footer {
+    padding: 1rem 1.5rem 1.5rem;
+    font-size: 0.85rem;
+    color: #6b7280;
+    border-top: 1px solid #e2e8f0;
+}

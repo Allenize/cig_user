@@ -23,38 +23,10 @@ if (!isset($_SESSION['user_id'])) {
 </head>
 <body>
   <div class="dashboard">
-    <!-- Sidebar -->
-    <aside class="sidebar" id="sidebar">
-      <div class="sidebar-header">
-        <div class="logo">Org<span>Hub</span></div>
-        <button class="close-sidebar" id="closeSidebar"><i class="fas fa-times"></i></button>
-      </div>
-      <nav class="sidebar-nav">
-        <ul>
-          <li><a href="dashboard.php"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
-          <li><a href="members.php"><i class="fas fa-users"></i> Members</a></li>
-          <li><a href="events.php"><i class="fas fa-calendar-alt"></i> Events</a></li>
-          <li><a href="reports.php"><i class="fas fa-file-alt"></i> Reports</a></li>
-          <li class="active"><a href="documents.php"><i class="fas fa-folder"></i> Documents</a></li>
-          <li><a href="announcements.php"><i class="fas fa-bullhorn"></i> Announcements</a></li>
-          <li><a href="settings.php"><i class="fas fa-cog"></i> Settings</a></li>
-          <li class="logout"><a href="logout.php" id="logoutLink"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
-        </ul>
-      </nav>
-      <div class="sidebar-footer">
-        <p>© 2026 OrgHub</p>
-      </div>
-    </aside>
 
     <!-- Main Content -->
     <main class="main-content">
-      <header class="top-bar">
-        <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
-        <div class="user-info">
-          <span class="user-name"><?php echo $_SESSION['user_name']; ?></span>
-          <img src="https://placehold.co/40x40/2d3748/white?text=JD" alt="User avatar" class="avatar">
-        </div>
-      </header>
+
 
       <div class="content">
         <div class="page-header">
