@@ -1,0 +1,147 @@
+/* ===== ANNOUNCEMENTS PAGE SPECIFIC STYLES ===== */
+
+.content {
+  padding: 32px;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.page-header h1 {
+  font-size: 1.8rem;
+  color: #1e3a2f;
+}
+
+/* Announcements Grid */
+.announcements-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 24px;
+}
+
+/* Announcement Card */
+.announcement-card {
+  background: white;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0,0,0,0.02);
+  transition: transform 0.2s, box-shadow 0.2s;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.announcement-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 30px rgba(39, 174, 96, 0.08);
+}
+
+/* Highlight for new announcements */
+.announcement-card.new {
+  background: #fefce8;
+  border-left: 4px solid #f39c12;
+}
+
+.announcement-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: #e74c3c;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+  text-transform: uppercase;
+}
+
+.announcement-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e3a2f;
+  margin-bottom: 8px;
+  padding-right: 50px;
+}
+
+.announcement-date {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: #718096;
+  margin-bottom: 12px;
+}
+
+.announcement-date i {
+  color: #27ae60;
+  width: 16px;
+}
+
+.announcement-description {
+  font-size: 0.95rem;
+  color: #4a5568;
+  line-height: 1.5;
+  margin-bottom: 20px;
+  flex: 1;
+}
+
+.announcement-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
+}
+
+.btn-mark-read {
+  background: transparent;
+  border: 1.5px solid #27ae60;
+  color: #27ae60;
+  padding: 8px 16px;
+  border-radius: 30px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-mark-read:hover {
+  background: #27ae60;
+  color: white;
+}
+
+.btn-mark-read i {
+  font-size: 0.9rem;
+}
+
+/* Empty state */
+.no-announcements {
+  text-align: center;
+  padding: 40px;
+  color: #a0aec0;
+  font-size: 1rem;
+  grid-column: 1 / -1;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .content {
+    padding: 24px;
+  }
+}
+
+@media (max-width: 600px) {
+  .content {
+    padding: 20px 16px;
+  }
+
+  .announcements-grid {
+    grid-template-columns: 1fr;
+  }
+}

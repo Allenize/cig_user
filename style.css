@@ -1,0 +1,293 @@
+/* ===== GLOBAL RESET ===== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: linear-gradient(to left, #658354, white);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+/* ===== SPLIT SCREEN – TRANSPARENT BACKGROUND ===== */
+.split-screen {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  max-width: 1440px;
+  width: 100%;
+  background: transparent;
+  border-radius: 32px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+}
+
+/* ===== LEFT PANEL – SINGLE LARGE LOGO (NO CONTAINER) ===== */
+.left-panel {
+  background: transparent;
+  padding: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  min-height: 800px; /* taller to accommodate huge logo */
+}
+
+.carousel-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+}
+
+/* ----- LOGO WRAPPER – NO BACKGROUND, NO BORDER, NO PADDING ----- */
+.logo-single {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 660px;    /* 3x of 220px */
+  height: 660px;
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  animation: float 6s infinite ease-in-out;
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-12px); }
+  100% { transform: translateY(0px); }
+}
+
+/* ----- IMAGE ITSELF – FULL SIZE, NO CONTAINER ----- */
+.logo-single img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain; /* keeps aspect ratio */
+  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.08));
+  transition: all 0.3s ease;
+  opacity: 1;
+}
+
+/* fade out effect for smooth transition */
+.logo-single img.fade-out {
+  opacity: 0;
+}
+
+/* ----- HOVER EFFECT – SCALE, GREEN DROP SHADOW ----- */
+.logo-single:hover {
+  transform: scale(1.03);
+}
+
+.logo-single:hover img {
+  filter: drop-shadow(0 20px 40px rgba(39, 174, 96, 0.25));
+}
+
+/* ----- ABSTRACT SHAPES (subtle) ----- */
+.shape {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(39,174,96,0.04) 0%, transparent 70%);
+  z-index: 1;
+}
+
+.shape-1 {
+  width: 600px;
+  height: 600px;
+  top: -150px;
+  left: -150px;
+}
+
+.shape-2 {
+  width: 700px;
+  height: 700px;
+  bottom: -200px;
+  right: -200px;
+  background: radial-gradient(circle, rgba(45,55,72,0.03) 0%, transparent 70%);
+}
+
+/* ===== RIGHT PANEL – GLASS LOGIN CARD (unchanged) ===== */
+.right-panel {
+  background: transparent;
+  padding: 3rem 2.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.glass {
+  width: 100%;
+  max-width: 400px;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 32px;
+  padding: 2.5rem 2rem;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  font-size: 0.95rem;
+  color: #2d524a;
+  margin-bottom: 2.5rem;
+  border-bottom: 2px solid rgba(39, 174, 96, 0.3);
+  padding-bottom: 1rem;
+  font-weight: 500;
+}
+
+.input-group {
+  margin-bottom: 1.5rem;
+}
+
+label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1e3a2f;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+input {
+  width: 100%;
+  padding: 0.9rem 1.2rem;
+  border: 1.5px solid rgba(255, 255, 255, 0.5);
+  border-radius: 14px;
+  font-size: 0.95rem;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.2s;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(4px);
+  color: #1e3a2f;
+}
+
+input:focus {
+  outline: none;
+  border-color: #27ae60;
+  background: white;
+  box-shadow: 0 0 0 4px rgba(39, 174, 96, 0.1);
+}
+
+.form-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 1.8rem 0 2rem;
+  font-size: 0.9rem;
+}
+
+
+.btn {
+  width: 100%;
+  padding: 1rem;
+  background: #27ae60;
+  color: white;
+  border: none;
+  border-radius: 40px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 8px 16px rgba(39, 174, 96, 0.15);
+  letter-spacing: 0.5px;
+}
+
+.btn:hover {
+  background: #2ecc71;
+  transform: translateY(-3px);
+  box-shadow: 0 16px 24px rgba(39, 174, 96, 0.25);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.footer-text {
+  margin-top: 2.5rem;
+  font-size: 0.75rem;
+  color: #2d524a;
+  text-align: center;
+  letter-spacing: 0.3px;
+  opacity: 0.9;
+}
+
+/* ===== RESPONSIVE – SCALE DOWN LOGO ===== */
+@media (max-width: 1200px) {
+  .logo-single {
+    width: 500px;
+    height: 500px;
+  }
+}
+
+@media (max-width: 900px) {
+  .split-screen {
+    grid-template-columns: 1fr;
+    border-radius: 24px;
+  }
+
+  .left-panel {
+    padding: 2rem 1rem;
+    order: 1;
+    min-height: 550px;
+  }
+
+  .right-panel {
+    padding: 2rem 1.5rem;
+    order: 2;
+  }
+
+  .logo-single {
+    width: 350px;
+    height: 350px;
+  }
+
+  .glass {
+    padding: 2rem 1.5rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .logo-single {
+    width: 250px;
+    height: 250px;
+  }
+}
+
+@media (max-width: 480px) {
+  .form-options {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  h2 {
+    font-size: 1.8rem;
+  }
+
+  .logo-single {
+    width: 200px;
+    height: 200px;
+  }
+
+  .glass {
+    padding: 1.5rem 1.2rem;
+  }
+}

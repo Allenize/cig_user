@@ -1,0 +1,148 @@
+/* ===== EVENTS PAGE SPECIFIC STYLES ===== */
+
+.content {
+  padding: 32px;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.page-header h1 {
+  font-size: 1.8rem;
+  color: #1e3a2f;
+}
+
+/* Events Grid – card layout */
+.events-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+}
+
+/* Event Card */
+.event-card {
+  background: white;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0,0,0,0.02);
+  transition: transform 0.2s, box-shadow 0.2s;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.event-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 30px rgba(39, 174, 96, 0.08);
+}
+
+.event-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e3a2f;
+  margin-bottom: 12px;
+  padding-right: 40px; /* space for actions */
+}
+
+.event-detail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #4a5568;
+  font-size: 0.95rem;
+  margin-bottom: 8px;
+}
+
+.event-detail i {
+  width: 20px;
+  color: #27ae60;
+  font-size: 1rem;
+}
+
+.event-status {
+  margin: 12px 0 16px;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 40px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-badge.pending {
+  background: #fef9e7;
+  color: #d69e2e;
+}
+
+.status-badge.approved {
+  background: #e8f5e9;
+  color: #27ae60;
+}
+
+.status-badge.completed {
+  background: #e6f0ff;
+  color: #3182ce;
+}
+
+/* Action icons on card */
+.event-actions {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  gap: 12px;
+}
+
+.event-actions i {
+  font-size: 1.1rem;
+  cursor: pointer;
+  color: #718096;
+  transition: color 0.2s;
+}
+
+.event-actions i.fa-edit:hover {
+  color: #27ae60;
+}
+
+.event-actions i.fa-trash-alt:hover {
+  color: #e53e3e;
+}
+
+/* Modal file input hint */
+.file-hint {
+  display: block;
+  font-size: 0.75rem;
+  color: #718096;
+  margin-top: 4px;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .content {
+    padding: 24px;
+  }
+}
+
+@media (max-width: 600px) {
+  .content {
+    padding: 20px 16px;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .events-grid {
+    grid-template-columns: 1fr;
+  }
+}
