@@ -43,10 +43,10 @@ if (!isset($_SESSION['user_id'])) {
                     </div>
                 </div>
                 <div class="stat-card">
-                    <div class="card-icon"><i class="fas fa-calendar-check"></i></div>
+                    <div class="card-icon"><i class="fas fa-folder-open"></i></div>
                     <div class="card-content">
-                        <h3>0</h3>
-                        <p>Upcoming Events</p>
+                        <h3>5</h3>
+                        <p>Total Documents</p>
                     </div>
                 </div>
                 <div class="stat-card">

@@ -49,14 +49,6 @@ if (!isset($_SESSION['user_id'])) {
                         <option value="Approved">Approved</option>
                         <option value="Rejected">Rejected</option>
                     </select>
-                    <select id="categoryFilter">
-                        <option value="">All Categories</option>
-                        <option value="Report">Report</option>
-                        <option value="Proposal">Proposal</option>
-                        <option value="Minutes">Minutes</option>
-                        <option value="Policy">Policy</option>
-                        <option value="Other">Other</option>
-                    </select>
                     <input type="date" id="dateFilter" placeholder="Filter by date">
                 </div>
             </div>
@@ -67,7 +59,6 @@ if (!isset($_SESSION['user_id'])) {
                     <thead>
                         <tr>
                             <th>Document Title</th>
-                            <th>Category</th>
                             <th>Date Submitted</th>
                             <th>Submitted By</th>
                             <th>Status</th>
@@ -78,7 +69,6 @@ if (!isset($_SESSION['user_id'])) {
                         <!-- Sample Data Rows (same as before) -->
                         <tr>
                             <td>Q1 Financial Report</td>
-                            <td>Report</td>
                             <td>2026-02-15</td>
                             <td>John Santos</td>
                             <td><span class="status-badge pending">Pending</span></td>
@@ -86,7 +76,6 @@ if (!isset($_SESSION['user_id'])) {
                         </tr>
                         <tr>
                             <td>Event Proposal - Outreach</td>
-                            <td>Proposal</td>
                             <td>2026-02-10</td>
                             <td>Maria Reyes</td>
                             <td><span class="status-badge approved">Approved</span></td>
@@ -94,7 +83,6 @@ if (!isset($_SESSION['user_id'])) {
                         </tr>
                         <tr>
                             <td>Meeting Minutes - Feb 5</td>
-                            <td>Minutes</td>
                             <td>2026-02-07</td>
                             <td>Robert Lim</td>
                             <td><span class="status-badge approved">Approved</span></td>
@@ -102,7 +90,6 @@ if (!isset($_SESSION['user_id'])) {
                         </tr>
                         <tr>
                             <td>New Member Policy</td>
-                            <td>Policy</td>
                             <td>2026-02-01</td>
                             <td>Anna Villanueva</td>
                             <td><span class="status-badge rejected">Rejected</span></td>
@@ -110,7 +97,6 @@ if (!isset($_SESSION['user_id'])) {
                         </tr>
                         <tr>
                             <td>Budget Proposal 2026</td>
-                            <td>Proposal</td>
                             <td>2026-01-28</td>
                             <td>Carlos Mendoza</td>
                             <td><span class="status-badge pending">Pending</span></td>
@@ -131,16 +117,6 @@ if (!isset($_SESSION['user_id'])) {
                 <div class="form-group">
                     <label for="docTitle">Document Title <span>*</span></label>
                     <input type="text" id="docTitle" name="title" required>
-                </div>
-                <div class="form-group">
-                    <label for="docCategory">Category</label>
-                    <select id="docCategory" name="category">
-                        <option value="Report">Report</option>
-                        <option value="Proposal">Proposal</option>
-                        <option value="Minutes">Minutes</option>
-                        <option value="Policy">Policy</option>
-                        <option value="Other">Other</option>
-                    </select>
                 </div>
                 <div class="form-group">
                     <label for="docDescription">Description (Optional)</label>

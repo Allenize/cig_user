@@ -16,7 +16,7 @@ tabBtns.forEach(btn => {
 function filterByTab(tab) {
     tableRows.forEach(row => {
         const category = row.dataset.category;
-        if (tab === 'all' || category.toLowerCase() === tab) {
+        if (tab === 'all' || category.toLowerCase() === tab.replace('s', '')) {
             row.style.display = '';
         } else {
             row.style.display = 'none';
@@ -27,13 +27,11 @@ function filterByTab(tab) {
 
 // ========== SEARCH & FILTER ==========
 const searchInput = document.getElementById('searchInput');
-const categoryFilter = document.getElementById('categoryFilter');
 const statusFilter = document.getElementById('statusFilter');
 const dateFilter = document.getElementById('dateFilter');
 
 function filterTable() {
     const searchTerm = searchInput.value.toLowerCase();
-    const categoryVal = categoryFilter.value.toLowerCase();
     const statusVal = statusFilter.value.toLowerCase();
     const dateVal = dateFilter.value;
 
@@ -42,16 +40,14 @@ function filterTable() {
 
         const cells = row.querySelectorAll('td');
         const title = cells[0].innerText.toLowerCase();
-        const category = cells[1].innerText.toLowerCase();
         const dateArchived = cells[2].innerText;
         const status = cells[4].innerText.toLowerCase();
 
         const matchesSearch = title.includes(searchTerm);
-        const matchesCategory = categoryVal === '' || category === categoryVal;
         const matchesStatus = statusVal === '' || status.includes(statusVal);
         const matchesDate = dateVal === '' || dateArchived === dateVal;
 
-        if (matchesSearch && matchesCategory && matchesStatus && matchesDate) {
+        if (matchesSearch && matchesStatus && matchesDate) {
             row.style.display = '';
         } else {
             row.style.display = 'none';
@@ -60,7 +56,6 @@ function filterTable() {
 }
 
 searchInput.addEventListener('input', filterTable);
-categoryFilter.addEventListener('change', filterTable);
 statusFilter.addEventListener('change', filterTable);
 dateFilter.addEventListener('change', filterTable);
 

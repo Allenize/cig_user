@@ -53,11 +53,6 @@ if (!isset($_SESSION['user_id'])) {
                         <option value="Treasurer">Treasurer</option>
                         <option value="Member">Member</option>
                     </select>
-                    <select id="statusFilter">
-                        <option value="">All Status</option>
-                        <option value="Active">Active</option>
-                        <option value="Inactive">Inactive</option>
-                    </select>
                 </div>
             </div>
 
@@ -70,7 +65,6 @@ if (!isset($_SESSION['user_id'])) {
                             <th>Position</th>
                             <th>Contact Number</th>
                             <th>Email</th>
-                            <th>Status</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -81,7 +75,6 @@ if (!isset($_SESSION['user_id'])) {
                             <td>President</td>
                             <td>+63 912 345 6789</td>
                             <td>john.santos@example.com</td>
-                            <td><span class="status-badge active">Active</span></td>
                             <td class="actions">
                                 <button class="btn-edit" onclick="editMember(this)"><i class="fas fa-edit"></i> Edit</button>
                                 <button class="btn-delete" onclick="deleteMember(this)"><i class="fas fa-trash"></i> Delete</button>
@@ -92,7 +85,6 @@ if (!isset($_SESSION['user_id'])) {
                             <td>Secretary</td>
                             <td>+63 923 456 7890</td>
                             <td>maria.reyes@example.com</td>
-                            <td><span class="status-badge active">Active</span></td>
                             <td class="actions">
                                 <button class="btn-edit" onclick="editMember(this)"><i class="fas fa-edit"></i> Edit</button>
                                 <button class="btn-delete" onclick="deleteMember(this)"><i class="fas fa-trash"></i> Delete</button>
@@ -103,7 +95,6 @@ if (!isset($_SESSION['user_id'])) {
                             <td>Treasurer</td>
                             <td>+63 934 567 8901</td>
                             <td>robert.lim@example.com</td>
-                            <td><span class="status-badge active">Active</span></td>
                             <td class="actions">
                                 <button class="btn-edit" onclick="editMember(this)"><i class="fas fa-edit"></i> Edit</button>
                                 <button class="btn-delete" onclick="deleteMember(this)"><i class="fas fa-trash"></i> Delete</button>
@@ -114,7 +105,6 @@ if (!isset($_SESSION['user_id'])) {
                             <td>Member</td>
                             <td>+63 945 678 9012</td>
                             <td>anna.villanueva@example.com</td>
-                            <td><span class="status-badge inactive">Inactive</span></td>
                             <td class="actions">
                                 <button class="btn-edit" onclick="editMember(this)"><i class="fas fa-edit"></i> Edit</button>
                                 <button class="btn-delete" onclick="deleteMember(this)"><i class="fas fa-trash"></i> Delete</button>
@@ -125,7 +115,6 @@ if (!isset($_SESSION['user_id'])) {
                             <td>Vice President</td>
                             <td>+63 956 789 0123</td>
                             <td>carlos.mendoza@example.com</td>
-                            <td><span class="status-badge active">Active</span></td>
                             <td class="actions">
                                 <button class="btn-edit" onclick="editMember(this)"><i class="fas fa-edit"></i> Edit</button>
                                 <button class="btn-delete" onclick="deleteMember(this)"><i class="fas fa-trash"></i> Delete</button>
@@ -165,13 +154,6 @@ if (!isset($_SESSION['user_id'])) {
                 <div class="form-group">
                     <label for="email">Email</label>
                     <input type="email" id="email">
-                </div>
-                <div class="form-group">
-                    <label for="status">Status</label>
-                    <select id="status">
-                        <option value="Active">Active</option>
-                        <option value="Inactive">Inactive</option>
-                    </select>
                 </div>
                 <div class="form-actions">
                     <button type="submit" class="btn-submit">Save Member</button>
@@ -219,14 +201,12 @@ if (!isset($_SESSION['user_id'])) {
             const position = cells[1].innerText;
             const contact = cells[2].innerText;
             const email = cells[3].innerText;
-            const status = cells[4].querySelector('.status-badge').innerText;
 
             modalTitle.innerText = 'Edit Member';
             document.getElementById('fullName').value = name;
             document.getElementById('position').value = position;
             document.getElementById('contact').value = contact;
             document.getElementById('email').value = email;
-            document.getElementById('status').value = status;
             memberIdField.value = name; // simple placeholder
 
             modal.style.display = 'block';
@@ -251,26 +231,22 @@ if (!isset($_SESSION['user_id'])) {
         // ========== SEARCH & FILTER ==========
         const searchInput = document.getElementById('searchInput');
         const positionFilter = document.getElementById('positionFilter');
-        const statusFilter = document.getElementById('statusFilter');
         const tableRows = document.querySelectorAll('#membersTable tbody tr');
 
         function filterTable() {
             const searchTerm = searchInput.value.toLowerCase();
             const positionVal = positionFilter.value.toLowerCase();
-            const statusVal = statusFilter.value.toLowerCase();
 
             tableRows.forEach(row => {
                 const cells = row.querySelectorAll('td');
                 const name = cells[0].innerText.toLowerCase();
                 const position = cells[1].innerText.toLowerCase();
                 const email = cells[3].innerText.toLowerCase();
-                const status = cells[4].innerText.toLowerCase();
 
                 const matchesSearch = name.includes(searchTerm) || position.includes(searchTerm) || email.includes(searchTerm);
                 const matchesPosition = positionVal === '' || position === positionVal;
-                const matchesStatus = statusVal === '' || status.includes(statusVal);
 
-                if (matchesSearch && matchesPosition && matchesStatus) {
+                if (matchesSearch && matchesPosition) {
                     row.style.display = '';
                 } else {
                     row.style.display = 'none';
@@ -280,7 +256,6 @@ if (!isset($_SESSION['user_id'])) {
 
         searchInput.addEventListener('input', filterTable);
         positionFilter.addEventListener('change', filterTable);
-        statusFilter.addEventListener('change', filterTable);
     </script>
 </body>
 </html>

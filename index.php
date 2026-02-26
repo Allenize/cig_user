@@ -30,7 +30,7 @@
     <div class="left-panel">
       <div class="carousel-container">
         <div class="logo-single" id="logoContainer">
-          <img id="logoImage" src="https://placehold.co/600x600/2d3748/white?text=LOGO" alt="Organization Logo">
+          <img id="logoImage" src="https://placehold.co/600x600/2d3748/white?text=LOGO+1" alt="Organization Logo">
         </div>
       </div>
       <div class="shape shape-1"></div>
@@ -63,6 +63,31 @@
   </div>
 
   <script>
+    // Logo carousel configuration
+    const logos = [
+      'https://placehold.co/600x600/2d3748/white?text=LOGO+1',
+      'https://placehold.co/600x600/27ae60/white?text=LOGO+2',
+      'https://placehold.co/600x600/3498db/white?text=LOGO+3',
+      'https://placehold.co/600x600/e74c3c/white?text=LOGO+4'
+    ];
+    
+    let currentLogoIndex = 0;
+    const logoImage = document.getElementById('logoImage');
+    
+    // Function to change logo with fade effect
+    function changeLogoWithFade() {
+      logoImage.style.opacity = '0';
+      
+      setTimeout(() => {
+        currentLogoIndex = (currentLogoIndex + 1) % logos.length;
+        logoImage.src = logos[currentLogoIndex];
+        logoImage.style.opacity = '1';
+      }, 300);
+    }
+    
+    // Change logo every 4 seconds
+    setInterval(changeLogoWithFade, 4000);
+
     function showLoadingScreen() {
       document.getElementById('loadingScreen').style.display = 'flex';
     }

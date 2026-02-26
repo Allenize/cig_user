@@ -33,15 +33,13 @@ if (!isset($_SESSION['user_id'])) {
             <!-- Header -->
             <div class="archive-header">
                 <h1><i class="fas fa-archive"></i> Archive</h1>
-                <p class="archive-subtitle">Completed, approved, and inactive records</p>
+                <p class="archive-subtitle">Archived documents and records</p>
             </div>
 
             <!-- Tabs -->
             <div class="archive-tabs">
                 <button class="tab-btn active" data-tab="all">All Archives</button>
                 <button class="tab-btn" data-tab="documents">Archived Documents</button>
-                <button class="tab-btn" data-tab="reports">Archived Reports</button>
-                <button class="tab-btn" data-tab="events">Archived Events</button>
             </div>
 
             <!-- Search and Filter Bar -->
@@ -51,12 +49,6 @@ if (!isset($_SESSION['user_id'])) {
                     <input type="text" id="searchInput" placeholder="Search by title or category...">
                 </div>
                 <div class="filter-wrapper">
-                    <select id="categoryFilter">
-                        <option value="">All Categories</option>
-                        <option value="Document">Document</option>
-                        <option value="Report">Report</option>
-                        <option value="Event">Event</option>
-                    </select>
                     <select id="statusFilter">
                         <option value="">All Status</option>
                         <option value="Completed">Completed</option>
@@ -92,26 +84,6 @@ if (!isset($_SESSION['user_id'])) {
                                 <button class="btn-view" onclick="viewArchiveItem(this)"><i class="fas fa-eye"></i> View</button>
                             </td>
                         </tr>
-                        <tr data-category="Report" data-status="Completed">
-                            <td>Q4 Financial Report</td>
-                            <td>Report</td>
-                            <td>2026-01-10</td>
-                            <td>2026-01-05</td>
-                            <td><span class="status-badge completed">Completed</span></td>
-                            <td class="actions">
-                                <button class="btn-view" onclick="viewArchiveItem(this)"><i class="fas fa-eye"></i> View</button>
-                            </td>
-                        </tr>
-                        <tr data-category="Event" data-status="Closed">
-                            <td>Outreach Program 2025</td>
-                            <td>Event</td>
-                            <td>2025-12-18</td>
-                            <td>2025-11-30</td>
-                            <td><span class="status-badge closed">Closed</span></td>
-                            <td class="actions">
-                                <button class="btn-view" onclick="viewArchiveItem(this)"><i class="fas fa-eye"></i> View</button>
-                            </td>
-                        </tr>
                         <tr data-category="Document" data-status="Approved">
                             <td>Membership Policy v2</td>
                             <td>Document</td>
@@ -122,16 +94,7 @@ if (!isset($_SESSION['user_id'])) {
                                 <button class="btn-view" onclick="viewArchiveItem(this)"><i class="fas fa-eye"></i> View</button>
                             </td>
                         </tr>
-                        <tr data-category="Report" data-status="Completed">
-                            <td>Volunteer Hours Report</td>
-                            <td>Report</td>
-                            <td>2025-11-20</td>
-                            <td>2025-11-18</td>
-                            <td><span class="status-badge completed">Completed</span></td>
-                            <td class="actions">
-                                <button class="btn-view" onclick="viewArchiveItem(this)"><i class="fas fa-eye"></i> View</button>
-                            </td>
-                        </tr>
+
                     </tbody>
                 </table>
             </div>

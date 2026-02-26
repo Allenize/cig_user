@@ -72,7 +72,7 @@ body {
   height: 100%;
   object-fit: contain; /* keeps aspect ratio */
   filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.08));
-  transition: all 0.3s ease;
+  transition: opacity 0.3s ease;
   opacity: 1;
 }
 
