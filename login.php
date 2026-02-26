@@ -5,10 +5,13 @@ ini_set('display_errors', 1);
 session_start();
 require 'db_connection.php';
 
+header('Content-Type: application/json');
+
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     if (!isset($_POST['email']) || !isset($_POST['password'])) {
-        die("Form data not received.");
+        echo json_encode(['success' => false, 'message' => 'Form data not received.']);
+        exit();
     }
 
     $email = $_POST['email'];
@@ -27,16 +30,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['user_name'] = $user['username'];
+            $_SESSION['org_name'] = $user['org_name'] ?? 'Organization';
 
-            header("Location: ./org-dashboard/php/dashboard.php");
+            echo json_encode(['success' => true, 'message' => 'Login successful']);
             exit();
 
         } else {
-            echo "Incorrect password.";
+            echo json_encode(['success' => false, 'message' => 'Incorrect password.']);
+            exit();
         }
 
     } else {
-        echo "User not found.";
+        echo json_encode(['success' => false, 'message' => 'User not found.']);
+        exit();
     }
 }
 ?>  

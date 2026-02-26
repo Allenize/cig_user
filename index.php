@@ -9,6 +9,22 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- Loading Screen -->
+  <div id="loadingScreen" class="loading-screen">
+    <div class="spinner"></div>
+    <p>Logging in...</p>
+  </div>
+
+  <!-- Error Popup -->
+  <div id="errorPopup" class="error-popup">
+    <div class="error-content">
+      <button class="error-close" onclick="closeErrorPopup()">&times;</button>
+      <h3>Login Error</h3>
+      <p id="errorMessage"></p>
+      <button class="error-btn" onclick="closeErrorPopup()">OK</button>
+    </div>
+  </div>
+
   <div class="split-screen">
     <!-- LEFT PANEL – Single large rotating logo (no container) -->
     <div class="left-panel">
@@ -27,7 +43,7 @@
         <h2>Organization Login</h2>
         <p class="subtitle">Access your corporate account</p>
         
-<form id="loginForm" method="POST" action="login.php">
+<form id="loginForm" method="POST">
   <div class="input-group">
     <label for="email">Email / Username</label>
     <input type="text" name="email" id="email" required>
@@ -45,5 +61,54 @@
       </div>
     </div>
   </div>
+
+  <script>
+    function showLoadingScreen() {
+      document.getElementById('loadingScreen').style.display = 'flex';
+    }
+
+    function hideLoadingScreen() {
+      document.getElementById('loadingScreen').style.display = 'none';
+    }
+
+    function showErrorPopup(message) {
+      document.getElementById('errorMessage').textContent = message;
+      document.getElementById('errorPopup').style.display = 'flex';
+    }
+
+    function closeErrorPopup() {
+      document.getElementById('errorPopup').style.display = 'none';
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      showLoadingScreen();
+      
+      const formData = new FormData(this);
+      
+      fetch('login.php', {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        hideLoadingScreen();
+        
+        if (data.success) {
+          // Redirect to dashboard after successful login
+          window.location.href = './org-dashboard/php/dashboard.php';
+        } else {
+          // Show error popup
+          showErrorPopup(data.message);
+        }
+      })
+      .catch(error => {
+        hideLoadingScreen();
+        showErrorPopup('An error occurred. Please try again.');
+        console.error('Error:', error);
+      });
+    });
+  </script>
 </body>
 </html>

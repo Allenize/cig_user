@@ -32,7 +32,7 @@ if (!isset($_SESSION['user_id'])) {
         <div class="document-container">
             <!-- Header with Upload Button -->
             <div class="document-header">
-                <h1><i class="fas fa-file-alt"></i> Documents</h1>
+                <h1><i class="fas fa-folder-open"></i> Documents</h1>
                 <button class="btn-upload" id="openUploadModal"><i class="fas fa-cloud-upload-alt"></i> Upload Document</button>
             </div>
 

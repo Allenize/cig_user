@@ -52,14 +52,14 @@ if (!isset($_SESSION['user_id'])) {
                 <div class="stat-card">
                     <div class="card-icon"><i class="fas fa-file-alt"></i></div>
                     <div class="card-content">
-                        <h3>23</h3>
+                        <h3>0</h3>
                         <p>Submitted Reports</p>
                     </div>
                 </div>
                 <div class="stat-card">
                     <div class="card-icon"><i class="fas fa-folder-open"></i></div>
                     <div class="card-content">
-                        <h3>12</h3>
+                        <h3>2</h3>
                         <p>Pending Documents</p>
                     </div>
                 </div>
