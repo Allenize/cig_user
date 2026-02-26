@@ -14,18 +14,18 @@ if (!isset($_SESSION['user_id'])) {
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <!-- External CSS -->
-    <link rel="stylesheet" href="navbar.css">
-    <link rel="stylesheet" href="topbar.css">
-    <link rel="stylesheet" href="dashboard.css">
-    <link rel="stylesheet" href="notifications.css">
+    <link rel="stylesheet" href="../css/navbar.css">
+    <link rel="stylesheet" href="../css/topbar.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+    <link rel="stylesheet" href="../css/notifications.css">
 </head>
 <body>
     <!-- Include the navbar -->
-    <?php include 'navbar.php'; ?>
+    <?php include '../php/navbar.php'; ?>
 
     <!-- Main content -->
     <main class="main-content">
-      <?php include 'topbar.php'; ?>
+      <?php include '../php/topbar.php'; ?>
         <div class="dashboard-container">
             <!-- Welcome Banner -->
             <div class="welcome-banner">
@@ -38,14 +38,14 @@ if (!isset($_SESSION['user_id'])) {
                 <div class="stat-card">
                     <div class="card-icon"><i class="fas fa-users"></i></div>
                     <div class="card-content">
-                        <h3>156</h3>
+                        <h3>5</h3>
                         <p>Total Members</p>
                     </div>
                 </div>
                 <div class="stat-card">
                     <div class="card-icon"><i class="fas fa-calendar-check"></i></div>
                     <div class="card-content">
-                        <h3>8</h3>
+                        <h3>0</h3>
                         <p>Upcoming Events</p>
                     </div>
                 </div>
@@ -128,6 +128,6 @@ if (!isset($_SESSION['user_id'])) {
     </main>
 
     <!-- External JavaScript -->
-    <script src="script.js"></script>
+    <script src="../js/script.js"></script>
 </body>
 </html>

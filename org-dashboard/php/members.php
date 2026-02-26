@@ -14,16 +14,16 @@ if (!isset($_SESSION['user_id'])) {
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <!-- Core Styles -->
-    <link rel="stylesheet" href="navbar.css">
-    <link rel="stylesheet" href="dashboard.css">  <!-- for top-bar, main layout -->
-    <link rel="stylesheet" href="members.css">
-    <link rel="stylesheet" href="topbar.css">  
-     <link rel="stylesheet" href="notifications.css">      <!-- page-specific styles -->
+    <link rel="stylesheet" href="../css/navbar.css">
+    <link rel="stylesheet" href="../css/dashboard.css">  <!-- for top-bar, main layout -->
+    <link rel="stylesheet" href="../css/members.css">
+    <link rel="stylesheet" href="../css/topbar.css">  
+     <link rel="stylesheet" href="../css/notifications.css">      <!-- page-specific styles -->
 </head>
 <body>
     <!-- Include navbar -->
-    <?php include 'navbar.php'; ?>
-    <?php include 'topbar.php'; ?>
+    <?php include '../php/navbar.php'; ?>
+    <?php include '../php/topbar.php'; ?>
 
     <!-- Main content -->
     <main class="main-content">
@@ -182,7 +182,7 @@ if (!isset($_SESSION['user_id'])) {
     </div>
 
     <!-- JavaScript -->
-    <script src="script.js"></script> <!-- sidebar toggle -->
+    <script src="../js/script.js"></script> <!-- sidebar toggle -->
     <script>
         // ========== MODAL FUNCTIONALITY ==========
         const modal = document.getElementById('memberModal');

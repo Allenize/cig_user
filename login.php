@@ -28,7 +28,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['user_name'] = $user['username'];
 
-            header("Location: ../org-dashboard/dashboard.php");
+            header("Location: ./org-dashboard/php/dashboard.php");
             exit();
 
         } else {

@@ -4,7 +4,7 @@
 // It assumes session is already started and user is logged in.
 ?>
 <header class="top-bar">
-    <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+    
     <div class="user-info">
         <!-- Notification Bell -->
         <div class="notification-bell" id="notificationBell">
@@ -40,4 +40,4 @@
         </div>
     </div>
 </div>
-<script src="notifications.js"></script>
+<script src="../js/notifications.js"></script>

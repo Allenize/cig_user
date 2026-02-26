@@ -1,7 +1,3 @@
-// ============================================
-//  Shared Sidebar Toggle (used on dashboard & members)
-// ============================================
-
 const menuToggle = document.getElementById('menuToggle');
 const sidebar = document.getElementById('sidebar');
 const closeSidebar = document.getElementById('closeSidebar');

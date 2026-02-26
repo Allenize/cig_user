@@ -14,16 +14,16 @@ if (!isset($_SESSION['user_id'])) {
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <!-- Core Styles -->
-    <link rel="stylesheet" href="navbar.css">
-    <link rel="stylesheet" href="dashboard.css">
-    <link rel="stylesheet" href="document_tracking.css">
-      <link rel="stylesheet" href="dashboard.css">
-    <link rel="stylesheet" href="notifications.css">
+    <link rel="stylesheet" href="../css/navbar.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+    <link rel="stylesheet" href="../css/document_tracking.css">
+      <link rel="stylesheet" href="../css/dashboard.css">
+    <link rel="stylesheet" href="../css/notifications.css">
 </head>
 <body>
     <!-- Include navbar -->
-    <?php include 'navbar.php'; ?>
-    <?php include 'topbar.php'; ?>
+    <?php include '../php/navbar.php'; ?>
+    <?php include '../php/topbar.php'; ?>
 
     <!-- Main content -->
     <main class="main-content">
@@ -170,7 +170,7 @@ if (!isset($_SESSION['user_id'])) {
     </div>
 
     <!-- External JavaScript -->
-    <script src="script.js"></script> <!-- sidebar toggle -->
-    <script src="document_tracking.js"></script>
+    <script src="../js/script.js"></script> <!-- sidebar toggle -->
+    <script src="../js/document_tracking.js"></script>
 </body>
 </html>

@@ -17,7 +17,7 @@
         <a href="members.php"><i class="fas fa-users"></i> Members</a>
       </li>
       <li class="<?php echo basename($_SERVER['PHP_SELF']) == 'document_tracking.php' ? 'active' : ''; ?>">
-        <a href="document_tracking.php"><i class="fas fa-file-alt"></i> Document Tracking</a>
+        <a href="document_tracking.php"><i class="fas fa-file-alt"></i> Documents</a>
       </li>
       <li class="<?php echo basename($_SERVER['PHP_SELF']) == 'reports.php' ? 'active' : ''; ?>">
         <a href="reports.php"><i class="fas fa-file-alt"></i> Reports</a>
@@ -28,10 +28,12 @@
       <li class="<?php echo basename($_SERVER['PHP_SELF']) == 'settings.php' ? 'active' : ''; ?>">
         <a href="settings.php"><i class="fas fa-cog"></i> Settings</a>
       </li>
-      <li class="logout"><a href="logout.php" id="logoutLink"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
     </ul>
   </nav>
+   <a href="logout.php" class="logout-btn" id="logoutLink"><i class="fas fa-sign-out-alt"></i> Logout</a>
+  <hr class="sidebar-divider">
   <div class="sidebar-footer">
+   
     <p>© 2026 OrgHub</p>
   </div>
 </aside>
