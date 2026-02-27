@@ -173,6 +173,7 @@ if (!isset($_SESSION['user_id'])) {
                             <option value="financial_report">Financial Report</option>
                             <option value="incident_report">Incident Report</option>
                             <option value="membership_form">Membership Form</option>
+                            <option value="project_proposal">Project Proposal</option>
                         </select>
                     </div>
                     
@@ -184,6 +185,17 @@ if (!isset($_SESSION['user_id'])) {
                             <option value="OSAS LOGO.png">OSAS Logo</option>
                         </select>
                         <small>Select a collaborated organization logo to appear on the right side of the document header</small>
+                    </div>
+                    
+                    <!-- Header Customization -->
+                    <div class="form-group">
+                        <label for="organizationName">Organization Name <span>*</span></label>
+                        <input type="text" id="organizationName" name="organization_name" placeholder="e.g., PLSP Economics Society – EcoS" value="PLSP Economics Society – EcoS" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="organizationTagline">Organization Tagline <span>*</span></label>
+                        <input type="text" id="organizationTagline" name="organization_tagline" placeholder='e.g., "Empowered and committed organization of service."' value="Empowered and committed organization of service." required>
                     </div>
                     
                     <!-- Template Fields Container -->
