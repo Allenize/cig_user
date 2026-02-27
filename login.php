@@ -14,10 +14,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         exit();
     }
 
-    $email = $_POST['email'];
+    $email    = trim($_POST['email']);
     $password = $_POST['password'];
 
-    $stmt = $conn->prepare("SELECT * FROM users WHERE email=? OR username=?");
+    // Query using correct column names from schema
+    $stmt = $conn->prepare("SELECT * FROM users WHERE email = ? OR username = ?");
     $stmt->bind_param("ss", $email, $email);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -26,13 +27,46 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         $user = $result->fetch_assoc();
 
-        if (password_verify($password, $user['password'])) {
+        // Check account status before anything else
+        if ($user['status'] !== 'active') {
+            echo json_encode(['success' => false, 'message' => 'Your account is inactive or suspended. Please contact the administrator.']);
+            exit();
+        }
 
-            $_SESSION['user_id'] = $user['id'];
-            $_SESSION['user_name'] = $user['username'];
-            $_SESSION['org_name'] = $user['org_name'] ?? 'Organization';
+        // Verify password against password_hash column
+        if (password_verify($password, $user['password_hash'])) {
 
-            echo json_encode(['success' => true, 'message' => 'Login successful']);
+            // Store RBAC-relevant data in session
+            $_SESSION['user_id']   = $user['user_id'];       // correct PK column
+            $_SESSION['username']  = $user['username'];
+            $_SESSION['full_name'] = $user['full_name'];
+            $_SESSION['role']      = $user['role'];           // admin | reviewer | user
+            $_SESSION['status']    = $user['status'];
+
+            // Update last_login timestamp
+            $update = $conn->prepare("UPDATE users SET last_login = NOW() WHERE user_id = ?");
+            $update->bind_param("i", $user['user_id']);
+            $update->execute();
+
+            // Role-based redirect
+            switch ($user['role']) {
+                case 'admin':
+                    $redirect = './org-dashboard/php/admin-dashboard.php';
+                    break;
+                case 'reviewer':
+                    $redirect = './org-dashboard/php/reviewer-dashboard.php';
+                    break;
+                default: // 'user'
+                    $redirect = './org-dashboard/php/dashboard.php';
+                    break;
+            }
+
+            echo json_encode([
+                'success'  => true,
+                'message'  => 'Login successful',
+                'role'     => $user['role'],
+                'redirect' => $redirect
+            ]);
             exit();
 
         } else {
@@ -45,4 +79,4 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         exit();
     }
 }
-?>  
+?>
