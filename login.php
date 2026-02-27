@@ -53,9 +53,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 case 'admin':
                     $redirect = './org-dashboard/php/admin-dashboard.php';
                     break;
-                case 'reviewer':
-                    $redirect = './org-dashboard/php/reviewer-dashboard.php';
-                    break;
                 default: // 'user'
                     $redirect = './org-dashboard/php/dashboard.php';
                     break;

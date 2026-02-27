@@ -12,10 +12,10 @@ ini_set('display_errors', 1);
 // ── DB Connection (inline so it works standalone) ──────
 $conn = @mysqli_connect("localhost", "root", "", "cig_system");
 if (!$conn) {
-    die("<div style='font-family:sans-serif;padding:40px;background:#0f172a;color:#f87171;'>
+    die("<div style='font-family:sans-serif;padding:40px;background:#a8e6cf;color:#dc2626;'>
         <h2>❌ Database Connection Failed</h2>
         <p>" . mysqli_connect_error() . "</p>
-        <p style='color:#94a3b8;margin-top:12px;font-size:13px;'>
+        <p style='color:#374151;margin-top:12px;font-size:13px;'>
           Check: hostname, username, password, and that the database <strong>cig_system</strong> exists.
         </p>
     </div>");
@@ -92,7 +92,7 @@ $users_result = $conn->query("SELECT user_id, username, email, full_name, role, 
     body {
       font-family: 'Inter', sans-serif;
       background: #a8e6cf;
-      color: #e2e8f0;
+      color: #1e293b;
       min-height: 100vh;
       padding: 40px 20px;
     }
@@ -116,34 +116,34 @@ $users_result = $conn->query("SELECT user_id, username, email, full_name, role, 
       font-size: 24px;
       font-weight: 700;
       margin-bottom: 6px;
-      color: #f1f5f9;
+      color: #1e293b;
     }
-    .subtitle { color: #94a3b8; font-size: 14px; margin-bottom: 30px; }
+    .subtitle { color: #475569; font-size: 14px; margin-bottom: 30px; }
 
     .card {
       background: #ffffff;
       border-radius: 14px;
       padding: 30px;
       margin-bottom: 30px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
     }
 
     .card h2 {
       font-size: 16px;
       font-weight: 600;
       margin-bottom: 22px;
-      color: #cbd5e1;
-      border-bottom: 1px solid #334155;
+      color: #1e293b;
+      border-bottom: 1px solid #e2e8f0;
       padding-bottom: 12px;
     }
 
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-    .full { grid-column: 1 / -1; }
 
     label {
       display: block;
       font-size: 12px;
       font-weight: 600;
-      color: #94a3b8;
+      color: #64748b;
       text-transform: uppercase;
       letter-spacing: .05em;
       margin-bottom: 6px;
@@ -151,20 +151,22 @@ $users_result = $conn->query("SELECT user_id, username, email, full_name, role, 
 
     input, select {
       width: 100%;
-      background: #ffffff;
-      border: 1px solid #94a3b8;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
       border-radius: 8px;
       padding: 10px 14px;
-      color: #f1f5f9;
+      color: #1e293b;
       font-size: 14px;
       font-family: inherit;
       transition: border-color .2s;
     }
+    input::placeholder { color: #94a3b8; }
     input:focus, select:focus {
       outline: none;
       border-color: #6366f1;
+      background: #fff;
     }
-    select option { background: #1e293b; }
+    select option { background: #fff; color: #1e293b; }
 
     .btn {
       background: #6366f1;
@@ -186,8 +188,8 @@ $users_result = $conn->query("SELECT user_id, username, email, full_name, role, 
       margin-bottom: 22px;
       font-size: 14px;
     }
-    .alert.success { background: #052e16; border: 1px solid #16a34a; color: #4ade80; }
-    .alert.error   { background: #ffffff; border: 1px solid #dc2626; color: #f87171; }
+    .alert.success { background: #f0fdf4; border: 1px solid #16a34a; color: #15803d; }
+    .alert.error   { background: #fef2f2; border: 1px solid #dc2626; color: #dc2626; }
 
     /* Role badge */
     .badge {
@@ -199,9 +201,8 @@ $users_result = $conn->query("SELECT user_id, username, email, full_name, role, 
       text-transform: uppercase;
       letter-spacing: .04em;
     }
-    .badge.admin    { background: #4c1d95; color: #c4b5fd; }
-    .badge.reviewer { background: #0c4a6e; color: #7dd3fc; }
-    .badge.user     { background: #14532d; color: #86efac; }
+    .badge.admin { background: #ede9fe; color: #6d28d9; }
+    .badge.user  { background: #dcfce7; color: #15803d; }
 
     .status-dot {
       display: inline-block;
@@ -219,16 +220,16 @@ $users_result = $conn->query("SELECT user_id, username, email, full_name, role, 
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: .05em;
-      color: #64748b;
-      border-bottom: 1px solid #334155;
+      color: #94a3b8;
+      border-bottom: 1px solid #e2e8f0;
     }
     td {
       padding: 12px 14px;
-      border-bottom: 1px solid #1e293b;
-      color: #cbd5e1;
+      border-bottom: 1px solid #f1f5f9;
+      color: #334155;
     }
     tr:last-child td { border-bottom: none; }
-    tr:hover td { background: #1e293b44; }
+    tr:hover td { background: #f8fafc; }
   </style>
 </head>
 <body>
@@ -268,9 +269,8 @@ $users_result = $conn->query("SELECT user_id, username, email, full_name, role, 
         <div>
           <label for="role">Role</label>
           <select name="role" id="role">
-            <option value="user"     <?= (($_POST['role'] ?? 'user') === 'user')     ? 'selected' : '' ?>>User (Organization Member)</option>
-            <option value="reviewer" <?= (($_POST['role'] ?? '') === 'reviewer')     ? 'selected' : '' ?>>Reviewer</option>
-            <option value="admin"    <?= (($_POST['role'] ?? '') === 'admin')        ? 'selected' : '' ?>>Admin</option>
+            <option value="user"  <?= (($_POST['role'] ?? 'user') === 'user')  ? 'selected' : '' ?>>User (Organization Member)</option>
+            <option value="admin" <?= (($_POST['role'] ?? '') === 'admin')     ? 'selected' : '' ?>>Admin</option>
           </select>
         </div>
         <div>
@@ -283,7 +283,7 @@ $users_result = $conn->query("SELECT user_id, username, email, full_name, role, 
         </div>
       </div>
       <br>
-      <button type="submit" class="btn"> + Create User</button>
+      <button type="submit" class="btn">➕ Create User</button>
     </form>
   </div>
 
@@ -318,7 +318,7 @@ $users_result = $conn->query("SELECT user_id, username, email, full_name, role, 
       </tbody>
     </table>
     <?php else: ?>
-      <p style="color:#64748b; font-size:14px;">No users found.</p>
+      <p style="color:#94a3b8; font-size:14px;">No users found.</p>
     <?php endif; ?>
   </div>
 
