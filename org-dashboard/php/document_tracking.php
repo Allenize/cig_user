@@ -113,35 +113,78 @@ if (!isset($_SESSION['user_id'])) {
         <div class="modal-content upload-modal-content">
             <span class="close-modal" id="closeUploadModal">&times;</span>
             <h2><i class="fas fa-cloud-upload-alt"></i> Upload Document</h2>
-            <form id="uploadForm" enctype="multipart/form-data">
-                <div class="form-group">
-                    <label for="docTitle">Document Title <span>*</span></label>
-                    <input type="text" id="docTitle" name="title" required>
-                </div>
-                <div class="form-group">
-                    <label for="docDescription">Description (Optional)</label>
-                    <textarea id="docDescription" name="description" rows="3"></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="relatedEvent">Related Event (Optional)</label>
-                    <select id="relatedEvent" name="related_event">
-                        <option value="">None</option>
-                        <option value="Outreach Program">Outreach Program</option>
-                        <option value="Quarterly Meeting">Quarterly Meeting</option>
-                        <option value="Fundraising Gala">Fundraising Gala</option>
-                        <option value="Team Building">Team Building</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="fileUpload">File Upload <span>*</span></label>
-                    <input type="file" id="fileUpload" name="file" accept=".pdf,.docx,.xlsx" required>
-                    <small>Allowed: PDF, DOCX, XLSX (Max 10MB)</small>
-                </div>
-                <div class="form-actions">
-                    <button type="submit" class="btn-submit">Submit Document</button>
-                    <button type="button" class="btn-cancel" id="cancelUpload">Cancel</button>
-                </div>
-            </form>
+            
+            <!-- Tab Navigation -->
+            <div class="upload-tabs">
+                <button class="tab-button active" data-tab="regular-upload">
+                    <i class="fas fa-file-upload"></i> Regular Upload
+                </button>
+                <button class="tab-button" data-tab="template-upload">
+                    <i class="fas fa-file-contract"></i> Use Template
+                </button>
+            </div>
+
+            <!-- Regular Upload Tab -->
+            <div id="regular-upload" class="tab-content active">
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label for="docTitle">Document Title <span>*</span></label>
+                        <input type="text" id="docTitle" name="title" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="docDescription">Description (Optional)</label>
+                        <textarea id="docDescription" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="relatedEvent">Related Event (Optional)</label>
+                        <select id="relatedEvent" name="related_event">
+                            <option value="">None</option>
+                            <option value="Outreach Program">Outreach Program</option>
+                            <option value="Quarterly Meeting">Quarterly Meeting</option>
+                            <option value="Fundraising Gala">Fundraising Gala</option>
+                            <option value="Team Building">Team Building</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="fileUpload">File Upload <span>*</span></label>
+                        <input type="file" id="fileUpload" name="file" accept=".pdf,.docx,.xlsx" required>
+                        <small>Allowed: PDF, DOCX, XLSX (Max 10MB)</small>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn-submit">Submit Document</button>
+                        <button type="button" class="btn-cancel" id="cancelUpload">Cancel</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Template Upload Tab -->
+            <div id="template-upload" class="tab-content">
+                <form id="templateForm">
+                    <div class="form-group">
+                        <label for="documentTitle">Document Title <span>*</span></label>
+                        <input type="text" id="documentTitle" name="document_title" placeholder="Enter a title for this document" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="templateSelect">Select Template <span>*</span></label>
+                        <select id="templateSelect" name="template_id" required onchange="loadTemplateFields()">
+                            <option value="">-- Choose a Template --</option>
+                            <option value="meeting_minutes">Meeting Minutes</option>
+                            <option value="event_proposal">Event Proposal</option>
+                            <option value="financial_report">Financial Report</option>
+                            <option value="incident_report">Incident Report</option>
+                            <option value="membership_form">Membership Form</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Template Fields Container -->
+                    <div id="templateFieldsContainer" class="template-fields-container"></div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn-submit">Generate & Download DOCX</button>
+                        <button type="button" class="btn-cancel" id="cancelTemplate">Cancel</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
