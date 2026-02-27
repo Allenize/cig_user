@@ -176,6 +176,16 @@ if (!isset($_SESSION['user_id'])) {
                         </select>
                     </div>
                     
+                    <div class="form-group">
+                        <label for="collaboratedLogo">Collaborated Logo (Optional)</label>
+                        <select id="collaboratedLogo" name="collaborated_logo">
+                            <option value="">-- No Collaborated Logo --</option>
+                            <option value="CIG LOGO.png">CIG Logo</option>
+                            <option value="OSAS LOGO.png">OSAS Logo</option>
+                        </select>
+                        <small>Select a collaborated organization logo to appear on the right side of the document header</small>
+                    </div>
+                    
                     <!-- Template Fields Container -->
                     <div id="templateFieldsContainer" class="template-fields-container"></div>
                     

@@ -191,6 +191,12 @@ templateForm.onsubmit = function(e) {
     formData.append('template_id', templateId);
     formData.append('title', documentTitle);
     
+    // Add collaborated logo if selected
+    const collaboratedLogo = document.getElementById('collaboratedLogo').value;
+    if (collaboratedLogo) {
+        formData.append('collaborated_logo', collaboratedLogo);
+    }
+    
     // Get all template fields
     const template = templates[templateId];
     Object.keys(template.fields).forEach(fieldId => {
