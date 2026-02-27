@@ -91,7 +91,7 @@ $users_result = $conn->query("SELECT user_id, username, email, full_name, role, 
 
     body {
       font-family: 'Inter', sans-serif;
-      background: #0f172a;
+      background: #a8e6cf;
       color: #e2e8f0;
       min-height: 100vh;
       padding: 40px 20px;
@@ -121,8 +121,7 @@ $users_result = $conn->query("SELECT user_id, username, email, full_name, role, 
     .subtitle { color: #94a3b8; font-size: 14px; margin-bottom: 30px; }
 
     .card {
-      background: #1e293b;
-      border: 1px solid #334155;
+      background: #ffffff;
       border-radius: 14px;
       padding: 30px;
       margin-bottom: 30px;
@@ -152,8 +151,8 @@ $users_result = $conn->query("SELECT user_id, username, email, full_name, role, 
 
     input, select {
       width: 100%;
-      background: #0f172a;
-      border: 1px solid #334155;
+      background: #ffffff;
+      border: 1px solid #94a3b8;
       border-radius: 8px;
       padding: 10px 14px;
       color: #f1f5f9;
@@ -284,7 +283,7 @@ $users_result = $conn->query("SELECT user_id, username, email, full_name, role, 
         </div>
       </div>
       <br>
-      <button type="submit" class="btn">➕ Create User</button>
+      <button type="submit" class="btn"> + Create User</button>
     </form>
   </div>
 
