@@ -97,8 +97,8 @@ if (!isset($_SESSION['user_id'])) {
                         <div class="announcement-meta">
                             <span><i class="far fa-calendar-alt"></i> Mar 15, 2026</span>
                         </div>
-                        <p class="announcement-desc">Scheduled downtime on Sunday, March 20 from 2-4 AM. Please save your work.</p>
-                        <a href="announcements.php?id=1" class="read-more">Read More <i class="fas fa-chevron-right"></i></a>
+                        <p class="announcement-desc announcement-truncated">Scheduled downtime on Sunday, March 20 from 2-4 AM. Please save your work.</p>
+                        <button class="expand-btn" onclick="toggleAnnouncement(this)"><i class="fas fa-chevron-down"></i> Read More</button>
                     </div>
 
                     <div class="announcement-item">
@@ -108,8 +108,8 @@ if (!isset($_SESSION['user_id'])) {
                         <div class="announcement-meta">
                             <span><i class="far fa-calendar-alt"></i> Mar 12, 2026</span>
                         </div>
-                        <p class="announcement-desc">Join us on March 25 for the quarterly org update. All members are encouraged to attend.</p>
-                        <a href="announcements.php?id=2" class="read-more">Read More <i class="fas fa-chevron-right"></i></a>
+                        <p class="announcement-desc announcement-truncated">Join us on March 25 for the quarterly org update. All members are encouraged to attend.</p>
+                        <button class="expand-btn" onclick="toggleAnnouncement(this)"><i class="fas fa-chevron-down"></i> Read More</button>
                     </div>
 
                     <div class="announcement-item">
@@ -119,8 +119,8 @@ if (!isset($_SESSION['user_id'])) {
                         <div class="announcement-meta">
                             <span><i class="far fa-calendar-alt"></i> Mar 5, 2026</span>
                         </div>
-                        <p class="announcement-desc">Updated templates for event reports are now available in the Documents section.</p>
-                        <a href="announcements.php?id=3" class="read-more">Read More <i class="fas fa-chevron-right"></i></a>
+                        <p class="announcement-desc announcement-truncated">Updated templates for event reports are now available in the Documents section lsfjaskflashflksahfaksjfhaskjfafkjdhfkjadfhadkjfhadkjfhakdjfhadkfhdafkdhgkdshgsirtvrtiuyertiuvyetiuby eieuy eirutrutyeritueryiv e uey eiyrteirutyv e yee  eurtietyeiu .</p>
+                        <button class="expand-btn" onclick="toggleAnnouncement(this)"><i class="fas fa-chevron-down"></i> Read More</button>
                     </div>
                 </div>
             </div>

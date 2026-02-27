@@ -16,7 +16,11 @@ tabBtns.forEach(btn => {
 function filterByTab(tab) {
     tableRows.forEach(row => {
         const category = row.dataset.category;
-        if (tab === 'all' || category.toLowerCase() === tab.replace('s', '')) {
+        const isNew = row.dataset.new === 'true';
+        
+        if (tab === 'all') {
+            row.style.display = '';
+        } else if (tab === 'documents' && isNew) {
             row.style.display = '';
         } else {
             row.style.display = 'none';
