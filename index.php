@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Organization Login · Single Logo</title>
+  <title>Organization Login</title>
   <!-- Google Fonts - Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
@@ -40,8 +40,8 @@
     <!-- RIGHT PANEL – Glass effect login form -->
     <div class="right-panel">
       <div class="form-container glass">
-        <h2>Organization Login</h2>
-        <p class="subtitle">Access your corporate account</p>
+        <h2>PLSP Students Organization</h2>
+        <p class="subtitle">Access your organization account</p>
         
 <form id="loginForm" method="POST">
   <div class="input-group">
@@ -57,7 +57,7 @@
   <button type="submit" class="btn">Log in</button>
 </form>
 
-        <p class="footer-text">© 2026 · Authorized organizations only</p>
+        <p class="footer-text">© 2025-2026 · Authorized organizations only</p>
       </div>
     </div>
   </div>

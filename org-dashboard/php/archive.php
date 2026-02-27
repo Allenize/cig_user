@@ -39,7 +39,7 @@ if (!isset($_SESSION['user_id'])) {
             <!-- Tabs -->
             <div class="archive-tabs">
                 <button class="tab-btn active" data-tab="all">All Archives</button>
-                <button class="tab-btn" data-tab="documents">Archived Documents</button>
+                <button class="tab-btn" data-tab="documents">New Archive Documents</button>
             </div>
 
             <!-- Search and Filter Bar -->
@@ -90,6 +90,16 @@ if (!isset($_SESSION['user_id'])) {
                             <td>2025-12-01</td>
                             <td>2025-11-15</td>
                             <td><span class="status-badge approved">Approved</span></td>
+                            <td class="actions">
+                                <button class="btn-view" onclick="viewArchiveItem(this)"><i class="fas fa-eye"></i> View</button>
+                            </td>
+                        </tr>
+                        <tr data-category="Document" data-status="Completed" data-new="true">
+                            <td>New Archive Documents Sample</td>
+                            <td>Document</td>
+                            <td>2026-02-27</td>
+                            <td>2026-02-20</td>
+                            <td><span class="status-badge completed">Completed</span></td>
                             <td class="actions">
                                 <button class="btn-view" onclick="viewArchiveItem(this)"><i class="fas fa-eye"></i> View</button>
                             </td>

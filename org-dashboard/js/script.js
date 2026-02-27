@@ -35,3 +35,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+// Toggle announcement expansion
+function toggleAnnouncement(button) {
+    const announcementItem = button.closest('.announcement-item');
+    const descText = announcementItem.querySelector('.announcement-desc');
+    
+    descText.classList.toggle('expanded');
+    button.classList.toggle('expanded');
+    
+    if (button.classList.contains('expanded')) {
+        button.innerHTML = '<i class="fas fa-chevron-up"></i> Show Less';
+    } else {
+        button.innerHTML = '<i class="fas fa-chevron-down"></i> Read More';
+    }
+}
