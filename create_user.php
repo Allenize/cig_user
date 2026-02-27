@@ -187,7 +187,7 @@ $users_result = $conn->query("SELECT user_id, username, email, full_name, role, 
       font-size: 14px;
     }
     .alert.success { background: #052e16; border: 1px solid #16a34a; color: #4ade80; }
-    .alert.error   { background: #2d0f0f; border: 1px solid #dc2626; color: #f87171; }
+    .alert.error   { background: #ffffff; border: 1px solid #dc2626; color: #f87171; }
 
     /* Role badge */
     .badge {
