@@ -100,7 +100,7 @@ function generateDocx($template, $data, $title, $collaborated_logo = null, $orga
     // Add collaborated logo if provided
     $imageId = 2;
     if ($collaborated_logo) {
-        $collaboratedLogoPath = __DIR__ . '/../../' . basename($collaborated_logo);
+        $collaboratedLogoPath = __DIR__ . '/../../Assets/' . basename($collaborated_logo);
         if (file_exists($collaboratedLogoPath)) {
             $imageData = file_get_contents($collaboratedLogoPath);
             if ($imageData) {
@@ -432,18 +432,19 @@ function createDocumentXml($title, $template, $data, $collaborated_logo = null, 
     $content .= '<w:body>';
     
     // Add header with logos - table layout for left and right logo
+    // Fit header to paper width (9200 dxa for US Letter with 1" margins)
     $content .= '<w:tbl>';
     $content .= '<w:tblPr>';
-    $content .= '<w:tblW w:w="9000" w:type="dxa"/>';
-    $content .= '<w:tblBorders><w:top w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:left w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:bottom w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:right w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:insideH w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:insideV w:val="none" w:sz="0" w:space="0" w:color="auto"/></w:tblBorders>';
-    $content .= '<w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tblCellMar>';
+    $content .= '<w:tblW w:w="9200" w:type="dxa"/>';
+    $content .= '<w:tblBorders><w:top w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:left w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:bottom w:val="single" w:sz="12" w:space="5" w:color="2F5233"/><w:right w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:insideH w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:insideV w:val="none" w:sz="0" w:space="0" w:color="auto"/></w:tblBorders>';
+    $content .= '<w:tblCellMar><w:top w:w="100" w:type="dxa"/><w:left w:w="100" w:type="dxa"/><w:bottom w:w="100" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar>';
     $content .= '</w:tblPr>';
     
     $content .= '<w:tr>';
     
-    // Left cell - Organization logo (1/3 width)
+    // Left cell - Organization logo (adjustable width)
     $content .= '<w:tc>';
-    $content .= '<w:tcPr><w:tcW w:w="3000" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>';
+    $content .= '<w:tcPr><w:tcW w:w="2800" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>';
     $content .= '<w:p>';
     $content .= '<w:pPr><w:jc w:val="center"/></w:pPr>';
     $content .= '<w:r>';
@@ -471,9 +472,9 @@ function createDocumentXml($title, $template, $data, $collaborated_logo = null, 
     $content .= '</w:p>';
     $content .= '</w:tc>';
     
-    // Middle cell - Organization name (1/3 width)
+    // Middle cell - Organization name (adjustable width)
     $content .= '<w:tc>';
-    $content .= '<w:tcPr><w:tcW w:w="3000" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>';
+    $content .= '<w:tcPr><w:tcW w:w="3600" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>';
     
     // Line 1: Pamantasan ng Lungsod ng San Pablo
     $content .= '<w:p>';
@@ -495,9 +496,9 @@ function createDocumentXml($title, $template, $data, $collaborated_logo = null, 
     
     $content .= '</w:tc>';
     
-    // Right cell - Collaborated logo (1/3 width)
+    // Right cell - Collaborated logo (adjustable width)
     $content .= '<w:tc>';
-    $content .= '<w:tcPr><w:tcW w:w="3000" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>';
+    $content .= '<w:tcPr><w:tcW w:w="2800" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>';
     $content .= '<w:p>';
     $content .= '<w:pPr><w:jc w:val="center"/></w:pPr>';
     if ($collaborated_logo) {
@@ -530,17 +531,8 @@ function createDocumentXml($title, $template, $data, $collaborated_logo = null, 
     $content .= '</w:tr>';
     $content .= '</w:tbl>';
     
-    // Add horizontal line
-    $content .= '<w:p>';
-    $content .= '<w:pPr><w:pBdr>';
-    $content .= '<w:bottom w:val="single" w:sz="24" w:space="1" w:color="2F5233"/>';
-    $content .= '</w:pBdr></w:pPr>';
-    $content .= '</w:p>';
-    
-    // Add spacing
+    // Add spacing after header
     $content .= '<w:p/>';
-    
-    // Add title
     $content .= '<w:p>';
     $content .= '<w:pPr>';
     $content .= '<w:pStyle w:val="Heading1"/>';

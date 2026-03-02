@@ -1,6 +1,6 @@
 // document_tracking.js
 
-// Template data definitions
+// ─── Template definitions ───────────────────────────────────────────────────
 const templates = {
     'meeting_minutes': {
         name: 'Meeting Minutes',
@@ -102,228 +102,533 @@ const templates = {
     }
 };
 
-// ========== UPLOAD MODAL FUNCTIONALITY ==========
-const uploadModal = document.getElementById('uploadModal');
-const openUploadBtn = document.getElementById('openUploadModal');
+// ─── DOM refs ────────────────────────────────────────────────────────────────
+const uploadModal    = document.getElementById('uploadModal');
+const openUploadBtn  = document.getElementById('openUploadModal');
 const closeUploadBtn = document.getElementById('closeUploadModal');
-const cancelUploadBtn = document.getElementById('cancelUpload');
-const cancelTemplateBtn = document.getElementById('cancelTemplate');
-const uploadForm = document.getElementById('uploadForm');
-const templateForm = document.getElementById('templateForm');
+const uploadForm     = document.getElementById('uploadForm');
+const templateForm   = document.getElementById('templateForm');
+const submitBtn      = document.getElementById('submitBtn');
+const tabButtons     = document.querySelectorAll('.tab-button');
+const tabContents    = document.querySelectorAll('.tab-content');
+const searchInput    = document.getElementById('searchInput');
+const statusFilter   = document.getElementById('statusFilter');
+const dateFilter     = document.getElementById('dateFilter');
 
-// Tab switching
-const tabButtons = document.querySelectorAll('.tab-button');
-const tabContents = document.querySelectorAll('.tab-content');
+// ─── Upload modal open / close ───────────────────────────────────────────────
+openUploadBtn.onclick = () => { uploadModal.style.display = 'flex'; };
 
-tabButtons.forEach(button => {
-    button.addEventListener('click', function() {
-        const tabName = this.getAttribute('data-tab');
-        
-        // Remove active class from all buttons and contents
-        tabButtons.forEach(btn => btn.classList.remove('active'));
-        tabContents.forEach(content => content.classList.remove('active'));
-        
-        // Add active class to clicked button and corresponding content
-        this.classList.add('active');
-        document.getElementById(tabName).classList.add('active');
-        
-        // Toggle landscape mode for template tab
-        const modalContent = document.querySelector('.upload-modal-content');
-        if (tabName === 'template-upload') {
-            modalContent.classList.add('landscape-mode');
-        } else {
-            modalContent.classList.remove('landscape-mode');
-        }
-    });
-});
-
-// Open modal
-openUploadBtn.onclick = function() {
-    uploadModal.style.display = 'block';
-};
-
-// Close modal functions
 function closeUploadModal() {
     uploadModal.style.display = 'none';
     uploadForm.reset();
     templateForm.reset();
     document.getElementById('templateFieldsContainer').innerHTML = '';
-    
-    // Reset tabs to regular upload
-    tabButtons.forEach(btn => btn.classList.remove('active'));
-    tabContents.forEach(content => content.classList.remove('active'));
+    tabButtons.forEach(b => b.classList.remove('active'));
+    tabContents.forEach(c => c.classList.remove('active'));
     document.querySelector('[data-tab="regular-upload"]').classList.add('active');
     document.getElementById('regular-upload').classList.add('active');
-    document.querySelector('.upload-modal-content').classList.remove('landscape-mode');
+    document.querySelector('.upload-modal-content').classList.remove('landscape-mode', 'template-expanded');
+    submitBtn.disabled    = false;
+    submitBtn.textContent = 'Upload Document';
 }
+
 closeUploadBtn.onclick = closeUploadModal;
-cancelUploadBtn.onclick = closeUploadModal;
-cancelTemplateBtn.onclick = closeUploadModal;
+document.getElementById('cancelBtn').onclick = closeUploadModal;
+window.addEventListener('click', e => { if (e.target === uploadModal) closeUploadModal(); });
 
-// Close when clicking outside modal
-window.onclick = function(event) {
-    if (event.target == uploadModal) {
-        closeUploadModal();
+// ─── Tab switching ───────────────────────────────────────────────────────────
+tabButtons.forEach(btn => {
+    btn.addEventListener('click', function () {
+        const tabName = this.getAttribute('data-tab');
+        tabButtons.forEach(b => b.classList.remove('active'));
+        tabContents.forEach(c => c.classList.remove('active'));
+        this.classList.add('active');
+        document.getElementById(tabName).classList.add('active');
+        const mc = document.querySelector('.upload-modal-content');
+        if (tabName === 'template-upload') {
+            mc.classList.add('landscape-mode');
+            submitBtn.textContent = 'Generate & Submit';
+            validateTemplateForm();
+        } else {
+            mc.classList.remove('landscape-mode', 'template-expanded');
+            submitBtn.textContent = 'Upload Document';
+            submitBtn.disabled    = false;
+        }
+    });
+});
+
+// ─── Submit routing ──────────────────────────────────────────────────────────
+submitBtn.addEventListener('click', e => {
+    e.preventDefault();
+    const active = document.querySelector('.tab-content.active');
+    if (active && active.id === 'template-upload') {
+        templateForm.dispatchEvent(new Event('submit'));
+    } else {
+        uploadForm.dispatchEvent(new Event('submit'));
     }
-};
+});
 
-// Load template fields
+// ─── Template fields loader ──────────────────────────────────────────────────
+const textareaFields = new Set([
+    'agenda','discussion','action_items','description','requirements',
+    'expense_breakdown','remarks','incident_description','individuals_involved',
+    'witnesses','action_taken','recommendations','opening_statement',
+    'project_summary','project_goal','project_objectives','expected_outputs',
+    'monitoring_details','evaluation_details','security_plan','closing_statement',
+    'attendees','skills','availability'
+]);
+
 function loadTemplateFields() {
     const templateSelect = document.getElementById('templateSelect');
-    const templateId = templateSelect.value;
-    const container = document.getElementById('templateFieldsContainer');
-    
+    const templateId     = templateSelect.value;
+    const container      = document.getElementById('templateFieldsContainer');
+    const mc             = document.querySelector('.upload-modal-content');
+
+    container.innerHTML = '';
     if (!templateId || !templates[templateId]) {
-        container.innerHTML = '';
+        mc.classList.remove('template-expanded');
+        validateTemplateForm();
         return;
     }
-    
-    const template = templates[templateId];
-    let fieldsHTML = '';
-    
-    Object.entries(template.fields).forEach(([fieldId, fieldLabel]) => {
-        const fieldType = fieldId.includes('date') ? 'date' : 
-                         fieldId.includes('time') ? 'time' : 
-                         fieldId.includes('budget') || fieldId.includes('attendance') ? 'number' : 'text';
-        const isTextarea = fieldId === 'agenda' || fieldId === 'discussion' || 
-                          fieldId === 'action_items' || fieldId === 'description' || 
-                          fieldId === 'requirements' || fieldId === 'expense_breakdown' ||
-                          fieldId === 'remarks' || fieldId === 'incident_description' ||
-                          fieldId === 'individuals_involved' || fieldId === 'witnesses' ||
-                          fieldId === 'action_taken' || fieldId === 'recommendations';
-        
-        fieldsHTML += `
-            <div class="form-group">
-                <label for="${fieldId}">${fieldLabel}</label>
-                ${isTextarea ? 
-                    `<textarea id="${fieldId}" name="${fieldId}" rows="3" placeholder="Enter ${fieldLabel.toLowerCase()}"></textarea>` :
-                    `<input type="${fieldType}" id="${fieldId}" name="${fieldId}" placeholder="Enter ${fieldLabel.toLowerCase()}">`
-                }
-            </div>
-        `;
+
+    const tmpl = templates[templateId];
+    let html = '';
+    Object.entries(tmpl.fields).forEach(([fieldId, fieldLabel]) => {
+        const isTA  = textareaFields.has(fieldId);
+        const ftype = fieldId.includes('date') ? 'date'
+                    : fieldId.includes('time') ? 'time'
+                    : (fieldId.includes('budget') || fieldId.includes('attendance') || fieldId === 'number_participants') ? 'number'
+                    : 'text';
+        html += `
+        <div class="form-group">
+            <label for="${fieldId}">${fieldLabel}</label>
+            ${isTA
+                ? `<textarea id="${fieldId}" name="${fieldId}" rows="3" placeholder="Enter ${fieldLabel.toLowerCase()}" required></textarea>`
+                : `<input type="${ftype}" id="${fieldId}" name="${fieldId}" placeholder="Enter ${fieldLabel.toLowerCase()}" required>`
+            }
+        </div>`;
     });
-    
-    container.innerHTML = fieldsHTML;
+    container.innerHTML = html;
+    mc.classList.add('template-expanded');
+    container.querySelectorAll('input, textarea').forEach(f => {
+        f.addEventListener('input', validateTemplateForm);
+        f.addEventListener('change', validateTemplateForm);
+    });
+    validateTemplateForm();
 }
 
-// Handle template form submission
-templateForm.onsubmit = function(e) {
+function validateTemplateForm() {
+    const sel     = document.getElementById('templateSelect');
+    const orgName = document.getElementById('organizationName');
+    const orgTag  = document.getElementById('organizationTagline');
+    if (!sel.value || !orgName.value.trim() || !orgTag.value.trim()) {
+        submitBtn.disabled = true; return;
+    }
+    const allFields = templateForm.querySelectorAll('.template-fields-container input, .template-fields-container textarea');
+    submitBtn.disabled = [...allFields].some(f => !f.value.trim());
+}
+
+document.getElementById('templateSelect')?.addEventListener('change', validateTemplateForm);
+document.getElementById('organizationName')?.addEventListener('input', validateTemplateForm);
+document.getElementById('organizationTagline')?.addEventListener('input', validateTemplateForm);
+
+// ─── Regular upload submit ───────────────────────────────────────────────────
+uploadForm.onsubmit = function (e) {
     e.preventDefault();
-    
-    const documentTitle = document.getElementById('documentTitle').value;
-    const templateId = document.getElementById('templateSelect').value;
-    
-    if (!templateId) {
-        alert('Please select a template');
-        return;
-    }
-    
-    // Collect all form data
-    const formData = new FormData();
-    formData.append('template_id', templateId);
-    formData.append('title', documentTitle);
-    
-    // Add header customization fields
-    const organizationName = document.getElementById('organizationName').value;
-    const organizationTagline = document.getElementById('organizationTagline').value;
-    formData.append('organization_name', organizationName);
-    formData.append('organization_tagline', organizationTagline);
-    
-    // Add collaborated logo if selected
-    const collaboratedLogo = document.getElementById('collaboratedLogo').value;
-    if (collaboratedLogo) {
-        formData.append('collaborated_logo', collaboratedLogo);
-    }
-    
-    // Get all template fields
-    const template = templates[templateId];
-    Object.keys(template.fields).forEach(fieldId => {
-        const element = document.getElementById(fieldId);
-        if (element) {
-            formData.append(fieldId, element.value);
-        }
-    });
-    
-    // Show loading state
-    const submitBtn = templateForm.querySelector('.btn-submit');
-    const originalText = submitBtn.textContent;
-    submitBtn.textContent = 'Generating...';
-    submitBtn.disabled = true;
-    
-    // Send to server
-    fetch('../php/generate_docx.php', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => {
-        if (response.ok) {
-            // Get filename from Content-Disposition header or use default
-            const filename = documentTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.docx';
-            
-            // Create blob and download
-            return response.blob().then(blob => {
-                const url = window.URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = filename;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                window.URL.revokeObjectURL(url);
-                
+    const formData = new FormData(uploadForm);
+    const origText = submitBtn.textContent;
+
+    // Detect extension from chosen file
+    const fileInput = document.getElementById('fileUpload');
+    const ext = fileInput.files.length
+        ? fileInput.files[0].name.split('.').pop().toLowerCase()
+        : 'pdf';
+
+    submitBtn.textContent = 'Uploading…';
+    submitBtn.disabled    = true;
+
+    fetch('../php/upload_document.php', { method:'POST', body:formData })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Document uploaded successfully!', true);
+                addTableRow(document.getElementById('docTitle').value, data.submitted_by || 'You', data.submission_id, ext);
                 closeUploadModal();
-            });
-        } else {
-            throw new Error('Failed to generate document');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error generating document: ' + error.message);
-    })
-    .finally(() => {
-        submitBtn.textContent = originalText;
-        submitBtn.disabled = false;
-    });
+                setTimeout(() => location.reload(), 1200);
+            } else {
+                showToast('Error: ' + (data.message || 'Upload failed.'), false);
+            }
+        })
+        .catch(err => showToast('Upload error: ' + err.message, false))
+        .finally(() => { submitBtn.textContent = origText; submitBtn.disabled = false; });
 };
 
-// Handle regular form submission (existing)
-uploadForm.onsubmit = function(e) {
+// ─── Template upload submit ──────────────────────────────────────────────────
+templateForm.onsubmit = function (e) {
     e.preventDefault();
-    // In a real app, you'd send the form data via fetch or regular POST
-    alert('Document uploaded successfully! (simulated)');
-    closeUploadModal();
+    if (submitBtn.disabled) { alert('Please fill in all required fields'); return; }
+
+    const sel   = document.getElementById('templateSelect');
+    const title = sel.options[sel.selectedIndex].text;
+    const id    = sel.value;
+    if (!id) { alert('Please select a template'); return; }
+
+    const formData = new FormData();
+    formData.append('template_id', id);
+    formData.append('title', title);
+    formData.append('organization_name',    document.getElementById('organizationName').value);
+    formData.append('organization_tagline', document.getElementById('organizationTagline').value);
+    const logo = document.getElementById('collaboratedLogo').value;
+    if (logo) formData.append('collaborated_logo', logo);
+    Object.keys(templates[id].fields).forEach(fieldId => {
+        const el = document.getElementById(fieldId);
+        if (el) formData.append(fieldId, el.value);
+    });
+
+    const origText = submitBtn.textContent;
+    submitBtn.textContent = 'Generating…';
+    submitBtn.disabled    = true;
+
+    fetch('../php/upload_document.php', { method:'POST', body:formData })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Document generated and submitted!', true);
+                addTableRow(title, data.submitted_by || 'You', data.submission_id, 'docx');
+                closeUploadModal();
+                setTimeout(() => location.reload(), 1200);
+            } else {
+                showToast('Error: ' + (data.message || 'Failed.'), false);
+            }
+        })
+        .catch(err => showToast('Error: ' + err.message, false))
+        .finally(() => { submitBtn.textContent = origText; submitBtn.disabled = false; });
 };
 
-// ========== SEARCH & FILTER ==========
-const searchInput = document.getElementById('searchInput');
-const statusFilter = document.getElementById('statusFilter');
-const dateFilter = document.getElementById('dateFilter');
-const tableRows = document.querySelectorAll('#documentsTable tbody tr');
+// ─── Add optimistic row ──────────────────────────────────────────────────────
+function addTableRow(title, submittedBy, submissionId, ext) {
+    const tbody = document.querySelector('#documentsTable tbody');
+    const empty = tbody.querySelector('tr td[colspan]');
+    if (empty) empty.closest('tr').remove();
 
-function filterTable() {
-    const searchTerm = searchInput.value.toLowerCase();
-    const statusVal = statusFilter.value.toLowerCase();
-    const dateVal = dateFilter.value;
+    const today = new Date().toLocaleDateString('en-US', { month:'short', day:'2-digit', year:'numeric' });
+    const extColors = { pdf:'#e74c3c', docx:'#2980b9', xlsx:'#27ae60' };
+    const extIcons  = { pdf:'fa-file-pdf', docx:'fa-file-word', xlsx:'fa-file-excel' };
+    const color     = extColors[ext] || '#7f8c8d';
+    const icon      = extIcons[ext]  || 'fa-file-alt';
 
-    tableRows.forEach(row => {
-        const cells = row.querySelectorAll('td');
-        const title = cells[0].innerText.toLowerCase();
-        const date = cells[1].innerText;
-        const status = cells[3].innerText.toLowerCase();
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td>
+            <div class="doc-name-cell">
+                <i class="fas ${icon} doc-icon" style="color:${color};font-size:1.3rem;flex-shrink:0"></i>
+                <div class="doc-meta-text">
+                    <strong>${escHtml(title)}</strong>
+                    <small><span class="file-type-badge" style="background:${color}">${ext.toUpperCase()}</span></small>
+                </div>
+            </div>
+        </td>
+        <td>${today}</td>
+        <td>${escHtml(submittedBy)}</td>
+        <td><span class="status-badge pending">Pending</span></td>
+        <td>Awaiting review</td>
+        <td>
+            <div class="action-btns">
+                <button class="btn-view" onclick="openPreviewModal(${submissionId},'${ext}','${escHtml(title)}')">
+                    <i class="fas fa-eye"></i> View
+                </button>
+            </div>
+        </td>`;
+    tbody.insertBefore(tr, tbody.firstChild);
+}
 
-        const matchesSearch = title.includes(searchTerm);
-        const matchesStatus = statusVal === '' || status === statusVal;
-        const matchesDate = dateVal === '' || date === dateVal;
+function escHtml(str) {
+    return String(str)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+        .replace(/'/g,'&#39;');
+}
 
-        if (matchesSearch && matchesStatus && matchesDate) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
+// ─── Toast ───────────────────────────────────────────────────────────────────
+function showToast(msg, success) {
+    const old = document.getElementById('dt-toast');
+    if (old) old.remove();
+    const t = document.createElement('div');
+    t.id = 'dt-toast';
+    t.style.cssText = `
+        position:fixed;top:1.5rem;right:1.5rem;z-index:99999;
+        padding:.85rem 1.4rem;border-radius:12px;font-size:.93rem;font-weight:600;
+        box-shadow:0 4px 20px rgba(0,0,0,.2);color:#fff;max-width:360px;
+        display:flex;align-items:center;gap:.6rem;
+        background:${success ? '#27ae60' : '#e74c3c'};`;
+    t.innerHTML = `<i class="fas ${success ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i><span>${msg}</span>`;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 4000);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PREVIEW MODAL  (inject once at runtime so no changes to .php needed)
+// ═══════════════════════════════════════════════════════════════════════════
+(function buildPreviewModal() {
+    const style = document.createElement('style');
+    style.textContent = `
+    #previewModal {
+        display:none;position:fixed;inset:0;z-index:5000;
+        background:rgba(0,0,0,.65);align-items:center;justify-content:center;padding:1rem;
+    }
+    #previewModal.pm-open { display:flex; }
+    #pm-box {
+        background:#fff;border-radius:20px;overflow:hidden;
+        width:92vw;max-width:1100px;height:88vh;
+        display:flex;flex-direction:column;
+        box-shadow:0 24px 60px rgba(0,0,0,.4);
+    }
+    #pm-header {
+        background:#1a3c2f;color:#fff;
+        padding:.75rem 1.25rem;
+        display:flex;align-items:center;gap:.7rem;flex-shrink:0;
+    }
+    #pm-title {
+        flex:1;font-size:1rem;font-weight:600;
+        white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    }
+    .pm-hbtn {
+        display:inline-flex;align-items:center;gap:.35rem;
+        padding:.4rem 1rem;border-radius:20px;font-size:.82rem;font-weight:600;
+        border:none;cursor:pointer;text-decoration:none;transition:filter .15s;
+    }
+    .pm-hbtn:hover { filter:brightness(1.15); }
+    #pm-dl-btn   { background:#27ae60;color:#fff; }
+    #pm-close-btn{ background:rgba(255,255,255,.18);color:#fff; }
+    #pm-body {
+        flex:1;overflow:hidden;position:relative;background:#e8e8e8;
+    }
+    #pm-body iframe {
+        position:absolute;inset:0;width:100%;height:100%;border:none;
+    }
+    #pm-docx-wrap {
+        position:absolute;inset:0;overflow:auto;padding:20px;background:#e8e8e8;
+    }
+    #pm-docx-wrap .docx-wrapper {
+        background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.15);margin:0 auto;
+    }
+    #pm-xlsx-wrap {
+        position:absolute;inset:0;overflow:auto;background:#fff;padding:1rem;
+    }
+    #pm-xlsx-wrap table  { border-collapse:collapse;font-size:.82rem;min-width:100%; }
+    #pm-xlsx-wrap th,
+    #pm-xlsx-wrap td     { border:1px solid #ccc;padding:.3rem .6rem;white-space:nowrap; }
+    #pm-xlsx-wrap th     { background:#2d6a4f;color:#fff;position:sticky;top:0; }
+    #pm-xlsx-wrap tr:nth-child(even) td { background:#f9fbf9; }
+    #pm-loading {
+        position:absolute;inset:0;background:rgba(255,255,255,.88);
+        display:flex;flex-direction:column;align-items:center;justify-content:center;
+        gap:.8rem;font-size:.95rem;color:#555;z-index:9;
+    }
+    #pm-loading.pm-hidden { display:none; }
+    .pm-spin {
+        width:38px;height:38px;border:4px solid #dde;
+        border-top-color:#2d6a4f;border-radius:50%;
+        animation:pmSpin .7s linear infinite;
+    }
+    @keyframes pmSpin { to { transform:rotate(360deg); } }
+    #pm-err {
+        display:none;position:absolute;inset:0;
+        align-items:center;justify-content:center;
+        flex-direction:column;gap:.6rem;padding:2rem;
+        text-align:center;color:#c0392b;font-weight:600;background:#fff;
+    }
+    #pm-err.pm-show { display:flex; }
+    #pm-err i { font-size:2.5rem; }
+    `;
+    document.head.appendChild(style);
+
+    const modal = document.createElement('div');
+    modal.id = 'previewModal';
+    modal.innerHTML = `
+    <div id="pm-box">
+        <div id="pm-header">
+            <span id="pm-title">Document</span>
+            <button id="pm-close-btn" class="pm-hbtn"><i class="fas fa-times"></i> Close</button>
+        </div>
+        <div id="pm-body">
+            <div id="pm-loading">
+                <div class="pm-spin"></div>
+                <span id="pm-load-txt">Loading…</span>
+            </div>
+            <div id="pm-err"><i class="fas fa-exclamation-triangle"></i><span id="pm-err-txt"></span></div>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+
+    document.getElementById('pm-close-btn').onclick = closePreviewModal;
+    modal.addEventListener('click', e => { if (e.target === modal) closePreviewModal(); });
+}());
+
+let _docxReady = false, _xlsxReady = false;
+
+function closePreviewModal() {
+    document.getElementById('previewModal').classList.remove('pm-open');
+    // Tear down dynamic content
+    ['pm-docx-wrap','pm-xlsx-wrap'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.remove();
+    });
+    const iframe = document.querySelector('#pm-body iframe');
+    if (iframe) iframe.remove();
+    // Reset states
+    document.getElementById('pm-loading').classList.remove('pm-hidden');
+    document.getElementById('pm-err').classList.remove('pm-show');
+}
+
+window.openPreviewModal = function (submissionId, ext, title) {
+    const modal   = document.getElementById('previewModal');
+    const body    = document.getElementById('pm-body');
+    const loading = document.getElementById('pm-loading');
+    const loadTxt = document.getElementById('pm-load-txt');
+    const err     = document.getElementById('pm-err');
+
+    // Reset
+    ['pm-docx-wrap','pm-xlsx-wrap'].forEach(id => { const el=document.getElementById(id); if(el) el.remove(); });
+    const oldIframe = body.querySelector('iframe');
+    if (oldIframe) oldIframe.remove();
+    loading.classList.remove('pm-hidden');
+    err.classList.remove('pm-show');
+
+    document.getElementById('pm-title').textContent = title || 'Document';
+    modal.classList.add('pm-open');
+
+    const url = `../php/file_preview.php?submission_id=${submissionId}`;
+
+    // ── PDF / image ──────────────────────────────────────────────────────────
+    if (ext === 'pdf' || ['jpg','jpeg','png','gif','txt'].includes(ext)) {
+        loadTxt.textContent = 'Loading document…';
+        const iframe = document.createElement('iframe');
+        iframe.src = url;
+        iframe.onload = () => loading.classList.add('pm-hidden');
+        iframe.onerror = () => showPmErr('Failed to load document.');
+        body.appendChild(iframe);
+        return;
+    }
+
+    // ── DOCX ─────────────────────────────────────────────────────────────────
+    if (ext === 'docx') {
+        loadTxt.textContent = 'Rendering document…';
+        const wrap = document.createElement('div');
+        wrap.id = 'pm-docx-wrap';
+        body.appendChild(wrap);
+
+        function render() {
+            fetch(url)
+                .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
+                .then(buf => docx.renderAsync(buf, wrap, null, {
+                    className:'docx-wrapper', inWrapper:true,
+                    ignoreWidth:false, ignoreHeight:false,
+                    renderHeaders:true, renderFooters:true
+                }))
+                .then(() => loading.classList.add('pm-hidden'))
+                .catch(e => showPmErr('Render failed: ' + e.message));
         }
+        if (_docxReady) { render(); return; }
+        loadScript('https://cdn.jsdelivr.net/npm/docx-preview@0.3.0/dist/docx-preview.min.js',
+            () => { _docxReady = true; render(); },
+            () => showPmErr('Could not load DOCX renderer (check internet connection).')
+        );
+        return;
+    }
+
+    // ── XLSX ─────────────────────────────────────────────────────────────────
+    if (ext === 'xlsx' || ext === 'xls') {
+        loadTxt.textContent = 'Loading spreadsheet…';
+        const wrap = document.createElement('div');
+        wrap.id = 'pm-xlsx-wrap';
+        body.appendChild(wrap);
+
+        function renderSheet() {
+            fetch(url)
+                .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
+                .then(buf => {
+                    const wb    = XLSX.read(new Uint8Array(buf), { type:'array' });
+                    const names = wb.SheetNames;
+                    let html = '';
+                    if (names.length > 1) {
+                        html += '<div style="display:flex;gap:.4rem;padding:.5rem;background:#f4f4f4;border-bottom:1px solid #ccc;flex-wrap:wrap">';
+                        names.forEach((n,i) => {
+                            html += `<button onclick="pmTab(${i})" id="pm-stab-${i}"
+                                style="padding:.25rem .75rem;border:1px solid #ccc;border-radius:4px;cursor:pointer;
+                                background:${i===0?'#2d6a4f':'#fff'};color:${i===0?'#fff':'#333'}">${n}</button>`;
+                        });
+                        html += '</div>';
+                    }
+                    html += '<div id="pm-sheet"></div>';
+                    wrap.innerHTML = html;
+                    window._pmWb = wb;
+                    pmTab(0);
+                    loading.classList.add('pm-hidden');
+                })
+                .catch(e => showPmErr('Failed to load spreadsheet: ' + e.message));
+        }
+        if (_xlsxReady) { renderSheet(); return; }
+        loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+            () => { _xlsxReady = true; renderSheet(); },
+            () => showPmErr('Could not load spreadsheet renderer.')
+        );
+        return;
+    }
+
+    // ── Unsupported ──────────────────────────────────────────────────────────
+    loading.classList.add('pm-hidden');
+    showPmErr(`Preview not available for .${ext.toUpperCase()} files — use the Download button.`);
+};
+
+window.pmTab = function (idx) {
+    const wb = window._pmWb; if (!wb) return;
+    wb.SheetNames.forEach((_,i) => {
+        const t = document.getElementById('pm-stab-'+i);
+        if (t) { t.style.background = i===idx?'#2d6a4f':'#fff'; t.style.color = i===idx?'#fff':'#333'; }
+    });
+    const sheet = document.getElementById('pm-sheet');
+    if (sheet) sheet.innerHTML = XLSX.utils.sheet_to_html(wb.Sheets[wb.SheetNames[idx]], {editable:false});
+};
+
+function showPmErr(msg) {
+    document.getElementById('pm-loading').classList.add('pm-hidden');
+    const e = document.getElementById('pm-err');
+    document.getElementById('pm-err-txt').textContent = msg;
+    e.classList.add('pm-show');
+}
+
+function loadScript(src, onload, onerror) {
+    const s = document.createElement('script');
+    s.src = src; s.onload = onload; s.onerror = onerror;
+    document.head.appendChild(s);
+}
+
+// ─── Search & Filter ─────────────────────────────────────────────────────────
+function filterTable() {
+    // Re-query every time so dynamically added rows are included
+    const rows       = document.querySelectorAll('#documentsTable tbody tr');
+    const searchTerm = searchInput.value.toLowerCase();
+    const statusVal  = statusFilter.value.toLowerCase();
+    const dateVal    = dateFilter.value;
+
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        // Skip empty-state colspan rows
+        if (!cells.length || (cells.length === 1 && cells[0].hasAttribute('colspan'))) return;
+
+        const title  = cells[0] ? cells[0].textContent.toLowerCase() : '';
+        const date   = cells[1] ? cells[1].textContent.trim() : '';
+        const status = cells[3] ? cells[3].textContent.trim().toLowerCase() : '';
+
+        const ok = (!searchTerm || title.includes(searchTerm))
+                && (!statusVal  || status.includes(statusVal))
+                && (!dateVal    || date.includes(dateVal));
+
+        row.style.display = ok ? '' : 'none';
     });
 }
 
-searchInput.addEventListener('input', filterTable);
+searchInput.addEventListener('input',  filterTable);
 statusFilter.addEventListener('change', filterTable);
-dateFilter.addEventListener('change', filterTable);
+dateFilter.addEventListener('change',  filterTable);
