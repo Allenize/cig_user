@@ -407,54 +407,108 @@ function showToast(msg, success) {
         position:absolute;inset:0;width:100%;height:100%;border:none;
     }
     #pm-docx-wrap {
-        position:absolute;inset:0;overflow:auto;padding:30px 0;background:#e8e8e8;
+        position:absolute;inset:0;overflow:auto;padding:20px 0;background:#e8e8e8;
     }
     #pm-docx-wrap .docx-wrapper {
         margin:0 auto;
     }
-    /* Each page looks like a real A4 sheet */
+    /* Page sheet */
     #pm-docx-wrap .docx-wrapper > section {
         background:white;
         box-shadow:0 2px 16px rgba(0,0,0,.18);
         margin:0 auto 24px auto;
         box-sizing:border-box;
         position:relative;
+        display:flex;
+        flex-direction:column;
     }
-    /* Lock header — never reflow */
+    /* Header — fixed at top, full width */
     #pm-docx-wrap header {
-        overflow:hidden !important;
+        display:block !important;
+        position:relative !important;
+        width:100% !important;
+        overflow:visible !important;
+        flex-shrink:0;
+        margin:0 !important;
+        padding:0 !important;
+    }
+    /* Header table must span full width with equal columns */
+    #pm-docx-wrap header table {
+        width:100% !important;
+        table-layout:fixed !important;
+        border-collapse:collapse !important;
+    }
+    #pm-docx-wrap header td {
+        vertical-align:middle !important;
+        text-align:center !important;
+        padding:4px !important;
+        overflow:visible !important;
+    }
+    /* Images inside header — contained, not absolute */
+    #pm-docx-wrap header img {
         position:relative !important;
         display:block !important;
-        pointer-events:none !important;
+        margin:0 auto !important;
+        max-width:100% !important;
+        max-height:120px !important;
+        width:auto !important;
+        height:auto !important;
+        visibility:visible !important;
     }
-    /* Lock footer */
+    /* Footer — fixed at bottom */
     #pm-docx-wrap footer {
-        overflow:hidden !important;
+        display:block !important;
+        position:relative !important;
+        width:100% !important;
+        overflow:visible !important;
+        flex-shrink:0;
+        margin-top:auto !important;
+        padding:0 !important;
+        border-top:1px solid #ccc;
+    }
+    #pm-docx-wrap footer table {
+        width:100% !important;
+        table-layout:fixed !important;
+        border-collapse:collapse !important;
+    }
+    #pm-docx-wrap footer td {
+        vertical-align:middle !important;
+        text-align:center !important;
+        padding:4px !important;
+    }
+    #pm-docx-wrap footer img {
         position:relative !important;
         display:block !important;
-        pointer-events:none !important;
+        margin:0 auto !important;
+        max-width:100% !important;
+        max-height:60px !important;
+        width:auto !important;
+        height:auto !important;
+        visibility:visible !important;
     }
-    /* All images visible */
+    /* Body content area */
+    #pm-docx-wrap article, #pm-docx-wrap main,
+    #pm-docx-wrap .docx-wrapper > section > div:not(header):not(footer) {
+        flex:1;
+    }
+    /* All images visible by default */
     #pm-docx-wrap img {
         visibility:visible !important;
-        display:inline-block !important;
-        max-width:100% !important;
-        height:auto !important;
     }
-    #pm-docx-wrap svg image {
-        visibility:visible !important;
+    /* Absolutely positioned images — reset to relative */
+    #pm-docx-wrap header img[style*="position:absolute"],
+    #pm-docx-wrap header img[style*="position: absolute"] {
+        position:relative !important;
+        left:auto !important;
+        top:auto !important;
+        transform:none !important;
     }
-    #pm-docx-wrap v\:imagedata {
-        visibility:visible !important;
-    }
-    /* Tables */
+    /* Tables in body */
     #pm-docx-wrap table {
         border-collapse:collapse;
-        table-layout:fixed;
     }
     #pm-docx-wrap td, #pm-docx-wrap th {
         vertical-align:top;
-        overflow:hidden;
         word-break:break-word;
     }
     #pm-xlsx-wrap {
@@ -565,70 +619,69 @@ window.openPreviewModal = function (submissionId, ext, title) {
         wrap.id = 'pm-docx-wrap';
         body.appendChild(wrap);
 
-        // Step 1: ensure JSZip loaded (docx-preview dependency)
-        function ensureJsZip() {
-            return new Promise(function(res, rej) {
-                if (typeof JSZip !== 'undefined') { res(); return; }
-                loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', res, rej);
-            });
-        }
-        // Step 2: ensure docx-preview loaded
-        function ensureDocxPreview() {
-            return new Promise(function(res, rej) {
-                if (typeof docx !== 'undefined') { res(); return; }
-                loadScript('https://cdn.jsdelivr.net/npm/docx-preview@0.3.2/dist/docx-preview.min.js', res, rej);
-            });
-        }
+        const base = '/org-dashboard/php/get_docx.php?id=' + submissionId;
 
-        // Fetch binary then render
-        fetch('/org-dashboard/php/get_docx.php?id=' + submissionId, { credentials: 'include' })
-            .then(function(r) {
-                if (!r.ok) return r.text().then(function(t) { throw new Error('HTTP ' + r.status + ': ' + t); });
-                return r.arrayBuffer();
-            })
-            .then(function(buf) {
-                if (buf.byteLength < 100) throw new Error('File empty or not saved (' + buf.byteLength + ' bytes)');
-                var b = new Uint8Array(buf);
-                if (b[0] !== 0x50 || b[1] !== 0x4B) throw new Error('Not a valid DOCX file (bad header)');
-                return ensureJsZip().then(function() {
-                    return ensureDocxPreview().then(function() {
-                        return buf;
-                    });
-                });
-            })
-            .then(function(buf) {
-                return docx.renderAsync(buf, wrap, null, {
-                    className:                   'docx-wrapper',
-                    inWrapper:                   true,
-                    ignoreWidth:                 false,
-                    ignoreHeight:                false,
-                    ignoreFonts:                 false,
-                    breakPages:                  true,
-                    ignoreLastRenderedPageBreak: true,
-                    experimental:                true,
-                    trimXmlDeclaration:          true,
-                    renderHeaders:               true,
-                    renderFooters:               true,
-                    renderFootnotes:             true,
-                    renderEndnotes:              true,
-                    useBase64URL:                true,
-                });
-            })
-            .then(function() {
-                // After render, inject images then snapshot header/footer
-                injectDocxImages(submissionId, wrap, function() {
-                    // Wait for images to paint, then snapshot header/footer
-                    setTimeout(function() {
-                        snapshotHeaderFooter(wrap, function() {
-                            loading.classList.add('pm-hidden');
-                        });
-                    }, 800);
-                });
-            })
-            .catch(function(e) { showPmErr('Error loading document: ' + e.message); });
+        // Fetch binary + image list in parallel
+        Promise.all([
+            fetch(base + '&mode=binary', { credentials: 'include' }).then(function(r) { return r.arrayBuffer(); }),
+            fetch(base + '&mode=list',   { credentials: 'include' }).then(function(r) { return r.json(); })
+        ])
+        .then(function(results) {
+            var buf      = results[0];
+            var imgData  = results[1];
+            var files    = imgData.files    || [];
+            var hdrImgs  = imgData.headerImages || [];
+
+            if (buf.byteLength < 100) throw new Error('Empty file');
+
+            // Ensure JSZip + docx-preview loaded
+            return new Promise(function(resolve, reject) {
+                function loadDocxPreview() {
+                    if (typeof docx !== 'undefined') { resolve({ buf: buf, files: files, hdrImgs: hdrImgs }); return; }
+                    loadScript('https://cdn.jsdelivr.net/npm/docx-preview@0.3.2/dist/docx-preview.min.js',
+                        function() { resolve({ buf: buf, files: files, hdrImgs: hdrImgs }); },
+                        reject
+                    );
+                }
+                if (typeof JSZip !== 'undefined') { loadDocxPreview(); return; }
+                loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
+                    loadDocxPreview, reject);
+            });
+        })
+        .then(function(obj) {
+            return docx.renderAsync(obj.buf, wrap, null, {
+                className:                   'docx-wrapper',
+                inWrapper:                   true,
+                ignoreWidth:                 false,
+                ignoreHeight:                false,
+                breakPages:                  true,
+                ignoreLastRenderedPageBreak: true,
+                experimental:                true,
+                trimXmlDeclaration:          true,
+                renderHeaders:               true,
+                renderFooters:               true,
+                renderFootnotes:             true,
+                renderEndnotes:              true,
+                useBase64URL:                true,
+            });
+        })
+        .then(function() {
+            // Force all images visible
+            wrap.querySelectorAll('img').forEach(function(img) {
+                img.style.visibility = 'visible';
+                img.style.display    = 'inline-block';
+                // Reset any absolute positioning injected by docx-preview
+                if (img.style.position === 'absolute') {
+                    img.style.position = 'relative';
+                    img.style.left     = 'auto';
+                    img.style.top      = 'auto';
+                }
+            });
+            loading.classList.add('pm-hidden');
+        })
+        .catch(function(e) { showPmErr('Error: ' + e.message); });
         return;
     }
-
 
     // ── XLSX ─────────────────────────────────────────────────────────────────
     if (ext === 'xlsx' || ext === 'xls') {
@@ -787,74 +840,109 @@ function injectDocxImages(submissionId, wrap, callback) {
         .catch(function() { if (callback) callback(); });
 }
 
-// ── Snapshot header/footer as frozen images using html2canvas ─────────────────
-function snapshotHeaderFooter(wrap, callback) {
-    function doSnapshot() {
-        var headers = wrap.querySelectorAll('header');
-        var footers = wrap.querySelectorAll('footer');
-        var total   = headers.length + footers.length;
-        var done    = 0;
+// ── Freeze header/footer: render into offscreen canvas then replace ───────────
+function freezeHeaderFooter(submissionId, wrap, callback) {
+    // Collect all header and footer elements
+    var els = [];
+    wrap.querySelectorAll('header').forEach(function(el) { els.push({el:el, type:'header'}); });
+    wrap.querySelectorAll('footer').forEach(function(el) { els.push({el:el, type:'footer'}); });
 
-        function snap(el) {
-            // Force all child images visible before snapshot
+    if (els.length === 0) { if(callback) callback(); return; }
+
+    // Load html2canvas
+    function doFreeze() {
+        var done = 0;
+        var total = els.length;
+
+        els.forEach(function(item) {
+            var el = item.el;
+
+            // Force every img inside to be visible with correct src
             el.querySelectorAll('img').forEach(function(img) {
-                img.style.visibility = 'visible';
-                img.style.display    = 'inline-block';
-                img.style.maxWidth   = '100%';
-            });
-            el.querySelectorAll('image').forEach(function(img) {
-                img.style.visibility = 'visible';
+                img.style.cssText += ';visibility:visible!important;display:inline-block!important;';
+                // If src is blob: try to keep it, if broken set a placeholder
+                if (!img.src || img.naturalWidth === 0) {
+                    img.style.display = 'none';
+                }
             });
 
-            var w = el.scrollWidth  || el.offsetWidth  || 800;
-            var h = el.scrollHeight || el.offsetHeight || 150;
-            if (h < 10) { done++; if (done >= total && callback) callback(); return; }
+            // Get dimensions
+            var rect = el.getBoundingClientRect();
+            var w = Math.max(el.scrollWidth, rect.width, 200);
+            var h = Math.max(el.scrollHeight, rect.height, 20);
+
+            if (h < 5) {
+                done++;
+                if (done >= total && callback) callback();
+                return;
+            }
 
             html2canvas(el, {
-                scale:           2,
-                useCORS:         true,
-                allowTaint:      true,
+                scale: 2,
+                useCORS: true,
+                allowTaint: true,
                 backgroundColor: '#ffffff',
-                width:           w,
-                height:          h,
-                logging:         false,
-                onclone: function(doc, clonedEl) {
-                    clonedEl.querySelectorAll('img,image').forEach(function(im) {
-                        im.style.visibility = 'visible';
-                        im.style.display    = 'inline-block';
+                width: w,
+                height: h,
+                windowWidth: document.documentElement.scrollWidth,
+                windowHeight: document.documentElement.scrollHeight,
+                logging: false,
+                imageTimeout: 5000,
+                onclone: function(clonedDoc, clonedEl) {
+                    // In the clone, make ALL images visible
+                    clonedEl.querySelectorAll('img').forEach(function(im) {
+                        if (im.src && im.src !== 'about:blank') {
+                            im.style.visibility = 'visible';
+                            im.style.display = 'inline-block';
+                            im.style.opacity = '1';
+                        }
                     });
+                    // Fix absolutely positioned elements
+                    clonedEl.style.position = 'relative';
+                    clonedEl.style.overflow = 'visible';
                 }
             }).then(function(canvas) {
-                var img          = document.createElement('img');
-                img.src          = canvas.toDataURL('image/png');
-                img.style.cssText = 'width:100%;display:block;margin:0;padding:0;border:none;';
-                // Replace the element with the frozen image
-                if (el.parentNode) el.parentNode.replaceChild(img, el);
+                // Only replace if canvas has content
+                if (canvas.width > 0 && canvas.height > 0) {
+                    var img = document.createElement('img');
+                    img.src = canvas.toDataURL('image/png', 1.0);
+                    img.style.cssText = 'width:100%;display:block;margin:0;padding:0;border:none;max-width:100%;';
+                    if (el.parentNode) el.parentNode.replaceChild(img, el);
+                }
                 done++;
                 if (done >= total && callback) callback();
-            }).catch(function() {
+            }).catch(function(e) {
+                console.warn('html2canvas error:', e);
                 done++;
                 if (done >= total && callback) callback();
             });
-        }
-
-        if (total === 0) { if (callback) callback(); return; }
-
-        // Load html2canvas if not already loaded
-        if (typeof html2canvas === 'undefined') {
-            loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
-                function() {
-                    headers.forEach(snap);
-                    footers.forEach(snap);
-                },
-                function() { if (callback) callback(); }
-            );
-        } else {
-            headers.forEach(snap);
-            footers.forEach(snap);
-        }
+        });
     }
-    doSnapshot();
+
+    // Wait for all images in the wrap to fully load first
+    var allImgs = Array.from(wrap.querySelectorAll('img'));
+    var loadPromises = allImgs.map(function(img) {
+        return new Promise(function(res) {
+            if (img.complete && img.naturalWidth > 0) { res(); return; }
+            img.onload  = res;
+            img.onerror = res;
+            setTimeout(res, 3000); // max wait 3s
+        });
+    });
+
+    Promise.all(loadPromises).then(function() {
+        // Extra delay for browser to paint
+        setTimeout(function() {
+            if (typeof html2canvas !== 'undefined') {
+                doFreeze();
+            } else {
+                loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
+                    function() { doFreeze(); },
+                    function() { if(callback) callback(); }
+                );
+            }
+        }, 1000);
+    });
 }
 
 // ─── Search & Filter ─────────────────────────────────────────────────────────

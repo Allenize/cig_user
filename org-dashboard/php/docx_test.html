@@ -1,40 +1,35 @@
 <!DOCTYPE html>
 <html>
-<head><meta charset="UTF-8"><title>Header Snapshot Test</title>
+<head><meta charset="UTF-8"><title>Header CSS Debug</title>
 <style>
 body{font-family:monospace;padding:20px;background:#f0f0f0}
-#log{background:#1e1e1e;color:#0f0;padding:15px;border-radius:8px;white-space:pre-wrap;font-size:12px;max-height:300px;overflow:auto;margin-bottom:10px}
+#log{background:#1e1e1e;color:#0f0;padding:15px;border-radius:8px;white-space:pre-wrap;font-size:11px;max-height:500px;overflow:auto;margin-bottom:10px}
 #render{background:white;border-radius:8px;overflow:auto;margin-bottom:10px}
 button{padding:8px 16px;background:#2d6a4f;color:white;border:none;border-radius:6px;cursor:pointer;margin:3px}
-input{padding:6px;font-size:14px;border:1px solid #ccc;border-radius:4px;width:60px}
+input{padding:6px;border:1px solid #ccc;border-radius:4px;width:60px}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
-<h2>Header Snapshot Test</h2>
-<p>Sub ID: <input id="sid" value="17"> <button onclick="run()">Run</button></p>
-<div id="log">Press Run...\n</div>
+<h2>Header CSS Debug</h2>
+<p>Sub ID: <input id="sid" value="22"> <button onclick="run()">Run</button></p>
+<div id="log">Press Run...</div>
 <div id="render"></div>
 <script>
 var L=function(m){var el=document.getElementById('log');el.textContent+=m+'\n';el.scrollTop=el.scrollHeight;};
 function loadScript(src){
     return new Promise(function(res,rej){
-        if(document.querySelector('script[src="'+src+'"]')){res();return;}
         var s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);
     });
 }
-
 async function run(){
     document.getElementById('log').textContent='';
     document.getElementById('render').innerHTML='';
     var SID=document.getElementById('sid').value;
 
-    var r=await fetch('/org-dashboard/php/get_docx.php?id='+SID,{credentials:'include'});
+    var r=await fetch('/org-dashboard/php/get_docx.php?id='+SID+'&mode=binary',{credentials:'include'});
     var buf=await r.arrayBuffer();
-    L('Bytes: '+buf.byteLength);
-
-    await loadScript('https://cdn.jsdelivr.net/npm/docx-preview@0.3.2/dist/docx-preview.min.js');
+    if(typeof docx==='undefined') await loadScript('https://cdn.jsdelivr.net/npm/docx-preview@0.3.2/dist/docx-preview.min.js');
     var c=document.getElementById('render');
     await docx.renderAsync(buf,c,null,{
         className:'docx-wrapper',inWrapper:true,
@@ -43,49 +38,30 @@ async function run(){
     });
     L('Rendered');
 
-    // Inspect header structure
-    var headers = c.querySelectorAll('header');
-    var footers = c.querySelectorAll('footer');
-    L('Headers: '+headers.length+' Footers: '+footers.length);
-
-    headers.forEach(function(h,i){
-        L('header['+i+'] offsetHeight='+h.offsetHeight+' class="'+h.className+'"');
-        L('  innerHTML length: '+h.innerHTML.length);
-        // Log all child elements with positions
-        Array.from(h.querySelectorAll('*')).slice(0,20).forEach(function(el){
-            var r=el.getBoundingClientRect();
-            L('  '+el.tagName+'.'+el.className.substring(0,30)+' x='+Math.round(r.x)+' y='+Math.round(r.y)+' w='+Math.round(r.width)+' h='+Math.round(r.height));
-        });
+    // Get header and log every element's computed style
+    var header = c.querySelector('header');
+    if(!header){L('NO HEADER FOUND'); return;}
+    L('Header offsetH='+header.offsetHeight+' scrollH='+header.scrollHeight);
+    L('Header computed: position='+getComputedStyle(header).position+' overflow='+getComputedStyle(header).overflow);
+    L('');
+    L('=== ALL ELEMENTS IN HEADER (with computed styles) ===');
+    header.querySelectorAll('*').forEach(function(el,i){
+        var cs = getComputedStyle(el);
+        var pos = cs.position;
+        var vis = cs.visibility;
+        var disp = cs.display;
+        var w = cs.width;
+        var h = cs.height;
+        var left = cs.left;
+        var top = cs.top;
+        // Only log interesting ones
+        if(pos!=='static' || vis!=='visible' || disp==='none' || el.tagName==='IMG'){
+            L(el.tagName+'.'+(el.className||'').substring(0,30));
+            L('  pos='+pos+' left='+left+' top='+top+' w='+w+' h='+h);
+            L('  vis='+vis+' display='+disp);
+            if(el.tagName==='IMG') L('  naturalW='+el.naturalWidth+' src_type='+(el.src.startsWith('data:') ? 'data:len='+el.src.length : el.src.substring(0,40)));
+        }
     });
-
-    footers.forEach(function(f,i){
-        L('footer['+i+'] offsetHeight='+f.offsetHeight);
-    });
-
-    // Try html2canvas snapshot on header
-    if(headers.length > 0 && window.html2canvas){
-        L('\nTrying html2canvas on header[0]...');
-        try {
-            var h = headers[0];
-            // Force all images visible
-            h.querySelectorAll('img,image').forEach(function(im){
-                im.style.visibility='visible';
-                im.style.display='inline-block';
-            });
-            await new Promise(r=>setTimeout(r,500));
-            var canvas = await html2canvas(h, {
-                scale:2, useCORS:true, allowTaint:true,
-                backgroundColor:'#ffffff', logging:false
-            });
-            L('Canvas: '+canvas.width+'x'+canvas.height);
-            // Show result
-            var img=document.createElement('img');
-            img.src=canvas.toDataURL();
-            img.style='width:100%;border:2px solid red;display:block;margin-top:10px';
-            document.body.appendChild(img);
-            L('✅ Snapshot shown below render area');
-        } catch(e){ L('html2canvas error: '+e.message); }
-    }
 }
 </script>
 </body></html>
