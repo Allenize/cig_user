@@ -40,4 +40,5 @@
         </div>
     </div>
 </div>
-<script src="../js/notifications.js"></script>
+
+<!-- NOTE: notifications.js is loaded by the parent page (dashboard.php etc.), not here -->
