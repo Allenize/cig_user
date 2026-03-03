@@ -20,11 +20,7 @@ if (!$conn) {
     header('Content-Type: application/json');
     exit(json_encode(['success' => false, 'message' => 'Database connection failed']));
 }
-// Use latin1 so binary file content isn't mangled as UTF-8 on insert/select
-mysqli_set_charset($conn, 'latin1');
-
 // Allow large BLOBs (up to 16MB)
-mysqli_query($conn, "SET GLOBAL max_allowed_packet=16777216");
 mysqli_query($conn, "SET SESSION max_allowed_packet=16777216");
 
 // Define template data function early

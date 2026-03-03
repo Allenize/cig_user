@@ -407,10 +407,55 @@ function showToast(msg, success) {
         position:absolute;inset:0;width:100%;height:100%;border:none;
     }
     #pm-docx-wrap {
-        position:absolute;inset:0;overflow:auto;padding:20px;background:#e8e8e8;
+        position:absolute;inset:0;overflow:auto;padding:30px 0;background:#e8e8e8;
     }
     #pm-docx-wrap .docx-wrapper {
-        background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.15);margin:0 auto;
+        margin:0 auto;
+    }
+    /* Each page looks like a real A4 sheet */
+    #pm-docx-wrap .docx-wrapper > section {
+        background:white;
+        box-shadow:0 2px 16px rgba(0,0,0,.18);
+        margin:0 auto 24px auto;
+        box-sizing:border-box;
+        position:relative;
+    }
+    /* Lock header — never reflow */
+    #pm-docx-wrap header {
+        overflow:hidden !important;
+        position:relative !important;
+        display:block !important;
+        pointer-events:none !important;
+    }
+    /* Lock footer */
+    #pm-docx-wrap footer {
+        overflow:hidden !important;
+        position:relative !important;
+        display:block !important;
+        pointer-events:none !important;
+    }
+    /* All images visible */
+    #pm-docx-wrap img {
+        visibility:visible !important;
+        display:inline-block !important;
+        max-width:100% !important;
+        height:auto !important;
+    }
+    #pm-docx-wrap svg image {
+        visibility:visible !important;
+    }
+    #pm-docx-wrap v\:imagedata {
+        visibility:visible !important;
+    }
+    /* Tables */
+    #pm-docx-wrap table {
+        border-collapse:collapse;
+        table-layout:fixed;
+    }
+    #pm-docx-wrap td, #pm-docx-wrap th {
+        vertical-align:top;
+        overflow:hidden;
+        word-break:break-word;
     }
     #pm-xlsx-wrap {
         position:absolute;inset:0;overflow:auto;background:#fff;padding:1rem;
@@ -498,7 +543,9 @@ window.openPreviewModal = function (submissionId, ext, title) {
     document.getElementById('pm-title').textContent = title || 'Document';
     modal.classList.add('pm-open');
 
-    const url = `../php/file_preview.php?submission_id=${submissionId}`;
+    // Build URL relative to current page location
+    const base = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+    const url  = base + 'file_preview.php?submission_id=' + submissionId;
 
     // ── PDF / image ──────────────────────────────────────────────────────────
     if (ext === 'pdf' || ['jpg','jpeg','png','gif','txt'].includes(ext)) {
@@ -513,29 +560,75 @@ window.openPreviewModal = function (submissionId, ext, title) {
 
     // ── DOCX ─────────────────────────────────────────────────────────────────
     if (ext === 'docx') {
-        loadTxt.textContent = 'Rendering document…';
+        loadTxt.textContent = 'Loading document…';
         const wrap = document.createElement('div');
         wrap.id = 'pm-docx-wrap';
         body.appendChild(wrap);
 
-        function render() {
-            fetch(url)
-                .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
-                .then(buf => docx.renderAsync(buf, wrap, null, {
-                    className:'docx-wrapper', inWrapper:true,
-                    ignoreWidth:false, ignoreHeight:false,
-                    renderHeaders:true, renderFooters:true
-                }))
-                .then(() => loading.classList.add('pm-hidden'))
-                .catch(e => showPmErr('Render failed: ' + e.message));
+        // Step 1: ensure JSZip loaded (docx-preview dependency)
+        function ensureJsZip() {
+            return new Promise(function(res, rej) {
+                if (typeof JSZip !== 'undefined') { res(); return; }
+                loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', res, rej);
+            });
         }
-        if (_docxReady) { render(); return; }
-        loadScript('https://cdn.jsdelivr.net/npm/docx-preview@0.3.0/dist/docx-preview.min.js',
-            () => { _docxReady = true; render(); },
-            () => showPmErr('Could not load DOCX renderer (check internet connection).')
-        );
+        // Step 2: ensure docx-preview loaded
+        function ensureDocxPreview() {
+            return new Promise(function(res, rej) {
+                if (typeof docx !== 'undefined') { res(); return; }
+                loadScript('https://cdn.jsdelivr.net/npm/docx-preview@0.3.2/dist/docx-preview.min.js', res, rej);
+            });
+        }
+
+        // Fetch binary then render
+        fetch('/org-dashboard/php/get_docx.php?id=' + submissionId, { credentials: 'include' })
+            .then(function(r) {
+                if (!r.ok) return r.text().then(function(t) { throw new Error('HTTP ' + r.status + ': ' + t); });
+                return r.arrayBuffer();
+            })
+            .then(function(buf) {
+                if (buf.byteLength < 100) throw new Error('File empty or not saved (' + buf.byteLength + ' bytes)');
+                var b = new Uint8Array(buf);
+                if (b[0] !== 0x50 || b[1] !== 0x4B) throw new Error('Not a valid DOCX file (bad header)');
+                return ensureJsZip().then(function() {
+                    return ensureDocxPreview().then(function() {
+                        return buf;
+                    });
+                });
+            })
+            .then(function(buf) {
+                return docx.renderAsync(buf, wrap, null, {
+                    className:                   'docx-wrapper',
+                    inWrapper:                   true,
+                    ignoreWidth:                 false,
+                    ignoreHeight:                false,
+                    ignoreFonts:                 false,
+                    breakPages:                  true,
+                    ignoreLastRenderedPageBreak: true,
+                    experimental:                true,
+                    trimXmlDeclaration:          true,
+                    renderHeaders:               true,
+                    renderFooters:               true,
+                    renderFootnotes:             true,
+                    renderEndnotes:              true,
+                    useBase64URL:                true,
+                });
+            })
+            .then(function() {
+                // After render, inject images then snapshot header/footer
+                injectDocxImages(submissionId, wrap, function() {
+                    // Wait for images to paint, then snapshot header/footer
+                    setTimeout(function() {
+                        snapshotHeaderFooter(wrap, function() {
+                            loading.classList.add('pm-hidden');
+                        });
+                    }, 800);
+                });
+            })
+            .catch(function(e) { showPmErr('Error loading document: ' + e.message); });
         return;
     }
+
 
     // ── XLSX ─────────────────────────────────────────────────────────────────
     if (ext === 'xlsx' || ext === 'xls') {
@@ -602,6 +695,166 @@ function loadScript(src, onload, onerror) {
     const s = document.createElement('script');
     s.src = src; s.onload = onload; s.onerror = onerror;
     document.head.appendChild(s);
+}
+
+
+// ── Inject real images into docx-preview rendered output ─────────────────────
+function injectDocxImages(submissionId, wrap, callback) {
+    fetch('/org-dashboard/php/get_docx.php?id=' + submissionId + '&mode=images', { credentials: 'include' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data.images) return;
+            var images = data.images;
+
+            // Find all img tags rendered by docx-preview
+            var imgs = wrap.querySelectorAll('img');
+            imgs.forEach(function(img) {
+                // docx-preview sets src to blob: or data: URLs
+                // We need to match by order or by filename hint in the src
+                var src = img.getAttribute('src') || '';
+                var matched = false;
+
+                // Try to match by filename in src
+                Object.keys(images).forEach(function(filename) {
+                    if (matched) return;
+                    if (src.indexOf(filename) !== -1) {
+                        var info = images[filename];
+                        img.src = 'data:' + info.mime + ';base64,' + info.base64;
+                        img.style.visibility = 'visible';
+                        img.style.display = 'inline-block';
+                        matched = true;
+                    }
+                });
+
+                // If img is broken/empty, try replacing with images in order
+                if (!matched && (img.naturalWidth === 0 || src === '' || src === 'about:blank')) {
+                    img.style.visibility = 'visible';
+                    img.style.display = 'inline-block';
+                }
+            });
+
+            // Fix all svg <image> elements (docx-preview uses these for WMF/EMF)
+            var svgImgs = wrap.querySelectorAll('image, svg image');
+            var imageKeys = Object.keys(images);
+            var keyIdx = 0;
+            svgImgs.forEach(function(svgImg) {
+                var href = svgImg.getAttribute('href') || svgImg.getAttribute('xlink:href') || '';
+                var matched = false;
+
+                // Match by filename
+                imageKeys.forEach(function(filename) {
+                    if (matched) return;
+                    if (href.indexOf(filename) !== -1) {
+                        var info = images[filename];
+                        var dataUrl = 'data:' + info.mime + ';base64,' + info.base64;
+                        svgImg.setAttribute('href', dataUrl);
+                        svgImg.setAttribute('xlink:href', dataUrl);
+                        svgImg.style.visibility = 'visible';
+                        matched = true;
+                    }
+                });
+
+                // Inject next available image if no match
+                if (!matched && keyIdx < imageKeys.length) {
+                    var info = images[imageKeys[keyIdx]];
+                    var dataUrl = 'data:' + info.mime + ';base64,' + info.base64;
+                    svgImg.setAttribute('href', dataUrl);
+                    svgImg.setAttribute('xlink:href', dataUrl);
+                    svgImg.style.visibility = 'visible';
+                    keyIdx++;
+                }
+            });
+
+            // Also fix any broken img tags with empty src using available images
+            var brokenImgs = wrap.querySelectorAll('img');
+            var remaining = imageKeys.filter(function(k) {
+                return !Object.values(data.rels || {}).includes(k) || true;
+            });
+            var rIdx = 0;
+            brokenImgs.forEach(function(img) {
+                if (img.naturalWidth === 0 && rIdx < remaining.length) {
+                    var info = images[remaining[rIdx]];
+                    if (info) {
+                        img.src = 'data:' + info.mime + ';base64,' + info.base64;
+                        img.style.visibility = 'visible';
+                        img.style.display = 'inline-block';
+                        rIdx++;
+                    }
+                }
+            });
+        })
+        .then(function() { if (callback) callback(); })
+        .catch(function() { if (callback) callback(); });
+}
+
+// ── Snapshot header/footer as frozen images using html2canvas ─────────────────
+function snapshotHeaderFooter(wrap, callback) {
+    function doSnapshot() {
+        var headers = wrap.querySelectorAll('header');
+        var footers = wrap.querySelectorAll('footer');
+        var total   = headers.length + footers.length;
+        var done    = 0;
+
+        function snap(el) {
+            // Force all child images visible before snapshot
+            el.querySelectorAll('img').forEach(function(img) {
+                img.style.visibility = 'visible';
+                img.style.display    = 'inline-block';
+                img.style.maxWidth   = '100%';
+            });
+            el.querySelectorAll('image').forEach(function(img) {
+                img.style.visibility = 'visible';
+            });
+
+            var w = el.scrollWidth  || el.offsetWidth  || 800;
+            var h = el.scrollHeight || el.offsetHeight || 150;
+            if (h < 10) { done++; if (done >= total && callback) callback(); return; }
+
+            html2canvas(el, {
+                scale:           2,
+                useCORS:         true,
+                allowTaint:      true,
+                backgroundColor: '#ffffff',
+                width:           w,
+                height:          h,
+                logging:         false,
+                onclone: function(doc, clonedEl) {
+                    clonedEl.querySelectorAll('img,image').forEach(function(im) {
+                        im.style.visibility = 'visible';
+                        im.style.display    = 'inline-block';
+                    });
+                }
+            }).then(function(canvas) {
+                var img          = document.createElement('img');
+                img.src          = canvas.toDataURL('image/png');
+                img.style.cssText = 'width:100%;display:block;margin:0;padding:0;border:none;';
+                // Replace the element with the frozen image
+                if (el.parentNode) el.parentNode.replaceChild(img, el);
+                done++;
+                if (done >= total && callback) callback();
+            }).catch(function() {
+                done++;
+                if (done >= total && callback) callback();
+            });
+        }
+
+        if (total === 0) { if (callback) callback(); return; }
+
+        // Load html2canvas if not already loaded
+        if (typeof html2canvas === 'undefined') {
+            loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
+                function() {
+                    headers.forEach(snap);
+                    footers.forEach(snap);
+                },
+                function() { if (callback) callback(); }
+            );
+        } else {
+            headers.forEach(snap);
+            footers.forEach(snap);
+        }
+    }
+    doSnapshot();
 }
 
 // ─── Search & Filter ─────────────────────────────────────────────────────────

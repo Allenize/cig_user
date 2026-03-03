@@ -12,6 +12,12 @@ if (!$conn) {
 
 $userId = $_SESSION['user_id'];
 
+// Generate preview token for DOCX files (matches get_docx.php logic)
+function docxToken(int $submissionId): string {
+    $secret = 'cig_preview_2026';
+    return sha1($submissionId . date('YmdH') . $secret);
+}
+
 $submissionsQuery = "
     SELECT s.submission_id, s.title, s.submitted_at, u.full_name, s.status,
            COALESCE(r.feedback, 'Awaiting review') AS admin_remarks,
@@ -84,6 +90,8 @@ function humanFileSize(int $bytes): string {
     <link rel="stylesheet" href="../css/dashboard.css">
     <link rel="stylesheet" href="../css/document_tracking.css">
     <link rel="stylesheet" href="../css/notifications.css">
+    <!-- JSZip: required by docx-preview to parse DOCX ZIP format -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         /* ── File-type badge ── */
         .file-type-badge {
@@ -280,6 +288,10 @@ function humanFileSize(int $bytes): string {
                             <td>
                                 <?php if ($doc['has_file']): ?>
                                 <div class="action-btns">
+                                    <?php if ($ext === 'docx'): ?>
+                                    <input type="hidden" id="docx-token-<?php echo $doc['submission_id']; ?>"
+                                           value="<?php echo docxToken((int)$doc['submission_id']); ?>">
+                                    <?php endif; ?>
                                     <button class="btn-view"
                                         onclick="openPreviewModal(<?php echo $doc['submission_id']; ?>,'<?php echo $ext; ?>','<?php echo addslashes(htmlspecialchars($doc['title'])); ?>')">
                                         <i class="fas fa-eye"></i> View

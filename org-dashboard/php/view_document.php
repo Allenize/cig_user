@@ -362,6 +362,7 @@ $iconInfo = $fileIcons[$ext] ?? ['icon' => 'fa-file-alt', 'color' => '#7f8c8d'];
                 renderHeaders:   true,
                 renderFooters:   true,
                 renderFootnotes: true,
+                renderEndnotes:  true,
             });
         })
         .then(function() {
