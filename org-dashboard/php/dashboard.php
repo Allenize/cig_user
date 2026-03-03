@@ -4,6 +4,26 @@ if (!isset($_SESSION['user_id'])) {
     header("Location: /index.php");
     exit();
 }
+
+// dashboard.php is at cig_user/org-dashboard/php/dashboard.php
+// db_connection.php is at cig_user/db_connection.php
+require_once dirname(dirname(__DIR__)) . '/db_connection.php';
+
+$announcements_db = [];
+if ($conn) {
+    $res = mysqli_query($conn, "
+        SELECT a.announcement_id, a.title, a.content, a.created_at, u.full_name as created_by
+        FROM announcements a
+        LEFT JOIN users u ON a.created_by = u.user_id
+        WHERE a.is_active = 1
+        ORDER BY a.created_at DESC
+        LIMIT 5
+    ");
+    while ($row = mysqli_fetch_assoc($res)) {
+        $announcements_db[] = $row;
+    }
+    mysqli_close($conn);
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -82,46 +102,42 @@ if (!isset($_SESSION['user_id'])) {
                     <a href="guidelines.php" class="btn-outline-green"><i class="fas fa-arrow-right"></i> View Full Guidelines</a>
                 </div>
 
-                <!-- Announcements card -->
+                <!-- Announcements card — from DB -->
                 <div class="section-card">
                     <div class="section-title">
                         <i class="fas fa-bullhorn"></i>
                         <h2> Latest Announcements</h2>
                     </div>
 
-                    <div class="announcement-item">
-                        <div class="announcement-header">
-                            <h3>System Maintenance</h3>
-                            <span class="badge-new">NEW</span>
+                    <?php if (empty($announcements_db)): ?>
+                        <p style="color:#888; text-align:center; padding:20px 0;">
+                            No announcements at this time.
+                        </p>
+                    <?php else: ?>
+                        <?php foreach ($announcements_db as $index => $ann): ?>
+                        <div class="announcement-item">
+                            <div class="announcement-header">
+                                <h3><?php echo htmlspecialchars($ann['title']); ?></h3>
+                                <?php if ($index === 0): ?>
+                                    <span class="badge-new">NEW</span>
+                                <?php endif; ?>
+                            </div>
+                            <div class="announcement-meta">
+                                <span>
+                                    <i class="far fa-calendar-alt"></i>
+                                    <?php echo date('M d, Y', strtotime($ann['created_at'])); ?>
+                                </span>
+                            </div>
+                            <p class="announcement-desc announcement-truncated">
+                                <?php echo htmlspecialchars($ann['content']); ?>
+                            </p>
+                            <button class="expand-btn" onclick="toggleAnnouncement(this)">
+                                <i class="fas fa-chevron-down"></i> Read More
+                            </button>
                         </div>
-                        <div class="announcement-meta">
-                            <span><i class="far fa-calendar-alt"></i> Mar 15, 2026</span>
-                        </div>
-                        <p class="announcement-desc announcement-truncated">Scheduled downtime on Sunday, March 20 from 2-4 AM. Please save your work.</p>
-                        <button class="expand-btn" onclick="toggleAnnouncement(this)"><i class="fas fa-chevron-down"></i> Read More</button>
-                    </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
 
-                    <div class="announcement-item">
-                        <div class="announcement-header">
-                            <h3>Quarterly Meeting</h3>
-                        </div>
-                        <div class="announcement-meta">
-                            <span><i class="far fa-calendar-alt"></i> Mar 12, 2026</span>
-                        </div>
-                        <p class="announcement-desc announcement-truncated">Join us on March 25 for the quarterly org update. All members are encouraged to attend.</p>
-                        <button class="expand-btn" onclick="toggleAnnouncement(this)"><i class="fas fa-chevron-down"></i> Read More</button>
-                    </div>
-
-                    <div class="announcement-item">
-                        <div class="announcement-header">
-                            <h3>New Document Templates</h3>
-                        </div>
-                        <div class="announcement-meta">
-                            <span><i class="far fa-calendar-alt"></i> Mar 5, 2026</span>
-                        </div>
-                        <p class="announcement-desc announcement-truncated">Updated templates for event reports are now available in the Documents section lsfjaskflashflksahfaksjfhaskjfafkjdhfkjadfhadkjfhadkjfhakdjfhadkfhdafkdhgkdshgsirtvrtiuyertiuvyetiuby eieuy eirutrutyeritueryiv e uey eiyrteirutyv e yee  eurtietyeiu .</p>
-                        <button class="expand-btn" onclick="toggleAnnouncement(this)"><i class="fas fa-chevron-down"></i> Read More</button>
-                    </div>
                 </div>
             </div>
         </div>
@@ -129,5 +145,16 @@ if (!isset($_SESSION['user_id'])) {
 
     <!-- External JavaScript -->
     <script src="../js/script.js"></script>
+    <script src="../js/notifications.js"></script>
+
+    <script>
+    function toggleAnnouncement(btn) {
+        const desc = btn.previousElementSibling;
+        const isTruncated = desc.classList.toggle('announcement-truncated');
+        btn.innerHTML = isTruncated
+            ? '<i class="fas fa-chevron-down"></i> Read More'
+            : '<i class="fas fa-chevron-up"></i> Show Less';
+    }
+    </script>
 </body>
 </html>
