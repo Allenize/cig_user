@@ -184,6 +184,20 @@ $iconInfo = $fileIcons[$ext] ?? ['icon' => 'fa-file-alt', 'color' => '#7f8c8d'];
             background: #fff;
             box-shadow: 0 2px 12px rgba(0,0,0,.15);
             margin: 0 auto;
+            max-width: 900px;
+            padding: 2rem;
+            line-height: 1.6;
+            font-size: 14px;
+            color: #333;
+            font-family: 'Segoe UI', 'Calibri', Arial, sans-serif;
+        }
+        #docx-container .docx-wrapper * { font-family: inherit; }
+        #docx-container .docx-wrapper p { margin-bottom: 0.5em; }
+        #docx-container .docx-wrapper h1, #docx-container .docx-wrapper h2,
+        #docx-container .docx-wrapper h3, #docx-container .docx-wrapper h4,
+        #docx-container .docx-wrapper h5, #docx-container .docx-wrapper h6 {
+            margin: 0.8em 0 0.4em 0;
+            font-weight: 600;
         }
 
         /* XLSX */

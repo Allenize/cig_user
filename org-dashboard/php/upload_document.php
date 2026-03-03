@@ -20,8 +20,9 @@ if (!$conn) {
     header('Content-Type: application/json');
     exit(json_encode(['success' => false, 'message' => 'Database connection failed']));
 }
-// Allow large BLOBs (up to 16MB)
-mysqli_query($conn, "SET SESSION max_allowed_packet=16777216");
+// Allow large BLOBs (up to 50MB for file uploads)
+mysqli_query($conn, "SET SESSION max_allowed_packet=52428800");
+mysqli_query($conn, "SET GLOBAL max_allowed_packet=52428800");
 
 // Define template data function early
 function getTemplateData($templateId) {
@@ -215,11 +216,16 @@ function handleTemplateUpload($conn) {
         }
         
         $filePath = '';
-        // Bind all as strings — MySQLi correctly stores binary string into LONGBLOB
-        $stmt->bind_param("iissssss", $userId, $orgId, $title, $description, $fileName, $filePath, $fileContent, $submittedBy);
+        // Bind parameters: int, int, string, string, string, string, string, int
+        $stmt->bind_param("iisssssi", $userId, $orgId, $title, $description, $fileName, $filePath, $fileContent, $submittedBy);
         
         if (!$stmt->execute()) {
-            throw new Exception('Execute failed: ' . $stmt->error);
+            $error = $stmt->error;
+            // Check for packet size error and provide helpful message
+            if (stripos($error, 'packet') !== false || stripos($error, 'lost connection') !== false) {
+                throw new Exception('File is too large or connection was lost. Try a smaller file (max 10MB). Error: ' . $error);
+            }
+            throw new Exception('Execute failed: ' . $error);
         }
         
         $submissionId = $stmt->insert_id;
@@ -324,11 +330,16 @@ function handleRegularUpload($conn) {
             throw new Exception('Prepare failed: ' . $conn->error);
         }
         
-        // Bind all as strings — MySQLi correctly stores binary string into LONGBLOB
-        $stmt->bind_param("iissssss", $userId, $orgId, $title, $fullDescription, $fileName, $filePath, $fileContent, $submittedBy);
+        // Bind parameters: int, int, string, string, string, string, string, int
+        $stmt->bind_param("iisssssi", $userId, $orgId, $title, $fullDescription, $fileName, $filePath, $fileContent, $submittedBy);
         
         if (!$stmt->execute()) {
-            throw new Exception('Execute failed: ' . $stmt->error);
+            $error = $stmt->error;
+            // Check for packet size error and provide helpful message
+            if (stripos($error, 'packet') !== false || stripos($error, 'lost connection') !== false) {
+                throw new Exception('File is too large or connection was lost. Try a smaller file (max 10MB). Error: ' . $error);
+            }
+            throw new Exception('Execute failed: ' . $error);
         }
         
         $submissionId = $stmt->insert_id;
