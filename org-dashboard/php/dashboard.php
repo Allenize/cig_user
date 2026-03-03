@@ -19,8 +19,13 @@ if ($conn) {
         ORDER BY a.created_at DESC
         LIMIT 5
     ");
-    while ($row = mysqli_fetch_assoc($res)) {
-        $announcements_db[] = $row;
+    if (!$res) {
+        // Query failed - log error but don't break the page
+        error_log("Announcements query failed: " . mysqli_error($conn));
+    } elseif (mysqli_num_rows($res) > 0) {
+        while ($row = mysqli_fetch_assoc($res)) {
+            $announcements_db[] = $row;
+        }
     }
     mysqli_close($conn);
 }
