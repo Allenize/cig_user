@@ -17,6 +17,8 @@ $submissionsQuery = "
            COALESCE(r.feedback, 'Awaiting review') AS admin_remarks,
            s.file_name,
            s.file_path,
+           s.description,
+           s.submission_data,
            IF(
                (s.file_name IS NOT NULL AND s.file_name <> '')
                OR (s.file_path IS NOT NULL AND s.file_path <> ''),
@@ -304,18 +306,30 @@ function humanFileSize(int $bytes): string {
                             ];
                             [$iClass, $iColor] = $imap[$ext] ?? ['fa-file-alt', 'gen-icon'];
                         ?>
+                        <?php
+                            $isTemplateDoc = strpos($doc['description'] ?? '', 'Template:') === 0 && !empty($doc['submission_data']);
+                            $safeSubData = $isTemplateDoc ? htmlspecialchars($doc['submission_data'], ENT_QUOTES, 'UTF-8') : '';
+                        ?>
                         <tr data-title="<?php echo strtolower(htmlspecialchars($doc['title'])); ?>"
                             data-status="<?php echo strtolower($doc['status']); ?>"
-                            data-date="<?php echo date('Y-m-d', strtotime($doc['submitted_at'])); ?>">
+                            data-date="<?php echo date('Y-m-d', strtotime($doc['submitted_at'])); ?>"
+                            data-is-template="<?php echo $isTemplateDoc ? '1' : '0'; ?>"
+                            data-submission-data="<?php echo $safeSubData; ?>">
 
                             <!-- Document name + type badge + size -->
                             <td>
                                 <div class="doc-name-cell">
-                                    <i class="fas <?php echo $iClass; ?> doc-icon <?php echo $iColor; ?>"></i>
+                                    <?php if ($isTemplateDoc): ?>
+                                        <i class="fas fa-file-contract doc-icon" style="color:#6c3483;"></i>
+                                    <?php else: ?>
+                                        <i class="fas <?php echo $iClass; ?> doc-icon <?php echo $iColor; ?>"></i>
+                                    <?php endif; ?>
                                     <div class="doc-meta-text">
                                         <strong><?php echo htmlspecialchars($doc['title']); ?></strong>
                                         <small>
-                                            <?php if ($doc['file_name']): ?>
+                                            <?php if ($isTemplateDoc): ?>
+                                                <span class="file-type-badge" style="background:#6c3483;">TEMPLATE</span>
+                                            <?php elseif ($doc['file_name']): ?>
                                                 <?php echo fileTypeBadge($doc['file_name']); ?>
                                                 <?php if ($doc['file_size']): ?>
                                                     &nbsp;<?php echo humanFileSize((int)$doc['file_size']); ?>
@@ -348,7 +362,14 @@ function humanFileSize(int $bytes): string {
 
                             <!-- Actions -->
                             <td>
-                                <?php if ($doc['has_file']): ?>
+                                <?php if ($isTemplateDoc): ?>
+                                <div class="action-btns">
+                                    <button class="btn-view"
+                                        onclick="openTemplatePreview(this.closest('tr'))">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                </div>
+                                <?php elseif ($doc['has_file']): ?>
                                 <div class="action-btns">
                                     <button class="btn-view"
                                         onclick="openPreviewModal(<?php echo $doc['submission_id']; ?>,'<?php echo $ext; ?>','<?php echo addslashes(htmlspecialchars($doc['title'])); ?>')">
@@ -417,6 +438,10 @@ function humanFileSize(int $bytes): string {
                 <!-- Template Upload -->
                 <div id="template-upload" class="tab-content">
                     <form id="templateForm">
+                        <div class="form-group">
+                            <label for="templateTitle">Document Title <span>*</span></label>
+                            <input type="text" id="templateTitle" name="title" placeholder="Enter document title" required>
+                        </div>
                         <div class="form-group">
                             <label for="templateSelect">Select Template <span>*</span></label>
                             <select id="templateSelect" name="template_id" required onchange="loadTemplateFields()">
@@ -488,6 +513,228 @@ function humanFileSize(int $bytes): string {
             <div id="previewDocxWrap" style="display:none;flex:1;overflow:auto;"></div>
         </div>
     </div>
+
+
+    <!-- ── Template Preview Modal ── -->
+    <div id="tplPreviewModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);align-items:center;justify-content:center;">
+        <div style="background:#fff;border-radius:16px;width:92vw;max-width:820px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.4);">
+            <!-- Header bar -->
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;background:#1e3a3a;color:#fff;flex-shrink:0;">
+                <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+                    <i class="fas fa-file-contract" style="font-size:1.1rem;color:#a8d5b5;flex-shrink:0;"></i>
+                    <div style="min-width:0;">
+                        <div id="tplPreviewTitle" style="font-size:1rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+                        <div id="tplPreviewSubtitle" style="font-size:.75rem;color:#a8d5b5;margin-top:2px;"></div>
+                    </div>
+                </div>
+                <button onclick="closeTplPreview()" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1.2rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">&times;</button>
+            </div>
+            <!-- Document body -->
+            <div id="tplPreviewBody" style="flex:1;overflow-y:auto;padding:0;background:#e8ecec;">
+            </div>
+        </div>
+    </div>
+
+    <script>
+    /* ── Template Preview Modal ───────────────────────────────────────────── */
+    const TPL_LABELS = {
+        meeting_minutes:  'Meeting Minutes',
+        event_proposal:   'Event Proposal',
+        financial_report: 'Financial Report',
+        incident_report:  'Incident Report',
+        membership_form:  'Membership Form',
+        project_proposal: 'Project Proposal',
+    };
+
+    /* field groups that should render as block sections (not inline) */
+    const TPL_TEXTAREA_KEYS = new Set([
+        'agenda','discussion','action_items','description','requirements',
+        'expense_breakdown','remarks','incident_description','individuals_involved',
+        'witnesses','action_taken','recommendations','opening_statement',
+        'project_summary','project_goal','project_objectives','expected_outputs',
+        'monitoring_details','evaluation_details','security_plan','closing_statement',
+        'attendees','skills','availability'
+    ]);
+
+    /* Project Proposal section grouping */
+    const PP_SECTIONS = [
+        { heading: null, keys: ['proposal_date','recipient_1','recipient_2','dear_opening','opening_statement'] },
+        { heading: 'I. Identifying Information', keys: ['organization','project_title','project_type','project_involvement','project_location','proposed_start_date','proposed_end_date','number_participants'] },
+        { heading: 'II. Project Description', keys: ['project_summary','project_goal','project_objectives','expected_outputs'] },
+        { heading: 'III. Budget', keys: ['budget_source','budget_partner','budget_total'] },
+        { heading: 'IV. Monitoring & Evaluation', keys: ['monitoring_details','evaluation_details'] },
+        { heading: 'V. Security Plan', keys: ['security_plan'] },
+        { heading: 'Closing', keys: ['closing_statement','sender_name','noted_by','endorsed_by'] },
+    ];
+
+    function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+    function renderValue(key, val) {
+        if (!val || !val.trim()) return '<em style="color:#aaa">—</em>';
+        const lines = val.split('\n').filter(l => l.trim());
+        if (TPL_TEXTAREA_KEYS.has(key) && lines.length > 1) {
+            return lines.map(l => '<div style="margin-bottom:3px">'+esc(l)+'</div>').join('');
+        }
+        return esc(val);
+    }
+
+    function buildGenericBody(data) {
+        const labels = data.field_labels || {};
+        const fields = data.fields || {};
+        let html = '';
+        Object.entries(labels).forEach(([key, label]) => {
+            const val = fields[key] || '';
+            const isBlock = TPL_TEXTAREA_KEYS.has(key);
+            html += `<div style="margin-bottom:${isBlock?'18px':'10px'}">
+                <div style="font-size:.7rem;font-weight:700;color:#2d6a4f;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">${esc(label)}</div>
+                <div style="font-size:.92rem;color:#1e3a3a;line-height:1.55;${isBlock?'background:#f9fbf9;padding:8px 12px;border-radius:8px;border-left:3px solid #2d6a4f;':''}">${renderValue(key, val)}</div>
+            </div>`;
+        });
+        return html;
+    }
+
+    function buildProjectProposalBody(data) {
+        const labels = data.field_labels || {};
+        const fields = data.fields || {};
+        const tableKeys = new Set(['organization','project_title','project_type','project_involvement','project_location','proposed_start_date','proposed_end_date','number_participants','budget_source','budget_partner','budget_total']);
+        let html = '';
+        PP_SECTIONS.forEach(sec => {
+            if (sec.heading) {
+                html += `<div style="font-size:.95rem;font-weight:700;color:#fff;background:#2d6a4f;padding:7px 14px;border-radius:6px;margin-bottom:12px;">${esc(sec.heading)}</div>`;
+            }
+            const isTable = sec.keys.some(k => tableKeys.has(k));
+            if (isTable) {
+                html += '<table style="width:100%;border-collapse:collapse;margin-bottom:14px;">';
+                sec.keys.forEach(key => {
+                    if (!labels[key]) return;
+                    html += `<tr>
+                        <td style="font-weight:600;font-size:.82rem;color:#444;background:#f0f5f2;padding:7px 10px;border:1px solid #d4e6d8;width:38%;vertical-align:top;">${esc(labels[key])}</td>
+                        <td style="font-size:.88rem;color:#1e3a3a;padding:7px 10px;border:1px solid #d4e6d8;vertical-align:top;">${renderValue(key, fields[key]||'')}</td>
+                    </tr>`;
+                });
+                html += '</table>';
+            } else {
+                sec.keys.forEach(key => {
+                    if (!labels[key]) return;
+                    const val = fields[key] || '';
+                    const isBlock = TPL_TEXTAREA_KEYS.has(key);
+                    html += `<div style="margin-bottom:${isBlock?'16px':'8px'}">
+                        <div style="font-size:.7rem;font-weight:700;color:#2d6a4f;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">${esc(labels[key])}</div>
+                        <div style="font-size:.9rem;color:#1e3a3a;line-height:1.55;${isBlock?'background:#f9fbf9;padding:8px 12px;border-radius:8px;border-left:3px solid #2d6a4f;':''}">${renderValue(key, val)}</div>
+                    </div>`;
+                });
+            }
+        });
+        return html;
+    }
+
+    // Logo data URIs — embedded by PHP so paths are always correct
+    <?php
+    function b64img($path) {
+        $abs = realpath(__DIR__ . '/' . $path);
+        if (!$abs || !file_exists($abs)) return '';
+        $mime = in_array(strtolower(pathinfo($abs, PATHINFO_EXTENSION)), ['jpg','jpeg']) ? 'image/jpeg' : 'image/png';
+        return 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($abs));
+    }
+    $plspLogoB64   = b64img('../../plsplogo.png');
+    $cigLogoB64    = b64img('../../Assets/CIG.jpg');
+    $osasLogoB64   = b64img('../../Assets/OSAS.jpg');
+    ?>
+    const LOGO_PLSP = '<?php echo $plspLogoB64; ?>';
+    const LOGO_MAP  = {
+        'CIG.jpg':  '<?php echo $cigLogoB64; ?>',
+        'OSAS.jpg': '<?php echo $osasLogoB64; ?>',
+    };
+
+    function renderTplPreviewBody(data, title) {
+        const orgName    = data.organization_name    || 'PLSP Economics Society – EcoS';
+        const orgTagline = data.organization_tagline || 'Empowered and committed organization of service.';
+        const tplName    = data.template_name || TPL_LABELS[data.template_id] || 'Document';
+        const isProposal = (data.template_id === 'project_proposal');
+
+        const bodyContent = isProposal ? buildProjectProposalBody(data) : buildGenericBody(data);
+
+        return `<div style="background:#fff;max-width:700px;margin:20px auto;border-radius:10px;box-shadow:0 2px 16px rgba(0,0,0,.12);overflow:hidden;">
+            <!-- Document header -->
+            <div style="background:#1e3a3a;padding:16px 20px;">
+                <!-- Logo row: PLSP | Org info | Collab logo -->
+                <table style="width:100%;border-collapse:collapse;">
+                    <tr>
+                        <!-- Left: PLSP logo -->
+                        <td style="width:80px;text-align:center;vertical-align:middle;padding:0 8px 0 0;">
+                            ${LOGO_PLSP ? `<img src="${LOGO_PLSP}" alt="PLSP" style="height:64px;width:auto;display:block;margin:0 auto;">` : ''}
+                        </td>
+                        <!-- Center: org text -->
+                        <td style="text-align:center;vertical-align:middle;padding:0 8px;">
+                            <div style="font-size:.65rem;font-weight:700;color:#a8d5b5;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px;">PAMANTASAN NG LUNGSOD NG SAN PABLO</div>
+                            <div style="font-size:1rem;font-weight:800;color:#fff;margin-bottom:3px;">${esc(orgName)}</div>
+                            <div style="font-size:.73rem;color:#a8d5b5;font-style:italic;">"${esc(orgTagline)}"</div>
+                        </td>
+                        <!-- Right: collaborated logo or blank -->
+                        <td style="width:80px;text-align:center;vertical-align:middle;padding:0 0 0 8px;">
+                            ${data.collaborated_logo && LOGO_MAP[data.collaborated_logo]
+                                ? `<img src="${LOGO_MAP[data.collaborated_logo]}" alt="Logo" style="height:64px;width:auto;display:block;margin:0 auto;">`
+                                : ''}
+                        </td>
+                    </tr>
+                </table>
+
+            </div>
+            <!-- Fields -->
+            <div style="padding:22px 26px;">
+                ${bodyContent}
+            </div>
+            <!-- Footer -->
+            <div style="background:#f4faf7;border-top:2px solid #2d6a4f;padding:10px 24px;text-align:center;">
+                <div style="font-size:.75rem;color:#2d6a4f;font-style:italic;">"Primed to Lead and Serve for Progress"</div>
+            </div>
+        </div>`;
+    }
+
+    window.openTemplatePreview = function(row) {
+        const raw = row ? row.getAttribute('data-submission-data') : null;
+        const title = row ? (row.querySelector('.doc-meta-text strong') || {}).textContent || 'Document' : 'Document';
+        let data = null;
+        if (raw) {
+            try { data = JSON.parse(raw); } catch(e) {}
+        }
+        if (!data) {
+            // Fall back: no JSON stored (old submission) — open file preview
+            const btn = row ? row.querySelector('.btn-view') : null;
+            if (btn) { alert('Preview data not available for this submission. Please re-submit using the template form.'); }
+            return;
+        }
+        const modal = document.getElementById('tplPreviewModal');
+        document.getElementById('tplPreviewTitle').textContent = title;
+        document.getElementById('tplPreviewSubtitle').textContent = (data.template_name || '') + ' — Template Document';
+        document.getElementById('tplPreviewBody').innerHTML = renderTplPreviewBody(data, title);
+        modal.style.display = 'flex';
+    };
+
+    /* Also handle in-memory preview for just-submitted rows (before page reload) */
+    window._pendingTplData = {};
+    window.openTemplatePreviewById = function(submissionId, dataJson, title) {
+        let data = null;
+        try { data = typeof dataJson === 'string' ? JSON.parse(dataJson) : dataJson; } catch(e) {}
+        if (!data) return;
+        const modal = document.getElementById('tplPreviewModal');
+        document.getElementById('tplPreviewTitle').textContent = title;
+        document.getElementById('tplPreviewSubtitle').textContent = (data.template_name || '') + ' — Template Document';
+        document.getElementById('tplPreviewBody').innerHTML = renderTplPreviewBody(data, title);
+        modal.style.display = 'flex';
+    };
+
+    function closeTplPreview() {
+        document.getElementById('tplPreviewModal').style.display = 'none';
+        document.getElementById('tplPreviewBody').innerHTML = '';
+    }
+    document.getElementById('tplPreviewModal').addEventListener('click', function(e) {
+        if (e.target === this) closeTplPreview();
+    });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeTplPreview();
+    });
+    </script>
 
     <script src="../js/script.js"></script>
     <script src="../js/document_tracking.js"></script>

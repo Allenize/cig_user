@@ -4,6 +4,7 @@ if (!isset($_SESSION['user_id'])) {
     header("Location: /index.php");
     exit();
 }
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -256,6 +257,17 @@ if (!isset($_SESSION['user_id'])) {
 
         searchInput.addEventListener('input', filterTable);
         positionFilter.addEventListener('change', filterTable);
+    </script>
+    <script src="../js/notifications.js"></script>
+
+    <script>
+    function toggleAnnouncement(btn) {
+        const desc = btn.previousElementSibling;
+        const isTruncated = desc.classList.toggle('announcement-truncated');
+        btn.innerHTML = isTruncated
+            ? '<i class="fas fa-chevron-down"></i> Read More'
+            : '<i class="fas fa-chevron-up"></i> Show Less';
+    }
     </script>
 </body>
 </html>

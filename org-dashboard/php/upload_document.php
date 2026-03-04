@@ -217,16 +217,27 @@ function handleTemplateUpload($conn) {
         $dbFilePath = '../uploads/submissions/' . $fileName;
         
         $description = "Template: " . $template['name'] . " | Organization: " . htmlspecialchars($organizationName);
-        
-        // Insert into submissions table with file path
-        $stmt = $conn->prepare("INSERT INTO submissions (user_id, org_id, title, description, status, file_name, file_path, submitted_by) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)");
+
+        // Build JSON snapshot of all submitted field values for the preview modal
+        $submissionData = json_encode([
+            'template_id'          => $templateId,
+            'template_name'        => $template['name'],
+            'organization_name'    => $organizationName,
+            'organization_tagline' => $organizationTagline,
+            'collaborated_logo'    => $collaboratedLogo,
+            'fields'               => $data,
+            'field_labels'         => $template['fields'],
+        ], JSON_UNESCAPED_UNICODE);
+
+        // Insert into submissions table with file path and JSON snapshot
+        $stmt = $conn->prepare("INSERT INTO submissions (user_id, org_id, title, description, submission_data, status, file_name, file_path, submitted_by) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)");
         
         if (!$stmt) {
             throw new Exception('Prepare failed: ' . $conn->error);
         }
         
-        // Bind parameters: int, int, string, string, string, string, int
-        $stmt->bind_param("iissssi", $userId, $orgId, $title, $description, $fileName, $dbFilePath, $submittedBy);
+        // Bind parameters: int, int, string, string, string, string, string, int
+        $stmt->bind_param("iisssssi", $userId, $orgId, $title, $description, $submissionData, $fileName, $dbFilePath, $submittedBy);
         
         if (!$stmt->execute()) {
             $error = $stmt->error;
@@ -259,7 +270,8 @@ function handleTemplateUpload($conn) {
             'message' => 'Document uploaded successfully',
             'submitted_by' => $userData['full_name'] ?? 'User',
             'filename' => $fileName,
-            'submission_id' => $submissionId
+            'submission_id' => $submissionId,
+            'submission_data' => $submissionData ?? null
         ]);
         exit;
     } catch (Exception $e) {

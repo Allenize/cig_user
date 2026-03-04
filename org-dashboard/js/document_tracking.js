@@ -123,6 +123,8 @@ function closeUploadModal() {
     uploadForm.reset();
     templateForm.reset();
     document.getElementById('templateFieldsContainer').innerHTML = '';
+    const titleEl = document.getElementById('templateTitle');
+    if (titleEl) titleEl.value = '';
     tabButtons.forEach(b => b.classList.remove('active'));
     tabContents.forEach(c => c.classList.remove('active'));
     document.querySelector('[data-tab="regular-upload"]').classList.add('active');
@@ -254,7 +256,7 @@ uploadForm.onsubmit = function (e) {
         .then(data => {
             if (data.success) {
                 showToast('Document uploaded successfully!', true);
-                addTableRow(document.getElementById('docTitle').value, data.submitted_by || 'You', data.submission_id, ext);
+                addTableRow(document.getElementById('docTitle').value, data.submitted_by || 'You', data.submission_id, ext, false);
                 closeUploadModal();
                 setTimeout(() => location.reload(), 1200);
             } else {
@@ -299,7 +301,8 @@ templateForm.onsubmit = function (e) {
         .then(data => {
             if (data.success) {
                 showToast('Document generated and submitted!', true);
-                addTableRow(customTitle, data.submitted_by || 'You', data.submission_id, 'pdf');
+                const outExt = (data.filename || '').split('.').pop().toLowerCase() || 'docx';
+                addTableRow(customTitle, data.submitted_by || 'You', data.submission_id, outExt, true, data.submission_data || null);
                 closeUploadModal();
                 setTimeout(() => location.reload(), 1200);
             } else {
@@ -314,7 +317,7 @@ templateForm.onsubmit = function (e) {
 };
 
 // ─── Add optimistic row ──────────────────────────────────────────────────────
-function addTableRow(title, submittedBy, submissionId, ext) {
+function addTableRow(title, submittedBy, submissionId, ext, isTemplate, submissionDataJson) {
     const tbody = document.querySelector('#documentsTable tbody');
     const empty = tbody.querySelector('tr td[colspan]');
     if (empty) empty.closest('tr').remove();
@@ -325,14 +328,36 @@ function addTableRow(title, submittedBy, submissionId, ext) {
     const color     = extColors[ext] || '#7f8c8d';
     const icon      = extIcons[ext]  || 'fa-file-alt';
 
+    const safeData = submissionDataJson
+        ? submissionDataJson.replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+        : '';
+
+    const viewBtn = isTemplate
+        ? `<button class="btn-view" onclick="openTemplatePreviewById(${submissionId}, this.closest('tr').getAttribute('data-submission-data'), '${escHtml(title)}')">
+               <i class="fas fa-eye"></i> View
+           </button>`
+        : `<button class="btn-view" onclick="openPreviewModal(${submissionId},'${ext}','${escHtml(title)}')">
+               <i class="fas fa-eye"></i> View
+           </button>`;
+
+    const docIconHtml = isTemplate
+        ? `<i class="fas fa-file-contract doc-icon" style="color:#6c3483;font-size:1.3rem;flex-shrink:0"></i>`
+        : `<i class="fas ${icon} doc-icon" style="color:${color};font-size:1.3rem;flex-shrink:0"></i>`;
+
+    const badgeHtml = isTemplate
+        ? `<span class="file-type-badge" style="background:#6c3483;">TEMPLATE</span>`
+        : `<span class="file-type-badge" style="background:${color}">${ext.toUpperCase()}</span>`;
+
     const tr = document.createElement('tr');
+    tr.setAttribute('data-is-template', isTemplate ? '1' : '0');
+    if (submissionDataJson) tr.setAttribute('data-submission-data', submissionDataJson);
     tr.innerHTML = `
         <td>
             <div class="doc-name-cell">
-                <i class="fas ${icon} doc-icon" style="color:${color};font-size:1.3rem;flex-shrink:0"></i>
+                ${docIconHtml}
                 <div class="doc-meta-text">
                     <strong>${escHtml(title)}</strong>
-                    <small><span class="file-type-badge" style="background:${color}">${ext.toUpperCase()}</span></small>
+                    <small>${badgeHtml}</small>
                 </div>
             </div>
         </td>
@@ -340,13 +365,7 @@ function addTableRow(title, submittedBy, submissionId, ext) {
         <td>${escHtml(submittedBy)}</td>
         <td><span class="status-badge pending">Pending</span></td>
         <td>Awaiting review</td>
-        <td>
-            <div class="action-btns">
-                <button class="btn-view" onclick="openPreviewModal(${submissionId},'${ext}','${escHtml(title)}')">
-                    <i class="fas fa-eye"></i> View
-                </button>
-            </div>
-        </td>`;
+        <td><div class="action-btns">${viewBtn}</div></td>`;
     tbody.insertBefore(tr, tbody.firstChild);
 }
 
