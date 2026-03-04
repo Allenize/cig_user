@@ -20,9 +20,7 @@ if (!$conn) {
     header('Content-Type: application/json');
     exit(json_encode(['success' => false, 'message' => 'Database connection failed']));
 }
-// Allow large BLOBs (up to 50MB for file uploads)
-mysqli_query($conn, "SET SESSION max_allowed_packet=52428800");
-mysqli_query($conn, "SET GLOBAL max_allowed_packet=52428800");
+// Files are stored on disk, no BLOB size tuning needed
 
 // Define template data function early
 function getTemplateData($templateId) {
@@ -150,9 +148,11 @@ function handleTemplateUpload($conn) {
         $organizationTagline = isset($_POST['organization_tagline']) ? trim($_POST['organization_tagline']) : null;
         $collaboratedLogo = isset($_POST['collaborated_logo']) ? trim($_POST['collaborated_logo']) : null;
         
+        error_log("Template Upload Debug: templateId='$templateId', title='$title'");
+        
         // Validate required fields
-        if (empty($templateId)) {
-            throw new Exception('Please select a template');
+        if (empty($templateId) || empty($title)) {
+            throw new Exception('Please select a template and enter a document title');
         }
         
         if (empty($organizationName)) {
@@ -166,58 +166,67 @@ function handleTemplateUpload($conn) {
         // Get template data
         $template = getTemplateData($templateId);
         if (!$template) {
-            $validTemplates = "meeting_minutes, event_proposal, financial_report, incident_report, membership_form, project_proposal";
-            throw new Exception('Invalid template selected. Valid options: ' . $validTemplates . '. Received: ' . htmlspecialchars($templateId));
+            error_log("Invalid template ID: '$templateId'");
+            throw new Exception('Invalid template. Please select a valid template.');
         }
         
-        // Include the generate_docx function
-        include 'generate_docx.php';
+        // Include the unified document generation function
+        include 'generate_document.php';
         
         // Collect all template field data
         $data = [];
         foreach ($template['fields'] as $fieldId => $fieldLabel) {
             $data[$fieldId] = $_POST[$fieldId] ?? '';
         }
-        
-        // Generate the DOCX
-        $docxPath = generateDocx($template, $data, $title, $collaboratedLogo, $organizationName, $organizationTagline);
-        
-        if (!$docxPath || !file_exists($docxPath)) {
+
+        // Determine output format: 'docx' (default) or 'pdf'
+        $format = (isset($_POST['output_format']) && strtolower($_POST['output_format']) === 'pdf') ? 'pdf' : 'docx';
+
+        // Generate the document
+        $generatedPath = generateDocument($template, $data, $title, $format, $collaboratedLogo, $organizationName, $organizationTagline);
+
+        if (!$generatedPath || !file_exists($generatedPath)) {
             throw new Exception('Failed to generate document');
         }
-        
-        // Read file content into memory
-        $fileContent = file_get_contents($docxPath);
-        if ($fileContent === false) {
-            @unlink($docxPath);
-            throw new Exception('Failed to read generated document');
-        }
-        
-        // Clean up temp file
-        @unlink($docxPath);
-        
+
         // Get user info
         $userId = $_SESSION['user_id'];
         $submittedBy = $_SESSION['user_id'];
-        
+
         // Default org_id (CIG organization)
-        $orgId = 7; // From the SQL data, CIG has org_id = 7
+        $orgId = 7;
+
+        // Document filename based on chosen format
+        $fileName = uniqid('doc_') . '_' . preg_replace('/[^a-z0-9]/i', '_', $title) . '.' . $format;
         
-        // Document filename
-        $fileName = uniqid('doc_') . '_' . preg_replace('/[^a-z0-9]/i', '_', $title) . '.docx';
+        // Save file to disk
+        $uploadDir = __DIR__ . '/../uploads/submissions/';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+        $filePath = $uploadDir . $fileName;
+        if (!rename($generatedPath, $filePath)) {
+            copy($generatedPath, $filePath);
+            @unlink($generatedPath);
+        }
+        if (!file_exists($filePath)) {
+            throw new Exception('Failed to save generated document to disk');
+        }
+        
+        // Store relative path for DB
+        $dbFilePath = '../uploads/submissions/' . $fileName;
         
         $description = "Template: " . $template['name'] . " | Organization: " . htmlspecialchars($organizationName);
         
-        // Insert into submissions table with file content
-        $stmt = $conn->prepare("INSERT INTO submissions (user_id, org_id, title, description, status, file_name, file_path, file_content, submitted_by) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?)");
+        // Insert into submissions table with file path
+        $stmt = $conn->prepare("INSERT INTO submissions (user_id, org_id, title, description, status, file_name, file_path, submitted_by) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)");
         
         if (!$stmt) {
             throw new Exception('Prepare failed: ' . $conn->error);
         }
         
-        $filePath = '';
-        // Bind parameters: int, int, string, string, string, string, string, int
-        $stmt->bind_param("iisssssi", $userId, $orgId, $title, $description, $fileName, $filePath, $fileContent, $submittedBy);
+        // Bind parameters: int, int, string, string, string, string, int
+        $stmt->bind_param("iissssi", $userId, $orgId, $title, $description, $fileName, $dbFilePath, $submittedBy);
         
         if (!$stmt->execute()) {
             $error = $stmt->error;
@@ -298,15 +307,6 @@ function handleRegularUpload($conn) {
         exit(json_encode(['success' => false, 'message' => 'File size exceeds 10MB limit']));
     }
     
-    // Read file content directly
-    $fileContent = file_get_contents($_FILES['file']['tmp_name']);
-    if ($fileContent === false) {
-        ob_end_clean();
-        http_response_code(500);
-        header('Content-Type: application/json');
-        exit(json_encode(['success' => false, 'message' => 'Failed to read uploaded file']));
-    }
-    
     // Get user info
     $userId = $_SESSION['user_id'];
     $submittedBy = $_SESSION['user_id'];
@@ -315,6 +315,20 @@ function handleRegularUpload($conn) {
     // Document filename
     $fileName = uniqid('doc_') . '_' . preg_replace('/[^a-z0-9]/i', '_', $title) . '.' . $fileExtension;
     
+    // Save file to disk
+    $uploadDir = __DIR__ . '/../uploads/submissions/';
+    if (!is_dir($uploadDir)) {
+        mkdir($uploadDir, 0755, true);
+    }
+    $diskPath = $uploadDir . $fileName;
+    if (!move_uploaded_file($_FILES['file']['tmp_name'], $diskPath)) {
+        ob_end_clean();
+        http_response_code(500);
+        header('Content-Type: application/json');
+        exit(json_encode(['success' => false, 'message' => 'Failed to save uploaded file to disk']));
+    }
+    $dbFilePath = '../uploads/submissions/' . $fileName;
+    
     // Build full description
     $fullDescription = $description;
     if ($relatedEvent) {
@@ -322,16 +336,15 @@ function handleRegularUpload($conn) {
     }
     
     try {
-        // Insert into submissions table with file content
-        $filePath = '';
-        $stmt = $conn->prepare("INSERT INTO submissions (user_id, org_id, title, description, status, file_name, file_path, file_content, submitted_by) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?)");
+        // Insert into submissions table with file path
+        $stmt = $conn->prepare("INSERT INTO submissions (user_id, org_id, title, description, status, file_name, file_path, submitted_by) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)");
         
         if (!$stmt) {
             throw new Exception('Prepare failed: ' . $conn->error);
         }
         
-        // Bind parameters: int, int, string, string, string, string, string, int
-        $stmt->bind_param("iisssssi", $userId, $orgId, $title, $fullDescription, $fileName, $filePath, $fileContent, $submittedBy);
+        // Bind parameters: int, int, string, string, string, string, int
+        $stmt->bind_param("iissssi", $userId, $orgId, $title, $fullDescription, $fileName, $dbFilePath, $submittedBy);
         
         if (!$stmt->execute()) {
             $error = $stmt->error;

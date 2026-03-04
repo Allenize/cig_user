@@ -12,23 +12,17 @@ if (!$conn) {
 
 $userId = $_SESSION['user_id'];
 
-// Generate preview token for DOCX files (matches get_docx.php logic)
-function docxToken(int $submissionId): string {
-    $secret = 'cig_preview_2026';
-    return sha1($submissionId . date('YmdH') . $secret);
-}
-
 $submissionsQuery = "
     SELECT s.submission_id, s.title, s.submitted_at, u.full_name, s.status,
            COALESCE(r.feedback, 'Awaiting review') AS admin_remarks,
            s.file_name,
            s.file_path,
            IF(
-               (s.file_content IS NOT NULL AND LENGTH(s.file_content) > 0)
-               OR (s.file_name IS NOT NULL AND s.file_name <> ''),
+               (s.file_name IS NOT NULL AND s.file_name <> '')
+               OR (s.file_path IS NOT NULL AND s.file_path <> ''),
                1, 0
            ) AS has_file,
-           LENGTH(s.file_content) AS file_size
+           NULL AS file_size
     FROM   submissions s
     JOIN   users u ON s.submitted_by = u.user_id
     LEFT JOIN reviews r ON s.submission_id = r.submission_id
@@ -90,8 +84,6 @@ function humanFileSize(int $bytes): string {
     <link rel="stylesheet" href="../css/dashboard.css">
     <link rel="stylesheet" href="../css/document_tracking.css">
     <link rel="stylesheet" href="../css/notifications.css">
-    <!-- JSZip: required by docx-preview to parse DOCX ZIP format -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         /* ── File-type badge ── */
         .file-type-badge {
@@ -172,6 +164,76 @@ function humanFileSize(int $bytes): string {
             color: #aaa;
         }
         .empty-state i { font-size: 3rem; margin-bottom: 1rem; display: block; }
+
+        /* ── docx-preview rendering fixes ── */
+        #previewDocxWrap { background: #e8e8e8; }
+        #previewDocxWrap .docx-wrapper {
+            background: #e8e8e8 !important;
+            padding: 16px !important;
+        }
+        #previewDocxWrap .docx-wrapper > section.docx {
+            width: 100% !important;
+            max-width: 900px !important;
+            min-height: auto !important;
+            margin: 0 auto 16px auto !important;
+            padding: 72px 90px !important;
+            box-shadow: 0 2px 12px rgba(0,0,0,.2) !important;
+            box-sizing: border-box !important;
+            overflow: visible !important;
+            background: #fff !important;
+        }
+        /* Force all images visible */
+        #previewDocxWrap img,
+        #previewDocxWrap svg image,
+        #previewDocxWrap .docx-wrapper image {
+            max-width: 100% !important;
+            height: auto !important;
+            visibility: visible !important;
+            display: inline-block !important;
+        }
+        #previewDocxWrap table {
+            max-width: 100% !important;
+            table-layout: fixed !important;
+            word-break: break-word !important;
+        }
+        /* Anchored/floating drawing containers — reset ALL positioning
+           so images land inside their parent table cell, not the page */
+        #previewDocxWrap [style*="position:absolute"],
+        #previewDocxWrap [style*="position: absolute"] {
+            position: relative !important;
+            left: auto !important;
+            top: auto !important;
+            transform: none !important;
+            margin: 0 !important;
+        }
+        /* Header table: equal-width columns, images centered in each cell */
+        #previewDocxWrap header table,
+        #previewDocxWrap .docx-wrapper header table {
+            width: 100% !important;
+            table-layout: fixed !important;
+            border-collapse: collapse !important;
+        }
+        #previewDocxWrap header td,
+        #previewDocxWrap .docx-wrapper header td {
+            vertical-align: middle !important;
+            text-align: center !important;
+            overflow: visible !important;
+            padding: 4px !important;
+        }
+        #previewDocxWrap header img,
+        #previewDocxWrap .docx-wrapper header img {
+            position: relative !important;
+            display: block !important;
+            margin: 0 auto !important;
+            max-width: 100% !important;
+            max-height: 120px !important;
+            width: auto !important;
+            height: auto !important;
+            left: auto !important;
+            top: auto !important;
+            transform: none !important;
+            visibility: visible !important;
+        }
     </style>
 </head>
 <body>
@@ -288,10 +350,6 @@ function humanFileSize(int $bytes): string {
                             <td>
                                 <?php if ($doc['has_file']): ?>
                                 <div class="action-btns">
-                                    <?php if ($ext === 'docx'): ?>
-                                    <input type="hidden" id="docx-token-<?php echo $doc['submission_id']; ?>"
-                                           value="<?php echo docxToken((int)$doc['submission_id']); ?>">
-                                    <?php endif; ?>
                                     <button class="btn-view"
                                         onclick="openPreviewModal(<?php echo $doc['submission_id']; ?>,'<?php echo $ext; ?>','<?php echo addslashes(htmlspecialchars($doc['title'])); ?>')">
                                         <i class="fas fa-eye"></i> View
@@ -403,9 +461,136 @@ function humanFileSize(int $bytes): string {
         </div>
     </div>
 
+    <!-- ── Document Preview Modal ── -->
+    <div id="previewModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);align-items:center;justify-content:center;">
+        <div style="background:#fff;border-radius:10px;width:92vw;max-width:1060px;height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.4);">
+            <!-- Header bar -->
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 18px;background:#2d6a4f;color:#fff;flex-shrink:0;">
+                <div style="display:flex;align-items:center;gap:9px;min-width:0;">
+                    <i id="previewFileIcon" class="fas fa-file-alt" style="font-size:1.1rem;flex-shrink:0;"></i>
+                    <span id="previewTitle" style="font-size:.95rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+                </div>
+                <button onclick="closePreviewModal()" style="background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;line-height:1;flex-shrink:0;margin-left:12px;">&times;</button>
+            </div>
+            <!-- Loading -->
+            <div id="previewLoading" style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:12px;color:#666;">
+                <i class="fas fa-spinner fa-spin" style="font-size:2rem;color:#2d6a4f;"></i>
+                <span style="font-size:.9rem;">Loading document…</span>
+            </div>
+            <!-- Error -->
+            <div id="previewError" style="display:none;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:10px;color:#c0392b;">
+                <i class="fas fa-exclamation-triangle" style="font-size:2rem;"></i>
+                <span id="previewErrorMsg" style="font-size:.9rem;text-align:center;max-width:400px;"></span>
+            </div>
+            <!-- PDF iframe -->
+            <iframe id="previewPdfFrame" style="display:none;flex:1;border:none;width:100%;"></iframe>
+            <!-- DOCX / XLSX container -->
+            <div id="previewDocxWrap" style="display:none;flex:1;overflow:auto;"></div>
+        </div>
+    </div>
+
     <script src="../js/script.js"></script>
     <script src="../js/document_tracking.js"></script>
     <script>
+    /* ── Preview modal ── */
+    function openPreviewModal(id, ext, title) {
+        var modal    = document.getElementById('previewModal');
+        var loading  = document.getElementById('previewLoading');
+        var errorDiv = document.getElementById('previewError');
+        var pdfFrame = document.getElementById('previewPdfFrame');
+        var docxWrap = document.getElementById('previewDocxWrap');
+        var titleEl  = document.getElementById('previewTitle');
+        var iconEl   = document.getElementById('previewFileIcon');
+
+        // Reset state
+        loading.style.display  = 'flex';
+        errorDiv.style.display = 'none';
+        pdfFrame.style.display = 'none';
+        docxWrap.style.display = 'none';
+        pdfFrame.src           = '';
+        docxWrap.innerHTML     = '';
+        modal.style.display    = 'flex';
+        titleEl.textContent    = title;
+
+        var iconMap = { pdf:'fa-file-pdf', docx:'fa-file-word', doc:'fa-file-word', xlsx:'fa-file-excel', xls:'fa-file-excel' };
+        iconEl.className = 'fas ' + (iconMap[ext] || 'fa-file-alt');
+
+        var previewUrl = 'file_preview.php?submission_id=' + id;
+
+        if (ext === 'pdf') {
+            pdfFrame.src           = previewUrl;
+            pdfFrame.style.display = 'block';
+            loading.style.display  = 'none';
+            pdfFrame.onerror = function() { showPreviewError('Failed to load PDF.'); };
+
+        } else if (ext === 'docx' || ext === 'doc') {
+            // Convert DOCX → PDF server-side via LibreOffice, display in iframe
+            var convertUrl = 'docx_to_pdf.php?submission_id=' + id;
+            pdfFrame.src           = convertUrl;
+            pdfFrame.style.display = 'block';
+            // Show a "converting…" message while LibreOffice runs (may take 2–5s)
+            loading.querySelector('span').textContent = 'Converting document…';
+            pdfFrame.onload = function() {
+                loading.style.display = 'none';
+            };
+            pdfFrame.onerror = function() {
+                showPreviewError('Failed to convert document.');
+            };
+
+        } else if (ext === 'xlsx' || ext === 'xls') {
+            if (typeof XLSX === 'undefined') {
+                var s = document.createElement('script');
+                s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+                s.onload = function() { loadXlsx(previewUrl, docxWrap, loading); };
+                document.head.appendChild(s);
+            } else {
+                loadXlsx(previewUrl, docxWrap, loading);
+            }
+        } else {
+            showPreviewError('Preview not available for this file type.');
+        }
+    }
+
+    function loadXlsx(url, wrap, loading) {
+        fetch(url)
+            .then(function(r) {
+                if (!r.ok) throw new Error('Server error ' + r.status);
+                return r.arrayBuffer();
+            })
+            .then(function(buf) {
+                var wb   = XLSX.read(new Uint8Array(buf), { type: 'array' });
+                var html = '<style>table{border-collapse:collapse;font-size:.8rem;width:100%;}td,th{border:1px solid #ccc;padding:4px 8px;white-space:nowrap;}</style>';
+                wb.SheetNames.forEach(function(name) {
+                    html += '<div style="padding:16px;"><h3 style="margin:0 0 8px;color:#2d6a4f;font-size:.9rem;">' + name + '</h3>';
+                    html += XLSX.utils.sheet_to_html(wb.Sheets[name], { editable: false });
+                    html += '</div>';
+                });
+                wrap.innerHTML        = html;
+                wrap.style.display    = 'block';
+                loading.style.display = 'none';
+            })
+            .catch(function(e) { showPreviewError('Could not render spreadsheet: ' + e.message); });
+    }
+
+    function showPreviewError(msg) {
+        document.getElementById('previewLoading').style.display = 'none';
+        document.getElementById('previewError').style.display   = 'flex';
+        document.getElementById('previewErrorMsg').textContent  = msg;
+    }
+
+    function closePreviewModal() {
+        document.getElementById('previewModal').style.display = 'none';
+        document.getElementById('previewPdfFrame').src        = '';
+        document.getElementById('previewDocxWrap').innerHTML  = '';
+    }
+
+    document.getElementById('previewModal').addEventListener('click', function(e) {
+        if (e.target === this) closePreviewModal();
+    });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closePreviewModal();
+    });
+
     /* ── Client-side search / filter ── */
     (function () {
         const searchInput  = document.getElementById('searchInput');

@@ -219,9 +219,10 @@ function loadTemplateFields() {
 
 function validateTemplateForm() {
     const sel     = document.getElementById('templateSelect');
+    const title   = document.getElementById('templateTitle');
     const orgName = document.getElementById('organizationName');
     const orgTag  = document.getElementById('organizationTagline');
-    if (!sel.value || !orgName.value.trim() || !orgTag.value.trim()) {
+    if (!sel.value || !title.value.trim() || !orgName.value.trim() || !orgTag.value.trim()) {
         submitBtn.disabled = true; return;
     }
     const allFields = templateForm.querySelectorAll('.template-fields-container input, .template-fields-container textarea');
@@ -229,6 +230,7 @@ function validateTemplateForm() {
 }
 
 document.getElementById('templateSelect')?.addEventListener('change', validateTemplateForm);
+document.getElementById('templateTitle')?.addEventListener('input', validateTemplateForm);
 document.getElementById('organizationName')?.addEventListener('input', validateTemplateForm);
 document.getElementById('organizationTagline')?.addEventListener('input', validateTemplateForm);
 
@@ -269,13 +271,16 @@ templateForm.onsubmit = function (e) {
     if (submitBtn.disabled) { alert('Please fill in all required fields'); return; }
 
     const sel   = document.getElementById('templateSelect');
-    const title = sel.options[sel.selectedIndex].text;
+    const titleField = document.getElementById('templateTitle');
+    const customTitle = titleField ? titleField.value.trim() : '';
     const id    = sel.value;
+    
     if (!id) { alert('Please select a template'); return; }
+    if (!customTitle) { alert('Please enter a document title'); return; }
 
     const formData = new FormData();
     formData.append('template_id', id);
-    formData.append('title', title);
+    formData.append('title', customTitle);
     formData.append('organization_name',    document.getElementById('organizationName').value);
     formData.append('organization_tagline', document.getElementById('organizationTagline').value);
     const logo = document.getElementById('collaboratedLogo').value;
@@ -294,14 +299,17 @@ templateForm.onsubmit = function (e) {
         .then(data => {
             if (data.success) {
                 showToast('Document generated and submitted!', true);
-                addTableRow(title, data.submitted_by || 'You', data.submission_id, 'docx');
+                addTableRow(customTitle, data.submitted_by || 'You', data.submission_id, 'pdf');
                 closeUploadModal();
                 setTimeout(() => location.reload(), 1200);
             } else {
-                showToast('Error: ' + (data.message || 'Failed.'), false);
+                showToast('Error: ' + (data.message || 'Unknown error occurred.'), false);
             }
         })
-        .catch(err => showToast('Error: ' + err.message, false))
+        .catch(err => {
+            console.error('Upload error:', err);
+            showToast('Error: ' + err.message, false);
+        })
         .finally(() => { submitBtn.textContent = origText; submitBtn.disabled = false; });
 };
 
@@ -621,35 +629,104 @@ window.openPreviewModal = function (submissionId, ext, title) {
 
         const base = '/org-dashboard/php/get_docx.php?id=' + submissionId;
 
-        // Fetch binary + image list in parallel
-        Promise.all([
-            fetch(base + '&mode=binary', { credentials: 'include' }).then(function(r) { return r.arrayBuffer(); }),
-            fetch(base + '&mode=list',   { credentials: 'include' }).then(function(r) { return r.json(); })
-        ])
-        .then(function(results) {
-            var buf      = results[0];
-            var imgData  = results[1];
-            var files    = imgData.files    || [];
-            var hdrImgs  = imgData.headerImages || [];
-
+        // Fetch raw binary
+        fetch(base + '&mode=binary', { credentials: 'include' })
+        .then(function(r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.arrayBuffer();
+        })
+        .then(function(buf) {
             if (buf.byteLength < 100) throw new Error('Empty file');
 
-            // Ensure JSZip + docx-preview loaded
+            // Ensure JSZip + docx-preview loaded before patching
             return new Promise(function(resolve, reject) {
                 function loadDocxPreview() {
-                    if (typeof docx !== 'undefined') { resolve({ buf: buf, files: files, hdrImgs: hdrImgs }); return; }
+                    if (typeof docx !== 'undefined') { resolve(buf); return; }
                     loadScript('https://cdn.jsdelivr.net/npm/docx-preview@0.3.2/dist/docx-preview.min.js',
-                        function() { resolve({ buf: buf, files: files, hdrImgs: hdrImgs }); },
-                        reject
-                    );
+                        function() { resolve(buf); }, reject);
                 }
                 if (typeof JSZip !== 'undefined') { loadDocxPreview(); return; }
                 loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
                     loadDocxPreview, reject);
             });
         })
-        .then(function(obj) {
-            return docx.renderAsync(obj.buf, wrap, null, {
+        .then(function(buf) {
+            // docx-preview skips wp:anchor (floating) drawings entirely.
+            // Fix: detect thin divider images (w/h >= 5) and strip them,
+            // then convert all remaining anchors to inline so logos render.
+            return JSZip.loadAsync(buf).then(function(zip) {
+                // Step 1: find thin horizontal images in word/media
+                var mediaChecks = [];
+                zip.forEach(function(path, file) {
+                    if (/^word\/media\//i.test(path) && !file.dir) {
+                        mediaChecks.push(file.async('uint8array').then(function(bytes) {
+                            var name = path.replace(/^word\/media\//i, '');
+                            var w = 0, h = 0;
+                            if (/\.png$/i.test(path) && bytes.length > 24) {
+                                w = (bytes[16]<<24)|(bytes[17]<<16)|(bytes[18]<<8)|bytes[19];
+                                h = (bytes[20]<<24)|(bytes[21]<<16)|(bytes[22]<<8)|bytes[23];
+                            } else if (/\.jpe?g$/i.test(path)) {
+                                for (var i = 2; i < bytes.length - 8; i++) {
+                                    if (bytes[i]===0xFF && (bytes[i+1]===0xC0||bytes[i+1]===0xC2)) {
+                                        h=(bytes[i+5]<<8)|bytes[i+6]; w=(bytes[i+7]<<8)|bytes[i+8]; break;
+                                    }
+                                }
+                            }
+                            return (h > 0 && w / h >= 5) ? name : null;
+                        }));
+                    }
+                });
+                return Promise.all(mediaChecks).then(function(results) {
+                    var dividerFiles = new Set(results.filter(Boolean));
+                    // Step 2: map rIds to divider filenames via rels files
+                    var relChecks = [];
+                    zip.forEach(function(path, file) {
+                        if (/\.xml\.rels$/i.test(path) && !file.dir) {
+                            relChecks.push(file.async('string').then(function(xml) {
+                                var rids = new Set();
+                                var re = /Id="([^"]+)"[^>]+Target="media\/([^"]+)"/g, m;
+                                while ((m = re.exec(xml)) !== null) {
+                                    if (dividerFiles.has(m[2])) rids.add(m[1]);
+                                }
+                                return { xmlPath: path.replace('_rels/','').replace(/\.rels$/, ''), rids: rids };
+                            }));
+                        }
+                    });
+                    return Promise.all(relChecks);
+                }).then(function(rels) {
+                    var dividerMap = {};
+                    rels.forEach(function(r) { if (r.rids.size > 0) dividerMap[r.xmlPath] = r.rids; });
+                    // Step 3: patch every XML file
+                    var xmlFiles = [];
+                    zip.forEach(function(path, file) { if (/\.xml$/i.test(path) && !file.dir) xmlFiles.push(path); });
+                    return Promise.all(xmlFiles.map(function(path) {
+                        return zip.files[path].async('string').then(function(xml) {
+                            // Remove drawing blocks for divider rIds
+                            var rids = dividerMap[path];
+                            if (rids) {
+                                rids.forEach(function(rid) {
+                                    var e = rid.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                                    xml = xml.replace(new RegExp('<w:drawing>\\s*<wp:anchor\\b[\\s\\S]*?r:embed="'+e+'"[\\s\\S]*?<\/wp:anchor>\\s*<\/w:drawing>','g'), '');
+                                });
+                            }
+                            // Convert remaining anchors to inline
+                            xml = xml
+                                .replace(/<wp:anchor\b[^>]*>/g, '<wp:inline distT="0" distB="0" distL="0" distR="0">')
+                                .replace(/<\/wp:anchor>/g, '</wp:inline>')
+                                .replace(/<wp:wrapNone\s*\/>/g, '')
+                                .replace(/<wp:positionH\b[\s\S]*?<\/wp:positionH>/g, '')
+                                .replace(/<wp:positionV\b[\s\S]*?<\/wp:positionV>/g, '')
+                                .replace(/<wp:simplePos\b[^>]*\/>/g, '')
+                                .replace(/<wp14:sizeRelH\b[\s\S]*?<\/wp14:sizeRelH>/g, '')
+                                .replace(/<wp14:sizeRelV\b[\s\S]*?<\/wp14:sizeRelV>/g, '');
+                            zip.file(path, xml);
+                        });
+                    })).then(function() { return zip.generateAsync({ type: 'arraybuffer' }); });
+                });
+            });
+        })
+        .then(function(patchedBuf) {
+            return docx.renderAsync(patchedBuf, wrap, null, {
                 className:                   'docx-wrapper',
                 inWrapper:                   true,
                 ignoreWidth:                 false,
@@ -666,15 +743,13 @@ window.openPreviewModal = function (submissionId, ext, title) {
             });
         })
         .then(function() {
-            // Force all images visible
             wrap.querySelectorAll('img').forEach(function(img) {
                 img.style.visibility = 'visible';
                 img.style.display    = 'inline-block';
-                // Reset any absolute positioning injected by docx-preview
                 if (img.style.position === 'absolute') {
                     img.style.position = 'relative';
-                    img.style.left     = 'auto';
-                    img.style.top      = 'auto';
+                    img.style.left = 'auto';
+                    img.style.top  = 'auto';
                 }
             });
             loading.classList.add('pm-hidden');

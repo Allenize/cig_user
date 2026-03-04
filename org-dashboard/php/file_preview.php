@@ -24,7 +24,7 @@ if (!$submissionId) {
     die("Invalid submission ID");
 }
 
-// Fetch metadata (no BLOB yet — keep utf8mb4 safe)
+// Fetch file metadata
 $stmt = $conn->prepare("SELECT file_name, file_path, submitted_by FROM submissions WHERE submission_id = ? LIMIT 1");
 $stmt->bind_param("i", $submissionId);
 $stmt->execute();
@@ -37,25 +37,17 @@ if ((int)$row['submitted_by'] !== (int)$_SESSION['user_id']) { http_response_cod
 $fileName = $row['file_name'];
 $ext      = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
 
-// ── Fetch BLOB as HEX — charset-safe, works for files up to ~8MB ─────────────
-$stmt2 = $conn->prepare("SELECT HEX(file_content) as h FROM submissions WHERE submission_id = ? LIMIT 1");
-$stmt2->bind_param("i", $submissionId);
-$stmt2->execute();
-$stmt2->store_result();
-$h = null;
-$stmt2->bind_result($h);
-$stmt2->fetch();
-$stmt2->close();
+// Read file from disk (files stored on disk via file_path)
 $conn->close();
-
 $fileBytes = null;
-if (!empty($h)) {
-    $fileBytes = hex2bin($h);
+$diskPath  = $row['file_path'];
+// Resolve relative path (e.g. ../uploads/submissions/file.pdf)
+if (!empty($diskPath) && !file_exists($diskPath)) {
+    $resolved = realpath(__DIR__ . '/' . $diskPath);
+    if ($resolved !== false && file_exists($resolved)) $diskPath = $resolved;
 }
-
-// Fallback to disk
-if (empty($fileBytes) && !empty($row['file_path']) && file_exists($row['file_path'])) {
-    $fileBytes = file_get_contents($row['file_path']);
+if (!empty($diskPath) && file_exists($diskPath)) {
+    $fileBytes = file_get_contents($diskPath);
 }
 
 if (empty($fileBytes)) {
