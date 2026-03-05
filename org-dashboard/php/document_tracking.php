@@ -276,7 +276,8 @@ function humanFileSize(int $bytes): string {
 
             <!-- Table -->
             <div class="table-responsive">
-                <table class="documents-table" id="documentsTable">
+                <!-- Fixed header — never scrolls -->
+                <table class="documents-table" style="display:table;width:100%;table-layout:fixed;">
                     <thead>
                         <tr>
                             <th>Document</th>
@@ -287,6 +288,10 @@ function humanFileSize(int $bytes): string {
                             <th>Actions</th>
                         </tr>
                     </thead>
+                </table>
+                <!-- Scrollable body — scrollbar stays inside the card -->
+                <div class="table-scroll-body">
+                <table class="documents-table" id="documentsTable" style="display:table;width:100%;table-layout:fixed;">
                     <tbody>
                         <?php if (empty($submissions)): ?>
                         <tr>
@@ -393,6 +398,7 @@ function humanFileSize(int $bytes): string {
                         <?php endif; ?>
                     </tbody>
                 </table>
+                </div><!-- /.table-scroll-body -->
             </div><!-- /.table-responsive -->
         </div><!-- /.document-container -->
     </main>
@@ -871,5 +877,6 @@ function humanFileSize(int $bytes): string {
         dateFilter  .addEventListener('input',  applyFilters);
     }());
     </script>
+     <script src="../js/notifications.js"></script>
 </body>
 </html>

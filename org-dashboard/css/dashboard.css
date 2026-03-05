@@ -71,22 +71,55 @@ body {
     border-radius: 24px;
     margin-bottom: 2.5rem;
     box-shadow: 0 8px 18px rgba(0,60,0,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
 }
-.welcome-banner h1 {
+.welcome-banner-text h1 {
     font-size: 1.9rem;
     font-weight: 600;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.4rem;
 }
-.welcome-banner p {
-    font-size: 1.1rem;
-    opacity: 0.9;
+.welcome-banner-text p {
+    font-size: 1.05rem;
+    opacity: 0.88;
+}
+.welcome-banner-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.4rem;
+    flex-shrink: 0;
+}
+.welcome-date-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(255,255,255,0.18);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    padding: 0.45rem 1rem;
+    border-radius: 30px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    backdrop-filter: blur(4px);
+}
+.welcome-date-badge i {
+    opacity: 0.85;
+}
+.welcome-updated-tag {
+    font-size: 0.76rem;
+    opacity: 0.7;
+    text-align: right;
 }
 
 .cards-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 1.8rem;
-    margin-bottom: 3rem;
+    margin-bottom: 2.2rem;
 }
 .stat-card {
     background: white;
@@ -98,21 +131,33 @@ body {
     gap: 1.2rem;
     transition: transform 0.2s, box-shadow 0.2s;
     border: 1px solid #e9f0ec;
+    border-left: 4px solid transparent;
 }
 .stat-card:hover {
     transform: translateY(-3px);
-    box-shadow: 0 12px 24px rgba(45, 106, 79, 0.08);
+    box-shadow: 0 12px 24px rgba(0,0,0,0.09);
 }
+
+/* Per-card accent colors */
+.stat-card.card-members   { border-left-color: #3b82f6; }
+.stat-card.card-documents { border-left-color: #2d6a4f; }
+.stat-card.card-reports   { border-left-color: #10b981; }
+.stat-card.card-pending   { border-left-color: #f59e0b; }
+
+.stat-card.card-members   .card-icon { background: #eff6ff; color: #3b82f6; }
+.stat-card.card-documents .card-icon { background: #e3f2eb; color: #2d6a4f; }
+.stat-card.card-reports   .card-icon { background: #d1fae5; color: #059669; }
+.stat-card.card-pending   .card-icon { background: #fffbeb; color: #d97706; }
+
 .card-icon {
-    background: #e3f2eb;
     width: 56px;
     height: 56px;
     border-radius: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #2d6a4f;
     font-size: 1.8rem;
+    flex-shrink: 0;
 }
 .card-content h3 {
     font-size: 1.9rem;
@@ -126,23 +171,67 @@ body {
     font-size: 0.95rem;
 }
 
+/* ── Quick Actions Row ── */
+.quick-actions-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2.2rem;
+    flex-wrap: wrap;
+}
+.quick-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.7rem 1.4rem;
+    border-radius: 40px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s, filter 0.15s;
+    white-space: nowrap;
+}
+.quick-action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+    filter: brightness(1.06);
+}
+.quick-action-btn i {
+    font-size: 1rem;
+}
+.qab-upload   { background: #2d6a4f; color: #fff; }
+.qab-member   { background: #3b82f6; color: #fff; }
+.qab-report   { background: #10b981; color: #fff; }
+.qab-calendar { background: #f59e0b; color: #fff; }
+
 .dashboard-bottom {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 2rem;
+    align-items: start;
 }
+
+/* Fixed-height card — header pinned, body scrolls */
 .section-card {
     background: white;
     border-radius: 24px;
-    padding: 1.8rem 2rem;
     box-shadow: 0 4px 14px rgba(0,30,0,0.02);
     border: 1px solid #e9f0ec;
+    display: flex;
+    flex-direction: column;
+    height: 520px;          /* fixed height so the page never grows */
+    overflow: hidden;       /* clip rounded corners cleanly */
 }
+
+/* Pinned header — never scrolls */
 .section-title {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-bottom: 1.5rem;
+    padding: 1.8rem 2rem 1.2rem 2rem;
+    border-bottom: 1px solid #e9f0ec;
+    flex-shrink: 0;
 }
 .section-title i {
     font-size: 1.8rem;
@@ -157,22 +246,48 @@ body {
     font-weight: 600;
 }
 
+/* Scrollable body inside the card */
+.section-card-body {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 1.4rem 2rem 1.6rem 2rem;
+}
+
+/* Slim on-brand scrollbar */
+.section-card-body::-webkit-scrollbar {
+    width: 6px;
+}
+.section-card-body::-webkit-scrollbar-track {
+    background: #f4f7f6;
+    border-radius: 10px;
+}
+.section-card-body::-webkit-scrollbar-thumb {
+    background: #b2d0c1;
+    border-radius: 10px;
+}
+.section-card-body::-webkit-scrollbar-thumb:hover {
+    background: #2d6a4f;
+}
+
 .guidelines-list {
     list-style: none;
-    margin-bottom: 2rem;
+    margin-bottom: 1.2rem;
 }
 .guidelines-list li {
     display: flex;
-    gap: 12px;
-    align-items: flex-start;
-    margin-bottom: 1.2rem;
+    gap: 10px;
+    align-items: baseline;
+    margin-bottom: 0.85rem;
     color: #2d4a42;
-    font-size: 1rem;
+    font-size: 0.95rem;
+    line-height: 1.55;
 }
 .guidelines-list li i {
     color: #2d6a4f;
-    font-size: 1.2rem;
-    margin-top: 3px;
+    font-size: 1rem;
+    flex-shrink: 0;
+    margin-top: 0.1em;
 }
 
 .btn-outline-green {
@@ -305,4 +420,158 @@ body {
     .main-content {
         margin-left: 0;
     }
+}
+/* ── Accreditation Manual Banner ── */
+.accred-manual-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    background: linear-gradient(135deg, #eaf6f0 0%, #d4eee3 100%);
+    border: 1px solid #b2dac8;
+    border-radius: 16px;
+    padding: 1rem 1.2rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+.accred-manual-info {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    min-width: 0;
+}
+.accred-manual-icon {
+    background: #2d6a4f;
+    color: white;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    flex-shrink: 0;
+}
+.accred-manual-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #1e3a3a;
+    line-height: 1.3;
+}
+.accred-manual-sub {
+    font-size: 0.78rem;
+    color: #4a7060;
+    margin-top: 2px;
+    line-height: 1.3;
+}
+.btn-download-manual {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #2d6a4f;
+    color: white;
+    padding: 0.55rem 1.2rem;
+    border-radius: 30px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+.btn-download-manual:hover {
+    background: #1e4f3a;
+}
+
+/* ── Guidelines section labels ── */
+.guidelines-section-label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #2d6a4f;
+    margin: 1.2rem 0 0.7rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.guidelines-section-label:first-of-type {
+    margin-top: 0;
+}
+
+/* ── Inline link inside guidelines ── */
+.guidelines-link {
+    color: #2d6a4f;
+    font-weight: 600;
+    text-decoration: underline;
+}
+.guidelines-link:hover {
+    color: #1e4f3a;
+}
+
+
+
+/* ── Skeleton loading shimmer ───────────────────────────────────────────────── */
+@keyframes shimmer {
+    0%   { background-position: -400px 0; }
+    100% { background-position:  400px 0; }
+}
+
+.skel {
+    display: inline-block;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #e8f0ec 25%, #d0e8da 50%, #e8f0ec 75%);
+    background-size: 400px 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+}
+.skel-num {
+    width: 52px;
+    height: 28px;
+    vertical-align: middle;
+}
+
+/* Cards shimmer border while loading */
+.skeleton-card {
+    position: relative;
+    overflow: hidden;
+}
+.skeleton-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg,
+        rgba(255,255,255,0)   0%,
+        rgba(255,255,255,0.6) 50%,
+        rgba(255,255,255,0)   100%);
+    background-size: 400px 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+    pointer-events: none;
+    border-radius: inherit;
+}
+
+/* ── Clickable stat card styles ─────────────────────────────────────────────── */
+a.stat-card {
+    cursor: pointer;
+    color: inherit;
+    position: relative;
+}
+a.stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 28px rgba(0,0,0,0.1);
+}
+
+/* Arrow hint that appears on hover */
+.card-link-hint {
+    position: absolute;
+    top: 0.9rem;
+    right: 1rem;
+    font-size: 0.75rem;
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: opacity 0.2s, transform 0.2s;
+    color: #9bb8a8;
+}
+a.stat-card:hover .card-link-hint {
+    opacity: 1;
+    transform: translateX(0);
 }

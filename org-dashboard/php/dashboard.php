@@ -92,40 +92,77 @@ if ($conn) {
         <div class="dashboard-container">
             <!-- Welcome Banner -->
             <div class="welcome-banner">
-                <h1>Welcome back, <?php echo htmlspecialchars($_SESSION['org_name'] ?? 'Organization'); ?>! </h1>
-                <p>Stay updated and manage your activities efficiently.</p>
+                <div class="welcome-banner-text">
+                    <h1>Welcome back, <?php echo htmlspecialchars($_SESSION['org_name'] ?? 'Organization'); ?>! </h1>
+                    <p>Stay updated and manage your activities efficiently.</p>
+                </div>
+                <div class="welcome-banner-meta">
+                    <span class="welcome-date-badge">
+                        <i class="fas fa-calendar-alt"></i>
+                        <?php echo date('F d, Y'); ?>
+                    </span>
+                    <span class="welcome-updated-tag">As of <span id="live-clock"></span></span>
+                </div>
             </div>
 
             <!-- Overview Cards -->
             <div class="cards-grid">
-                <div class="stat-card">
+                <a href="members.php" class="stat-card card-members skeleton-card" style="text-decoration:none;">
                     <div class="card-icon"><i class="fas fa-users"></i></div>
                     <div class="card-content">
-                        <h3><?php echo $total_members; ?></h3>
+                        <h3 class="count-up" data-target="<?php echo $total_members; ?>">
+                            <span class="skel skel-num"></span>
+                        </h3>
                         <p>Total Members</p>
                     </div>
-                </div>
-                <div class="stat-card">
+                    <span class="card-link-hint"><i class="fas fa-arrow-right"></i></span>
+                </a>
+                <a href="document_tracking.php" class="stat-card card-documents skeleton-card" style="text-decoration:none;">
                     <div class="card-icon"><i class="fas fa-folder-open"></i></div>
                     <div class="card-content">
-                        <h3><?php echo $total_documents; ?></h3>
+                        <h3 class="count-up" data-target="<?php echo $total_documents; ?>">
+                            <span class="skel skel-num"></span>
+                        </h3>
                         <p>Total Documents</p>
                     </div>
-                </div>
-                <div class="stat-card">
-                    <div class="card-icon"><i class="fas fa-file-alt"></i></div>
+                    <span class="card-link-hint"><i class="fas fa-arrow-right"></i></span>
+                </a>
+                <a href="document_tracking.php?filter=approved" class="stat-card card-reports skeleton-card" style="text-decoration:none;">
+                    <div class="card-icon"><i class="fas fa-clipboard-check"></i></div>
                     <div class="card-content">
-                        <h3><?php echo $submitted_reports; ?></h3>
+                        <h3 class="count-up" data-target="<?php echo $submitted_reports; ?>">
+                            <span class="skel skel-num"></span>
+                        </h3>
                         <p>Submitted Reports</p>
                     </div>
-                </div>
-                <div class="stat-card">
+                    <span class="card-link-hint"><i class="fas fa-arrow-right"></i></span>
+                </a>
+                <a href="document_tracking.php?filter=pending" class="stat-card card-pending skeleton-card" style="text-decoration:none;">
                     <div class="card-icon"><i class="fas fa-clock"></i></div>
                     <div class="card-content">
-                        <h3><?php echo $pending_documents; ?></h3>
+                        <h3 class="count-up" data-target="<?php echo $pending_documents; ?>">
+                            <span class="skel skel-num"></span>
+                        </h3>
                         <p>Pending Documents</p>
                     </div>
-                </div>
+                    <span class="card-link-hint"><i class="fas fa-arrow-right"></i></span>
+                </a>
+            </div>
+
+            <!-- Quick Actions Row -->
+            <div class="quick-actions-row">
+                <a href="document_tracking.php" class="quick-action-btn qab-upload">
+                    <i class="fas fa-cloud-upload-alt"></i> Upload Document
+                </a>
+                <a href="members.php" class="quick-action-btn qab-member">
+                    <i class="fas fa-user-plus"></i> Add Member
+                </a>
+                <a href="document_tracking.php" class="quick-action-btn qab-report">
+                    <i class="fas fa-file-alt"></i> Submit Report
+                </a>
+                <a href="events.php" class="quick-action-btn qab-calendar">
+                    <i class="fas fa-calendar-plus"></i> Schedule Event
+                </a>
             </div>
 
             <!-- Bottom sections: Guidelines & Announcements -->
@@ -134,16 +171,48 @@ if ($conn) {
                 <div class="section-card">
                     <div class="section-title">
                         <i class="fas fa-book-open"></i>
-                        <h2> Organizational Guidelines</h2>
+                        <h2>Organizational Guidelines</h2>
                     </div>
+                    <div class="section-card-body">
+
+                    <!-- Key requirements from the manual -->
+                    <p class="guidelines-section-label"><i class="fas fa-clipboard-list"></i> Key Accreditation Requirements</p>
                     <ul class="guidelines-list">
-                        <li><i class="fas fa-check-circle"></i> Submit reports within 7 days after events.</li>
-                        <li><i class="fas fa-check-circle"></i> Use official templates from the Documents section.</li>
-                        <li><i class="fas fa-check-circle"></i> Secure approval before conducting events.</li>
-                        <li><i class="fas fa-check-circle"></i> Keep member records updated.</li>
+                        <li><i class="fas fa-check-circle"></i> Submit a Letter of Intent (OSLS Form 1 s. 24-25) using your organization letterhead.</li>
+                        <li><i class="fas fa-check-circle"></i> Provide your Constitution &amp; By-Laws, signed by all officers and reviewed by the Adviser/Dean.</li>
+                        <li><i class="fas fa-check-circle"></i> Submit a List of Officers, Members, and Representatives for all designated committees.</li>
+                        <li><i class="fas fa-check-circle"></i> Include an Adviser&#39;s Letter of Acceptance &mdash; at least two teacher-advisers required.</li>
+                        <li><i class="fas fa-check-circle"></i> Attach a Proposed Calendar of Activities free from conflicts with institutional schedules.</li>
+                        <li><i class="fas fa-check-circle"></i> All documents must be in A4 size, Times New Roman 12pt, single-spaced, with a 1&Prime; left margin.</li>
                     </ul>
-                    <a href="guidelines.php" class="btn-outline-green"><i class="fas fa-arrow-right"></i> View Full Guidelines</a>
-                </div>
+
+                    <!-- Process summary -->
+                    <p class="guidelines-section-label"><i class="fas fa-tasks"></i> Submission Process</p>
+                    <ul class="guidelines-list">
+                        <li><i class="fas fa-paper-plane"></i> Initial Assessment (Online): Send soft copies in PDF via your org email to <a href="mailto:plspaccreditation@gmail.com" class="guidelines-link">plspaccreditation@gmail.com</a>.</li>
+                        <li><i class="fas fa-sync-alt"></i> Revise documents if needed and resubmit until final approval for printing is granted.</li>
+                        <li><i class="fas fa-print"></i> Final Assessment (Physical): Submit one (1) hard copy to the OSDS/CIG Office for final review.</li>
+                        <li><i class="fas fa-certificate"></i> Upon approval, the organization receives its Accreditation Certificate and may schedule EED activities.</li>
+                    </ul>
+
+                    <!-- Accreditation Manual download — bottom -->
+                    <div class="accred-manual-banner">
+                        <div class="accred-manual-info">
+                            <div class="accred-manual-icon">
+                                <i class="fas fa-file-word"></i>
+                            </div>
+                            <div>
+                                <div class="accred-manual-title">PLSP Accreditation Manual 2024&#8211;25</div>
+                                <div class="accred-manual-sub">Requirements &amp; Guidelines for Accreditation, Re-accreditation, and Recognition</div>
+                            </div>
+                        </div>
+                        <a href="../uploads/G4-PLSP-ACCREDITATION-MANUAL-24-25.docx"
+                           download class="btn-download-manual">
+                            <i class="fas fa-download"></i> Download
+                        </a>
+                    </div><!-- /.accred-manual-banner -->
+                    </div><!-- /.section-card-body -->
+                </div><!-- /.section-card guidelines -->
 
                 <!-- Announcements card — from DB -->
                 <div class="section-card">
@@ -151,6 +220,7 @@ if ($conn) {
                         <i class="fas fa-bullhorn"></i>
                         <h2> Latest Announcements</h2>
                     </div>
+                    <div class="section-card-body">
 
                     <?php if (empty($announcements_db)): ?>
                         <p style="color:#888; text-align:center; padding:20px 0;">
@@ -220,14 +290,48 @@ if ($conn) {
                     <?php endforeach; ?>
                     <?php endif; ?>
 
-                </div>
-            </div>
-        </div>
+                    </div><!-- /.section-card-body -->
+                </div><!-- /.section-card announcements -->
+            </div><!-- /.dashboard-bottom -->
+        </div><!-- /.dashboard-container -->
     </main>
 
     <!-- External JavaScript -->
     <script src="../js/script.js"></script>
     <script src="../js/notifications.js"></script>
+    <script>
+    // ── Count-up animation for stat cards ────────────────────────────────────
+    (function () {
+        const duration = 1200; // ms
+        const ease = t => t < 0.5 ? 2*t*t : -1+(4-2*t)*t; // ease-in-out quad
+
+        function animateCount(el) {
+            const target = parseInt(el.getAttribute('data-target'), 10) || 0;
+            if (target === 0) { el.textContent = '0'; return; }
+            const start = performance.now();
+            function step(now) {
+                const elapsed = now - start;
+                const progress = Math.min(elapsed / duration, 1);
+                el.textContent = Math.floor(ease(progress) * target);
+                if (progress < 1) requestAnimationFrame(step);
+                else el.textContent = target;
+            }
+            requestAnimationFrame(step);
+        }
+
+        // Fire when cards enter the viewport
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    animateCount(entry.target);
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.3 });
+
+        document.querySelectorAll('.count-up').forEach(el => observer.observe(el));
+    })();
+    </script>
 
     <style>
     .ann-badge {
@@ -310,6 +414,122 @@ if ($conn) {
             }
         });
     });
+    </script>
+    <script>
+    // ── Live clock ────────────────────────────────────────────────────────────
+    (function () {
+        function updateClock() {
+            const now = new Date();
+            let h = now.getHours();
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const s = String(now.getSeconds()).padStart(2, '0');
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            h = h % 12 || 12;
+            const el = document.getElementById('live-clock');
+            if (el) el.textContent = h + ':' + m + ':' + s + ' ' + ampm;
+        }
+        updateClock();
+        setInterval(updateClock, 1000);
+    })();
+    </script>
+
+    <script>
+    // ── Skeleton loader: remove shimmer once DOM is ready ────────────────────
+    (function () {
+        // Cards are server-rendered, so values are already in data-target.
+        // We just fade out the skeleton class once the count-up fires.
+        function removeSkeleton() {
+            document.querySelectorAll('.skeleton-card').forEach(card => {
+                card.classList.remove('skeleton-card');
+            });
+            document.querySelectorAll('.skel').forEach(el => el.remove());
+        }
+        // Remove after a brief artificial delay so shimmer is visible on fast loads too
+        setTimeout(removeSkeleton, 600);
+    })();
+
+    // ── Real-time notification polling every 30 seconds ─────────────────────
+    (function () {
+        // Grab the existing notification badge element injected by notifications.js
+        // We re-fetch the unread count from the server and update the badge.
+        function pollNotifications() {
+            fetch('get_notification_count.php', { credentials: 'same-origin' })
+                .then(r => r.ok ? r.json() : null)
+                .then(data => {
+                    if (!data) return;
+                    const count = parseInt(data.unread_count, 10) || 0;
+
+                    // Update every badge that notifications.js renders
+                    document.querySelectorAll('.notif-badge, .notification-badge, #notif-count').forEach(el => {
+                        el.textContent = count > 99 ? '99+' : count;
+                        el.style.display = count > 0 ? '' : 'none';
+                    });
+
+                    // If new notifications arrived since last poll, show a toast
+                    if (typeof window._lastNotifCount !== 'undefined' && count > window._lastNotifCount) {
+                        const diff = count - window._lastNotifCount;
+                        showDashToast(
+                            `You have ${diff} new notification${diff > 1 ? 's' : ''}!`,
+                            'info'
+                        );
+                    }
+                    window._lastNotifCount = count;
+                })
+                .catch(() => {}); // silently ignore network errors
+        }
+
+        // Also refresh the stat card numbers every 30 s so they stay accurate
+        function pollStats() {
+            fetch('get_dashboard_stats.php', { credentials: 'same-origin' })
+                .then(r => r.ok ? r.json() : null)
+                .then(data => {
+                    if (!data) return;
+                    const map = {
+                        'card-members':   data.total_members,
+                        'card-documents': data.total_documents,
+                        'card-reports':   data.submitted_reports,
+                        'card-pending':   data.pending_documents,
+                    };
+                    Object.entries(map).forEach(([cls, val]) => {
+                        const el = document.querySelector('.' + cls + ' .count-up');
+                        if (el && val !== undefined) el.textContent = val;
+                    });
+                })
+                .catch(() => {});
+        }
+
+        // Run immediately then repeat every 30 s
+        pollNotifications();
+        pollStats();
+        setInterval(pollNotifications, 30000);
+        setInterval(pollStats,         30000);
+    })();
+
+    // ── Lightweight toast for in-page alerts ────────────────────────────────
+    function showDashToast(msg, type) {
+        const colors = { info: '#3b82f6', success: '#10b981', warning: '#f59e0b', error: '#ef4444' };
+        const icons  = { info: 'fa-bell', success: 'fa-check-circle', warning: 'fa-exclamation-triangle', error: 'fa-times-circle' };
+        const old = document.getElementById('dash-poll-toast');
+        if (old) old.remove();
+        const t = document.createElement('div');
+        t.id = 'dash-poll-toast';
+        t.style.cssText = `
+            position:fixed;bottom:1.8rem;right:1.8rem;z-index:99999;
+            padding:.8rem 1.3rem;border-radius:14px;font-size:.9rem;font-weight:600;
+            box-shadow:0 6px 24px rgba(0,0,0,.18);color:#fff;
+            display:flex;align-items:center;gap:.6rem;max-width:340px;
+            background:${colors[type] || colors.info};
+            animation:slideUpToast .3s ease;`;
+        t.innerHTML = `<i class="fas ${icons[type] || icons.info}"></i><span>${msg}</span>`;
+        if (!document.getElementById('dash-toast-anim')) {
+            const s = document.createElement('style');
+            s.id = 'dash-toast-anim';
+            s.textContent = '@keyframes slideUpToast{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}';
+            document.head.appendChild(s);
+        }
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 4500);
+    }
     </script>
 </body>
 </html>
