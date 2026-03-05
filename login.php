@@ -37,11 +37,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         if (password_verify($password, $user['password_hash'])) {
 
             // Store RBAC-relevant data in session
-            $_SESSION['user_id']   = $user['user_id'];       // correct PK column
+            $_SESSION['user_id']   = $user['user_id'];
             $_SESSION['username']  = $user['username'];
             $_SESSION['full_name'] = $user['full_name'];
-            $_SESSION['role']      = $user['role'];           // admin | reviewer | user
+            $_SESSION['role']      = $user['role'];
             $_SESSION['status']    = $user['status'];
+            $_SESSION['org_name']  = $user['org_name'];
+            $_SESSION['org_code']  = $user['org_code'];
 
             // Update last_login timestamp
             $update = $conn->prepare("UPDATE users SET last_login = NOW() WHERE user_id = ?");

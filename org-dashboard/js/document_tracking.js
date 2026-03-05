@@ -1,6 +1,3 @@
-// document_tracking.js
-
-// ─── Template definitions ───────────────────────────────────────────────────
 const templates = {
     'meeting_minutes': {
         name: 'Meeting Minutes',

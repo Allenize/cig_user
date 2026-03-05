@@ -25,7 +25,7 @@
             </div>
         </div>
         <!-- User Info -->
-        <span class="user-name"><?php echo htmlspecialchars($_SESSION['user_name'] ?? 'Admin'); ?></span>
+        <span class="user-name"><?php echo htmlspecialchars($_SESSION['org_code'] ?? 'Admin'); ?></span>
         <img src="https://placehold.co/40x40/2d3748/white?text=JD" alt="User avatar" class="avatar">
     </div>
 </header>

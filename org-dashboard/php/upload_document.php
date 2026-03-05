@@ -171,7 +171,7 @@ function handleTemplateUpload($conn) {
         }
         
         // Include the unified document generation function
-        include 'generate_document.php';
+        include __DIR__ . '/generate_document.php';
         
         // Collect all template field data
         $data = [];
@@ -183,18 +183,22 @@ function handleTemplateUpload($conn) {
         $format = (isset($_POST['output_format']) && strtolower($_POST['output_format']) === 'pdf') ? 'pdf' : 'docx';
 
         // Generate the document
+        if (!function_exists('generateDocument')) {
+            throw new Exception('generateDocument() not loaded — check generate_document.php path and syntax.');
+        }
         $generatedPath = generateDocument($template, $data, $title, $format, $collaboratedLogo, $organizationName, $organizationTagline);
 
         if (!$generatedPath || !file_exists($generatedPath)) {
-            throw new Exception('Failed to generate document');
+            $zipOk = class_exists('ZipArchive') ? 'yes' : 'NO — enable zip extension';
+            throw new Exception('Document generation failed. ZipArchive: ' . $zipOk . ' | Temp: ' . sys_get_temp_dir());
         }
 
         // Get user info
         $userId = $_SESSION['user_id'];
         $submittedBy = $_SESSION['user_id'];
 
-        // Default org_id (CIG organization)
-        $orgId = 7;
+        // org_id references users.user_id in this schema — use the submitting user's own id
+        $orgId = $userId;
 
         // Document filename based on chosen format
         $fileName = uniqid('doc_') . '_' . preg_replace('/[^a-z0-9]/i', '_', $title) . '.' . $format;
@@ -322,7 +326,8 @@ function handleRegularUpload($conn) {
     // Get user info
     $userId = $_SESSION['user_id'];
     $submittedBy = $_SESSION['user_id'];
-    $orgId = 7; // Default to CIG organization
+    // org_id references users.user_id in this schema — use the submitting user's own id
+    $orgId = $userId;
     
     // Document filename
     $fileName = uniqid('doc_') . '_' . preg_replace('/[^a-z0-9]/i', '_', $title) . '.' . $fileExtension;

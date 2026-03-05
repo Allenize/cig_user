@@ -13,7 +13,10 @@ if (!$conn) {
 $userId = $_SESSION['user_id'];
 
 $submissionsQuery = "
-    SELECT s.submission_id, s.title, s.submitted_at, u.full_name, s.status,
+    SELECT s.submission_id, s.title, s.submitted_at,
+           u.full_name,
+           COALESCE(u.org_name, u.full_name) AS display_org,
+           s.status,
            COALESCE(r.feedback, 'Awaiting review') AS admin_remarks,
            s.file_name,
            s.file_path,
@@ -346,7 +349,12 @@ function humanFileSize(int $bytes): string {
                             <td><?php echo date('M d, Y', strtotime($doc['submitted_at'])); ?></td>
 
                             <!-- Submitted by -->
-                            <td><?php echo htmlspecialchars($doc['full_name']); ?></td>
+                            <td>
+                                <div><?php echo htmlspecialchars($doc['full_name']); ?></div>
+                                <?php if (!empty($doc['display_org']) && $doc['display_org'] !== $doc['full_name']): ?>
+                                    <small style="color:#6b9080;font-size:.78rem;"><?php echo htmlspecialchars($doc['display_org']); ?></small>
+                                <?php endif; ?>
+                            </td>
 
                             <!-- Status -->
                             <td>
