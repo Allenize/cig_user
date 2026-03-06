@@ -50,6 +50,7 @@ if ($conn) {
         FROM announcements a
         LEFT JOIN users u ON a.created_by = u.user_id
         WHERE a.is_active = 1
+          AND a.category != 'event'
           AND (a.expires_at IS NULL OR a.expires_at >= CURDATE())
           AND (a.audience IS NULL OR a.audience = ''
                OR FIND_IN_SET('$org_code_escaped', a.audience) > 0)
@@ -65,6 +66,28 @@ if ($conn) {
             $announcements_db[] = $row;
         }
     }
+    // Event announcements (category='event') — shown in standalone events widget
+    $event_announcements = [];
+    $res_ev = mysqli_query($conn, "
+        SELECT a.announcement_id, a.title, a.content,
+               a.priority, a.expires_at, a.is_pinned, a.created_at
+        FROM announcements a
+        WHERE a.is_active = 1
+          AND a.category = 'event'
+          AND (a.expires_at IS NULL OR a.expires_at >= CURDATE())
+          AND (a.audience IS NULL OR a.audience = ''
+               OR FIND_IN_SET('$org_code_escaped', a.audience) > 0)
+        ORDER BY a.is_pinned DESC,
+                 FIELD(a.priority,'urgent','high','low'),
+                 a.created_at DESC
+        LIMIT 5
+    ");
+    if ($res_ev) {
+        while ($row = mysqli_fetch_assoc($res_ev)) {
+            $event_announcements[] = $row;
+        }
+    }
+
     mysqli_close($conn);
 }
 ?>
@@ -92,16 +115,33 @@ if ($conn) {
         <div class="dashboard-container">
             <!-- Welcome Banner -->
             <div class="welcome-banner">
-                <div class="welcome-banner-text">
-                    <h1>Welcome back, <?php echo htmlspecialchars($_SESSION['org_name'] ?? 'Organization'); ?>! </h1>
-                    <p>Stay updated and manage your activities efficiently.</p>
+                <div class="welcome-banner-top">
+                    <div class="welcome-banner-text">
+                        <h1>Welcome back, <?php echo htmlspecialchars($_SESSION['org_name'] ?? 'Organization'); ?>! 👋</h1>
+                        <p>Stay updated and manage your activities efficiently.</p>
+                    </div>
+                    <div class="welcome-banner-meta">
+                        <span class="welcome-date-badge">
+                            <i class="fas fa-calendar-alt"></i>
+                            <?php echo date('F d, Y'); ?>
+                        </span>
+                        <span class="welcome-updated-tag">As of <span id="live-clock"></span></span>
+                    </div>
                 </div>
-                <div class="welcome-banner-meta">
-                    <span class="welcome-date-badge">
-                        <i class="fas fa-calendar-alt"></i>
-                        <?php echo date('F d, Y'); ?>
-                    </span>
-                    <span class="welcome-updated-tag">As of <span id="live-clock"></span></span>
+                <!-- Glass Quick Action Buttons -->
+                <div class="welcome-glass-actions">
+                    <a href="document_tracking.php" class="glass-btn">
+                        <i class="fas fa-cloud-upload-alt"></i> Upload Document
+                    </a>
+                    <a href="members.php" class="glass-btn">
+                        <i class="fas fa-user-plus"></i> Add Member
+                    </a>
+                    <a href="document_tracking.php" class="glass-btn">
+                        <i class="fas fa-file-alt"></i> Submit Report
+                    </a>
+                    <a href="events.php" class="glass-btn">
+                        <i class="fas fa-calendar-plus"></i> Schedule Event
+                    </a>
                 </div>
             </div>
 
@@ -149,20 +189,55 @@ if ($conn) {
                 </a>
             </div>
 
-            <!-- Quick Actions Row -->
-            <div class="quick-actions-row">
-                <a href="document_tracking.php" class="quick-action-btn qab-upload">
-                    <i class="fas fa-cloud-upload-alt"></i> Upload Document
-                </a>
-                <a href="members.php" class="quick-action-btn qab-member">
-                    <i class="fas fa-user-plus"></i> Add Member
-                </a>
-                <a href="document_tracking.php" class="quick-action-btn qab-report">
-                    <i class="fas fa-file-alt"></i> Submit Report
-                </a>
-                <a href="events.php" class="quick-action-btn qab-calendar">
-                    <i class="fas fa-calendar-plus"></i> Schedule Event
-                </a>
+            <!-- ── Event Announcements Widget ─────────────────────────── -->
+            <div class="dash-events-widget">
+                <div class="dash-events-header">
+                    <div class="dash-events-title">
+                        <i class="fas fa-calendar-alt"></i>
+                        <h3>Event Announcements</h3>
+                    </div>
+                </div>
+                <?php if (empty($event_announcements)): ?>
+                    <div class="dash-events-empty">
+                        <i class="fas fa-calendar-times"></i>
+                        <span>No event announcements at this time.</span>
+                    </div>
+                <?php else: ?>
+                    <div class="dash-events-list">
+                    <?php
+                        $priority_map_ev = [
+                            'urgent' => ['label'=>'Urgent','color'=>'#c0392b','bg'=>'#fde8e8','icon'=>'fa-fire'],
+                            'high'   => ['label'=>'High',  'color'=>'#b7770d','bg'=>'#fff3cd','icon'=>'fa-arrow-up'],
+                            'low'    => ['label'=>'Low',   'color'=>'#555',   'bg'=>'#f0f0f0','icon'=>'fa-arrow-down'],
+                        ];
+                        foreach ($event_announcements as $idx => $ev):
+                            $p  = $ev['priority'] ?? 'low';
+                            $pb = $priority_map_ev[$p] ?? $priority_map_ev['low'];
+                            $pinned  = !empty($ev['is_pinned']);
+                            $expires = !empty($ev['expires_at']) ? date('M d, Y', strtotime($ev['expires_at'])) : null;
+                            $created = new DateTime($ev['created_at']);
+                    ?>
+                        <div class="dash-event-item<?php echo $pinned ? ' ev-pinned' : ''; ?>">
+                            <div class="dash-event-date-block" style="background:#dbeafe;color:#1d4ed8">
+                                <span class="dash-ev-day"><?= $created->format('d') ?></span>
+                                <span class="dash-ev-mon"><?= $created->format('M') ?></span>
+                            </div>
+                            <div class="dash-event-body">
+                                <span class="dash-event-name"><?= htmlspecialchars($ev['title']) ?></span>
+                                <div class="dash-event-meta">
+                                    <span><i class="fas fa-clock"></i> <?= $created->format('h:i A') ?></span>
+                                    <?php if ($expires): ?>
+                                        <span><i class="fas fa-hourglass-end"></i> Expires <?= $expires ?></span>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                            <span class="dash-event-type-badge" style="background:<?= $pb['bg'] ?>;color:<?= $pb['color'] ?>">
+                                <i class="fas <?= $pb['icon'] ?>"></i> <?= $pb['label'] ?>
+                            </span>
+                        </div>
+                    <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
             </div>
 
             <!-- Bottom sections: Guidelines & Announcements -->
