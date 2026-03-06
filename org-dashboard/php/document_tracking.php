@@ -369,8 +369,25 @@ function humanFileSize(int $bytes): string {
                             </td>
 
                             <!-- Admin remarks -->
-                            <td class="remarks-cell" title="<?php echo htmlspecialchars($doc['admin_remarks']); ?>">
-                                <?php echo htmlspecialchars($doc['admin_remarks']); ?>
+                            <td>
+                                <?php if (!empty($doc['admin_remarks']) && $doc['admin_remarks'] !== 'Awaiting review'): ?>
+                                    <div style="display:flex;align-items:flex-start;gap:6px;">
+                                        <?php if ($doc['status'] === 'approved'): ?>
+                                            <i class="fas fa-check-circle" style="color:#27ae60;margin-top:2px;flex-shrink:0;"></i>
+                                        <?php elseif ($doc['status'] === 'rejected'): ?>
+                                            <i class="fas fa-times-circle" style="color:#e74c3c;margin-top:2px;flex-shrink:0;"></i>
+                                        <?php else: ?>
+                                            <i class="fas fa-comment-alt" style="color:#2980b9;margin-top:2px;flex-shrink:0;"></i>
+                                        <?php endif; ?>
+                                        <span style="font-size:.85rem;color:#333;line-height:1.4;">
+                                            <?php echo htmlspecialchars($doc['admin_remarks']); ?>
+                                        </span>
+                                    </div>
+                                <?php else: ?>
+                                    <span style="color:#aaa;font-size:.82rem;font-style:italic;">
+                                        <i class="fas fa-clock"></i> Awaiting review
+                                    </span>
+                                <?php endif; ?>
                             </td>
 
                             <!-- Actions -->
