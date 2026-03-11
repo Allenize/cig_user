@@ -1,120 +1,188 @@
 // archive.js
 
-// ========== TAB FUNCTIONALITY ==========
-const tabBtns = document.querySelectorAll('.tab-btn');
-const tableRows = document.querySelectorAll('#archiveTable tbody tr');
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(msg, type = 'success') {
+    const colors = { success: '#10b981', error: '#ef4444', info: '#3b82f6', warning: '#f59e0b' };
+    const icons  = { success: 'fa-check-circle', error: 'fa-times-circle', info: 'fa-info-circle', warning: 'fa-exclamation-triangle' };
+    document.querySelectorAll('.arch-toast').forEach(t => t.remove());
+    const t = document.createElement('div');
+    t.className = 'arch-toast';
+    t.style.background = colors[type] || colors.success;
+    t.innerHTML = `<i class="fas ${icons[type]}"></i><span>${msg}</span>`;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3500);
+}
 
-tabBtns.forEach(btn => {
+// ── Rows reference ────────────────────────────────────────────────────────────
+function getRows() {
+    return Array.from(document.querySelectorAll('#archiveTable tbody tr'));
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-        tabBtns.forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        const tab = btn.dataset.tab;
-        filterByTab(tab);
+        applyFilters();
     });
 });
 
-function filterByTab(tab) {
-    tableRows.forEach(row => {
-        const category = row.dataset.category;
-        const isNew = row.dataset.new === 'true';
-        
-        if (tab === 'all') {
-            row.style.display = '';
-        } else if (tab === 'documents' && isNew) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
+// ── Search & Date Filter ──────────────────────────────────────────────────────
+document.getElementById('searchInput').addEventListener('input', applyFilters);
+document.getElementById('dateFilter').addEventListener('change', applyFilters);
+
+function applyFilters() {
+    const tab      = document.querySelector('.tab-btn.active')?.dataset.tab || 'all';
+    const search   = document.getElementById('searchInput').value.toLowerCase().trim();
+    const dateVal  = document.getElementById('dateFilter').value;
+    let visible    = 0;
+
+    getRows().forEach(row => {
+        const title    = row.dataset.title || '';
+        const isRecent = row.dataset.recent === 'true';
+        const archived = row.dataset.archivedDate || '';
+
+        const tabOk    = tab === 'all' || (tab === 'recent' && isRecent);
+        const searchOk = !search || title.includes(search);
+        const dateOk   = !dateVal || archived === dateVal;
+
+        const show = tabOk && searchOk && dateOk;
+        row.style.display = show ? '' : 'none';
+        if (show) visible++;
     });
-    filterTable();
+
+    const counter = document.getElementById('rowCount');
+    if (counter) counter.textContent = `${visible} item(s)`;
 }
 
-// ========== SEARCH & FILTER ==========
-const searchInput = document.getElementById('searchInput');
-const statusFilter = document.getElementById('statusFilter');
-const dateFilter = document.getElementById('dateFilter');
+// ── View Modal ────────────────────────────────────────────────────────────────
+const viewModal    = document.getElementById('viewModal');
+const viewBody     = document.getElementById('viewModalBody');
+const viewActions  = document.getElementById('viewModalActions');
+document.getElementById('closeViewModal').onclick = () => viewModal.style.display = 'none';
+window.addEventListener('click', e => { if (e.target === viewModal) viewModal.style.display = 'none'; });
 
-function filterTable() {
-    const searchTerm = searchInput.value.toLowerCase();
-    const statusVal = statusFilter.value.toLowerCase();
-    const dateVal = dateFilter.value;
+window.viewItem = function(btn) {
+    const d = btn.dataset;
+    const hasFile = d.file && d.file !== '';
+    const filePath = d.filepath || '';
 
-    tableRows.forEach(row => {
-        if (row.style.display === 'none') return;
+    viewBody.innerHTML = `
+        <div class="detail-row"><span class="detail-label">Title</span><span class="detail-value">${d.title}</span></div>
+        <div class="detail-row"><span class="detail-label">Description</span><span class="detail-value">${d.desc}</span></div>
+        <div class="detail-row"><span class="detail-label">File</span><span class="detail-value">${hasFile ? d.file : '—'}</span></div>
+        <div class="detail-row"><span class="detail-label">Submitted</span><span class="detail-value">${d.submitted}</span></div>
+        <div class="detail-row"><span class="detail-label">Archived On</span><span class="detail-value">${d.archived}</span></div>
+        <div class="detail-row"><span class="detail-label">Submitted By</span><span class="detail-value">${d.by}</span></div>
+    `;
 
-        const cells = row.querySelectorAll('td');
-        const title = cells[0].innerText.toLowerCase();
-        const dateArchived = cells[2].innerText;
-        const status = cells[4].innerText.toLowerCase();
+    viewActions.innerHTML = hasFile
+        ? `<a href="${filePath}" target="_blank" class="btn-modal-restore" download>
+               <i class="fas fa-download"></i> Download File
+           </a>`
+        : '';
 
-        const matchesSearch = title.includes(searchTerm);
-        const matchesStatus = statusVal === '' || status.includes(statusVal);
-        const matchesDate = dateVal === '' || dateArchived === dateVal;
-
-        if (matchesSearch && matchesStatus && matchesDate) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
-    });
-}
-
-searchInput.addEventListener('input', filterTable);
-statusFilter.addEventListener('change', filterTable);
-dateFilter.addEventListener('change', filterTable);
-
-// ========== VIEW MODAL ==========
-const viewModal = document.getElementById('viewModal');
-const closeViewModal = document.getElementById('closeViewModal');
-const viewModalBody = document.getElementById('viewModalBody');
-
-closeViewModal.onclick = function() {
-    viewModal.style.display = 'none';
+    viewModal.style.display = 'flex';
 };
 
-// Close modal when clicking outside
-window.onclick = function(event) {
-    if (event.target == viewModal) {
-        viewModal.style.display = 'none';
+// ── Restore ───────────────────────────────────────────────────────────────────
+window.restoreItem = async function(id, btn) {
+    if (!confirm('Restore this submission to Pending status?')) return;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    try {
+        const res  = await fetch('archive_action.php', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'restore', submission_id: id }),
+        });
+        const json = await res.json();
+        if (json.success) {
+            const row = btn.closest('tr');
+            row.style.transition = 'opacity 0.4s, transform 0.4s';
+            row.style.opacity = '0';
+            row.style.transform = 'translateX(30px)';
+            setTimeout(() => { row.remove(); updateCount(); }, 420);
+            showToast('Submission restored to Pending.', 'success');
+        } else {
+            showToast(json.error || 'Restore failed.', 'error');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-undo-alt"></i>';
+        }
+    } catch (e) {
+        showToast('Server error.', 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-undo-alt"></i>';
     }
 };
 
-window.viewArchiveItem = function(button) {
-    const row = button.closest('tr');
-    const cells = row.querySelectorAll('td');
-    const title = cells[0].innerText;
-    const category = cells[1].innerText;
-    const dateArchived = cells[2].innerText;
-    const originalDate = cells[3].innerText;
-    const status = cells[4].innerText;
+// ── Delete (with confirm modal) ───────────────────────────────────────────────
+const deleteModal   = document.getElementById('deleteModal');
+const confirmDelete = document.getElementById('confirmDelete');
+const cancelDelete  = document.getElementById('cancelDelete');
+let   _pendingDeleteId  = null;
+let   _pendingDeleteBtn = null;
 
-    const content = `
-        <div class="detail-row">
-            <span class="detail-label">Title:</span>
-            <span class="detail-value">${title}</span>
-        </div>
-        <div class="detail-row">
-            <span class="detail-label">Category:</span>
-            <span class="detail-value">${category}</span>
-        </div>
-        <div class="detail-row">
-            <span class="detail-label">Date Archived:</span>
-            <span class="detail-value">${dateArchived}</span>
-        </div>
-        <div class="detail-row">
-            <span class="detail-label">Original Date:</span>
-            <span class="detail-value">${originalDate}</span>
-        </div>
-        <div class="detail-row">
-            <span class="detail-label">Status:</span>
-            <span class="detail-value">${status}</span>
-        </div>
-        <div class="detail-row">
-            <span class="detail-label">Description:</span>
-            <span class="detail-value">Sample description or additional metadata would appear here.</span>
-        </div>
-    `;
+cancelDelete.onclick  = () => deleteModal.style.display = 'none';
+window.addEventListener('click', e => { if (e.target === deleteModal) deleteModal.style.display = 'none'; });
 
-    viewModalBody.innerHTML = content;
-    viewModal.style.display = 'block';
+window.deleteItem = function(id, btn) {
+    _pendingDeleteId  = id;
+    _pendingDeleteBtn = btn;
+    deleteModal.style.display = 'flex';
 };
+
+confirmDelete.onclick = async function() {
+    if (!_pendingDeleteId) return;
+    deleteModal.style.display = 'none';
+    _pendingDeleteBtn.disabled = true;
+    _pendingDeleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    try {
+        const res  = await fetch('archive_action.php', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'delete', submission_id: _pendingDeleteId }),
+        });
+        const json = await res.json();
+        if (json.success) {
+            const row = _pendingDeleteBtn.closest('tr');
+            row.style.transition = 'opacity 0.35s, transform 0.35s';
+            row.style.opacity = '0';
+            row.style.transform = 'translateX(-30px)';
+            setTimeout(() => { row.remove(); updateCount(); }, 370);
+            showToast('Item permanently deleted.', 'error');
+        } else {
+            showToast(json.error || 'Delete failed.', 'error');
+            _pendingDeleteBtn.disabled = false;
+            _pendingDeleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+        }
+    } catch (e) {
+        showToast('Server error.', 'error');
+        _pendingDeleteBtn.disabled = false;
+        _pendingDeleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+    }
+    _pendingDeleteId  = null;
+    _pendingDeleteBtn = null;
+};
+
+// ── Row Counter Sync ──────────────────────────────────────────────────────────
+function updateCount() {
+    const visible = getRows().filter(r => r.style.display !== 'none').length;
+    const counter = document.getElementById('rowCount');
+    if (counter) counter.textContent = `${visible} item(s)`;
+
+    // Show empty state if no rows
+    if (visible === 0 && getRows().length === 0) {
+        const tableCard = document.querySelector('.table-card');
+        if (tableCard) {
+            tableCard.innerHTML = `
+                <div class="archive-empty">
+                    <div class="archive-empty-icon"><i class="fas fa-box-open"></i></div>
+                    <h3>No Archived Items</h3>
+                    <p>Submissions that are archived will appear here.</p>
+                </div>`;
+        }
+    }
+}

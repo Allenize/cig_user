@@ -22,7 +22,7 @@
     font-size: 1.5rem;
     color: #2d6a4f;
     cursor: pointer;
-    display: none; /* hidden on desktop by default */
+    display: none;
     padding: 0.5rem;
     margin-left: -0.5rem;
 }
@@ -33,6 +33,7 @@
     align-items: center;
     gap: 1.5rem;
     position: relative;
+    margin-left: auto;
 }
 
 .user-name {
@@ -47,6 +48,7 @@
     border-radius: 50%;
     object-fit: cover;
     border: 2px solid #a7d7c5;
+    display: block;
 }
 
 /* Notification bell */
@@ -75,29 +77,57 @@
     line-height: 1;
 }
 
-/* Responsive adjustments */
+/* ── Avatar link (wraps avatar, links to settings.php) ───────────────────── */
+.avatar-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    border-radius: 50%;
+    transition: transform 0.2s, box-shadow 0.2s;
+    flex-shrink: 0;
+}
+.avatar-link:hover {
+    transform: scale(1.08);
+    box-shadow: 0 0 0 3px rgba(45, 106, 79, 0.2);
+}
+
+/* ── Initials avatar (shown when no logo uploaded) ───────────────────────── */
+.avatar-initials {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #2d6a4f;
+    color: white;
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #a7d7c5;
+    font-family: 'Inter', -apple-system, sans-serif;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+/* Responsive */
 @media (max-width: 768px) {
     .top-bar {
         padding: 0 1rem;
     }
-
-    /* Show menu toggle on mobile */
     .menu-toggle {
         display: block;
     }
-
-
     .user-name {
-        display: none; /* hide name on mobile to save space */
+        display: none;
     }
-
     .notification-dropdown {
         width: 300px;
-        right: -10px; /* align better on small screens */
+        right: -10px;
     }
 }
 
-/* On desktop, the menu toggle is hidden because sidebar is always visible */
 @media (min-width: 769px) {
     .menu-toggle {
         display: none;

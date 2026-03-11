@@ -1,0 +1,285 @@
+/* certifications.css — matches archive design system */
+
+/* ── Fix Font Awesome icons broken by dashboard.css * reset ── */
+.fa, .fas, .far, .fab, .fal, .fad,
+[class^="fa-"], [class*=" fa-"] {
+    font-family: "Font Awesome 6 Free", "Font Awesome 6 Brands",
+                 "Font Awesome 5 Free", "Font Awesome 5 Brands",
+                 FontAwesome !important;
+    font-style: normal !important;
+    font-variant: normal !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+    -webkit-font-smoothing: antialiased !important;
+}
+.far { font-weight: 400 !important; }
+.fab { font-family: "Font Awesome 6 Brands", "Font Awesome 5 Brands", FontAwesome !important; font-weight: 400 !important; }
+
+body {
+    background-color: #a8e6cf;
+    display: flex;
+    min-height: 100vh;
+    overflow: hidden;
+}
+.main-content {
+    flex: 1; display: flex; flex-direction: column;
+    background-color: #a8e6cf;
+    height: 100vh; overflow-y: auto;
+}
+
+/* ── Topbar ──────────────────────────────────────────────────────────────── */
+.top-bar {
+    position: sticky; top: 0; z-index: 100;
+    background: white; padding: 1rem 2rem;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid #e2e8f0;
+    box-shadow: 0 2px 6px rgba(0,40,0,0.02);
+    flex-shrink: 0;
+}
+.menu-toggle { background: none; border: none; font-size: 1.5rem; color: #2d6a4f; cursor: pointer; }
+.user-name   { font-weight: 500; color: #1e3a3a; }
+.user-info   { display: flex; align-items: center; gap: 1.5rem; position: relative; margin-left: auto; }
+.avatar      { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #a7d7c5; }
+
+/* ── Container ───────────────────────────────────────────────────────────── */
+.cert-container {
+    padding: 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+    padding-bottom: 3rem;
+}
+
+/* ── Page Header ─────────────────────────────────────────────────────────── */
+.cert-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1.8rem; flex-wrap: wrap; gap: 1rem;
+}
+.cert-header-left   { display: flex; align-items: center; gap: 0.9rem; }
+.cert-header-icon {
+    width: 52px; height: 52px; border-radius: 18px;
+    background: #e3f2eb; color: #2d6a4f;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem; flex-shrink: 0;
+}
+.cert-header-left h1 { font-size: 1.7rem; font-weight: 700; color: #1e3a3a; line-height: 1.2; }
+.cert-header-left p  { font-size: 0.9rem; color: #5b6e6a; margin-top: 2px; }
+
+/* ── Toolbar ─────────────────────────────────────────────────────────────── */
+.cert-toolbar {
+    display: flex; align-items: center;
+    justify-content: flex-start;
+    gap: 1rem; margin-bottom: 1.2rem; flex-wrap: wrap;
+}
+.cert-search-wrap {
+    display: flex; align-items: center;
+    background: white; border: 1px solid #e9f0ec;
+    border-radius: 40px; padding: 0.45rem 1.1rem;
+    gap: 0.5rem; min-width: 260px;
+    box-shadow: 0 2px 6px rgba(0,30,0,0.03);
+    transition: border 0.2s;
+}
+.cert-search-wrap:focus-within { border-color: #2d6a4f; }
+.cert-search-wrap i     { color: #6b9080; font-size: 0.9rem; }
+.cert-search-wrap input {
+    border: none; background: transparent; outline: none;
+    font-size: 0.9rem; color: #1e3a3a; width: 100%;
+    font-family: inherit;
+}
+.cert-search-wrap input::placeholder { color: #9ca3af; }
+
+/* ── Table Card ──────────────────────────────────────────────────────────── */
+.table-card {
+    background: white; border-radius: 24px;
+    border: 1px solid #e9f0ec;
+    box-shadow: 0 4px 14px rgba(0,30,0,0.02);
+    overflow: hidden;
+}
+.table-responsive { overflow-x: auto; }
+
+.cert-table {
+    width: 100%; border-collapse: collapse; min-width: 700px;
+}
+.cert-table thead th {
+    background: #f6fdf9; color: #2d6a4f;
+    font-weight: 700; padding: 1rem 1.1rem;
+    text-align: left; font-size: 0.78rem;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    border-bottom: 2px solid #e3f2eb; white-space: nowrap;
+}
+.cert-table tbody tr {
+    border-bottom: 1px solid #f0f7f4;
+    transition: background 0.15s;
+    animation: rowFadeIn 0.3s ease both;
+}
+@keyframes rowFadeIn {
+    from { opacity:0; transform: translateY(4px); }
+    to   { opacity:1; transform: translateY(0); }
+}
+.cert-table tbody tr:hover { background: #fafcfb; }
+.cert-table tbody tr:last-child { border-bottom: none; }
+.cert-table tbody td {
+    padding: 1rem 1.1rem; color: #374151; vertical-align: middle;
+}
+
+/* Row number */
+.row-num { color: #9ca3af; font-size: 0.85rem; font-weight: 600; width: 40px; }
+
+/* Title cell */
+.title-cell  { max-width: 260px; }
+.item-title  {
+    display: block; font-weight: 600; color: #1e3a3a;
+    font-size: 0.92rem;
+}
+.item-desc {
+    display: block; font-size: 0.78rem; color: #9ca3af;
+    margin-top: 2px; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; max-width: 240px;
+}
+
+/* Type badge */
+.type-badge {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    padding: 0.22rem 0.75rem; border-radius: 20px;
+    font-size: 0.75rem; font-weight: 700; white-space: nowrap;
+}
+.type-accreditation { background: #e3f2eb; color: #1a3d2b; }
+.type-recognition   { background: #dbeafe; color: #1e3a8a; }
+.type-achievement   { background: #fef3c7; color: #78350f; }
+.type-completion    { background: #ccfbf1; color: #134e4a; }
+.type-other         { background: #ede9fe; color: #4c1d95; }
+
+/* Status badge */
+.status-badge {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    padding: 0.22rem 0.75rem; border-radius: 20px;
+    font-size: 0.75rem; font-weight: 700; white-space: nowrap;
+}
+.status-active   { background: #dcfce7; color: #14532d; }
+.status-expiring { background: #fef9c3; color: #78350f; }
+.status-expired  { background: #fee2e2; color: #7f1d1d; }
+.status-revoked  { background: #f3f4f6; color: #4b5563; }
+
+/* Date cells */
+.date-cell { font-size: 0.87rem; color: #5b6e6a; white-space: nowrap; }
+.days-left {
+    display: inline-block; margin-left: 5px;
+    background: #fef08a; color: #854d0e;
+    font-size: 0.68rem; font-weight: 700;
+    padding: 1px 6px; border-radius: 20px;
+}
+
+/* Issuer cell */
+.issuer-cell { font-size: 0.87rem; color: #5b6e6a; max-width: 180px; }
+
+/* Actions */
+.actions-cell { display: flex; gap: 0.4rem; align-items: center; }
+.btn-action {
+    width: 34px; height: 34px; border: none; border-radius: 10px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 0.85rem; transition: all 0.15s; flex-shrink: 0;
+}
+.btn-view         { background: #e3f2eb; color: #2d6a4f; }
+.btn-view:hover   { background: #c0e0d4; transform: translateY(-1px); }
+.btn-download     { background: #dbeafe; color: #1d4ed8; }
+.btn-download:hover { background: #bfdbfe; transform: translateY(-1px); }
+
+/* Table footer */
+.table-footer {
+    padding: 0.85rem 1.4rem;
+    border-top: 1px solid #f0f7f4;
+    font-size: 0.82rem; color: #9ca3af; font-weight: 500;
+}
+
+/* ── Empty State ─────────────────────────────────────────────────────────── */
+.cert-empty {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 4rem 2rem; gap: 0.8rem; text-align: center;
+}
+.cert-empty-icon {
+    width: 72px; height: 72px; background: #e3f2eb;
+    border-radius: 24px; display: flex; align-items: center;
+    justify-content: center; font-size: 2rem; color: #2d6a4f; margin-bottom: 0.5rem;
+}
+.cert-empty h3 { font-size: 1.15rem; font-weight: 700; color: #1e3a3a; }
+.cert-empty p  { font-size: 0.9rem; color: #6b9080; max-width: 340px; line-height: 1.6; }
+
+/* ── View Modal ──────────────────────────────────────────────────────────── */
+.cert-modal {
+    display: none; position: fixed; inset: 0; z-index: 2000;
+    background: rgba(0,0,0,0.35); backdrop-filter: blur(3px);
+    align-items: center; justify-content: center; padding: 1rem;
+}
+.cert-modal-content {
+    background: white; border-radius: 24px;
+    width: 90%; max-width: 520px;
+    box-shadow: 0 20px 50px rgba(0,40,0,0.15);
+    animation: modalIn 0.25s ease; overflow: hidden;
+}
+@keyframes modalIn {
+    from { opacity:0; transform: translateY(16px) scale(0.98); }
+    to   { opacity:1; transform: translateY(0) scale(1); }
+}
+.cert-modal-header {
+    display: flex; align-items: center; gap: 0.9rem;
+    padding: 1.5rem 1.8rem 1.2rem;
+    border-bottom: 1px solid #e9f0ec;
+}
+.cert-modal-header h2  { font-size: 1.15rem; font-weight: 700; color: #1e3a3a; }
+.cert-modal-header-icon {
+    width: 40px; height: 40px; background: #e3f2eb; color: #2d6a4f;
+    border-radius: 12px; display: flex; align-items: center;
+    justify-content: center; font-size: 1rem; flex-shrink: 0;
+}
+.cert-modal-close {
+    margin-left: auto; font-size: 1.5rem; cursor: pointer;
+    color: #9ca3af; line-height: 1; transition: color 0.15s;
+}
+.cert-modal-close:hover { color: #1e3a3a; }
+.cert-modal-body {
+    padding: 1.4rem 1.8rem; display: flex; flex-direction: column; gap: 0.75rem;
+}
+.detail-row {
+    display: flex; gap: 1rem; padding-bottom: 0.65rem;
+    border-bottom: 1px solid #f0f7f4; align-items: flex-start;
+}
+.detail-row:last-child { border-bottom: none; padding-bottom: 0; }
+.detail-label { font-weight: 700; font-size: 0.82rem; color: #1e3a3a; min-width: 110px; padding-top: 1px; }
+.detail-value { flex: 1; font-size: 0.9rem; color: #374151; word-break: break-word; }
+.cert-modal-actions {
+    display: flex; gap: 0.7rem; justify-content: flex-end;
+    padding: 1rem 1.8rem 1.5rem; border-top: 1px solid #f0f7f4;
+}
+.btn-modal-close {
+    background: white; color: #4a5568; border: 1.5px solid #d1d5db;
+    padding: 0.65rem 1.3rem; border-radius: 40px;
+    font-weight: 600; font-size: 0.88rem; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    transition: background 0.2s; font-family: inherit;
+}
+.btn-modal-close:hover { background: #f6fdf9; }
+.btn-modal-download {
+    background: #2d6a4f; color: white; border: none;
+    padding: 0.65rem 1.3rem; border-radius: 40px;
+    font-weight: 600; font-size: 0.88rem; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    transition: background 0.2s; text-decoration: none;
+    font-family: inherit;
+}
+.btn-modal-download:hover { background: #1e4f3a; }
+
+/* ── No results ──────────────────────────────────────────────────────────── */
+.cert-no-results {
+    display: none; flex-direction: column;
+    align-items: center; gap: 0.6rem;
+    padding: 3rem; color: #8aaa92; font-size: 0.9rem;
+}
+.cert-no-results i { font-size: 1.8rem; }
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+    .cert-container { padding: 1rem; }
+    .cert-toolbar   { flex-direction: column; align-items: stretch; }
+    .cert-search-wrap { min-width: 100%; }
+}

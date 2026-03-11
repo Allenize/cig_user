@@ -10,6 +10,8 @@ body {
     background-color: #a8e6cf;
     display: flex;
     min-height: 100vh;
+    overflow: hidden;
+    height: 100vh;
 }
 
 /* Main Content */
@@ -18,6 +20,9 @@ body {
     display: flex;
     flex-direction: column;
     background-color: #a8e6cf;
+    height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .top-bar {
@@ -177,12 +182,12 @@ body {
 }
 
 /* Per-card accent colors */
-.stat-card.card-members   { border-left-color: #3b82f6; }
+.stat-card.card-members   { border-left-color: #2d6a4f; }
 .stat-card.card-documents { border-left-color: #2d6a4f; }
 .stat-card.card-reports   { border-left-color: #10b981; }
 .stat-card.card-pending   { border-left-color: #f59e0b; }
 
-.stat-card.card-members   .card-icon { background: #eff6ff; color: #3b82f6; }
+.stat-card.card-members   .card-icon { background: #e3f2eb; color: #2d6a4f; }
 .stat-card.card-documents .card-icon { background: #e3f2eb; color: #2d6a4f; }
 .stat-card.card-reports   .card-icon { background: #d1fae5; color: #059669; }
 .stat-card.card-pending   .card-icon { background: #fffbeb; color: #d97706; }
@@ -239,7 +244,7 @@ body {
     font-size: 1rem;
 }
 .qab-upload   { background: #2d6a4f; color: #fff; }
-.qab-member   { background: #3b82f6; color: #fff; }
+.qab-member   { background: #2d6a4f; color: #fff; }
 .qab-report   { background: #10b981; color: #fff; }
 .qab-calendar { background: #f59e0b; color: #fff; }
 

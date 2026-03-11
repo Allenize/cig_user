@@ -24,7 +24,7 @@ if ($conn) {
     $org_code     = mysqli_real_escape_string($conn, $org_code_row['org_code'] ?? '');
 
     if ($org_code) {
-        $r = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM users WHERE org_code = '$org_code' AND role = 'user'");
+        $r = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM users WHERE org_code = '$org_code' AND role != 'org' AND user_id != $org_id");
         $total_members = (int) mysqli_fetch_assoc($r)['cnt'];
     }
 
@@ -117,7 +117,7 @@ if ($conn) {
             <div class="welcome-banner">
                 <div class="welcome-banner-top">
                     <div class="welcome-banner-text">
-                        <h1>Welcome back, <?php echo htmlspecialchars($_SESSION['org_name'] ?? 'Organization'); ?>! 👋</h1>
+                        <h1>Welcome back, <?php echo htmlspecialchars($_SESSION['org_name'] ?? 'Organization'); ?>! </h1>
                         <p>Stay updated and manage your activities efficiently.</p>
                     </div>
                     <div class="welcome-banner-meta">
@@ -136,11 +136,8 @@ if ($conn) {
                     <a href="members.php" class="glass-btn">
                         <i class="fas fa-user-plus"></i> Add Member
                     </a>
-                    <a href="document_tracking.php" class="glass-btn">
+                    <a href="reports.php" class="glass-btn">
                         <i class="fas fa-file-alt"></i> Submit Report
-                    </a>
-                    <a href="events.php" class="glass-btn">
-                        <i class="fas fa-calendar-plus"></i> Schedule Event
                     </a>
                 </div>
             </div>
@@ -167,7 +164,7 @@ if ($conn) {
                     </div>
                     <span class="card-link-hint"><i class="fas fa-arrow-right"></i></span>
                 </a>
-                <a href="document_tracking.php?filter=approved" class="stat-card card-reports skeleton-card" style="text-decoration:none;">
+                <a href="reports.php" class="stat-card card-reports skeleton-card" style="text-decoration:none;">
                     <div class="card-icon"><i class="fas fa-clipboard-check"></i></div>
                     <div class="card-content">
                         <h3 class="count-up" data-target="<?php echo $submitted_reports; ?>">
@@ -218,7 +215,7 @@ if ($conn) {
                             $created = new DateTime($ev['created_at']);
                     ?>
                         <div class="dash-event-item<?php echo $pinned ? ' ev-pinned' : ''; ?>">
-                            <div class="dash-event-date-block" style="background:#dbeafe;color:#1d4ed8">
+                            <div class="dash-event-date-block" style="background:#d1fae5;color:#065f46">
                                 <span class="dash-ev-day"><?= $created->format('d') ?></span>
                                 <span class="dash-ev-mon"><?= $created->format('M') ?></span>
                             </div>
@@ -308,7 +305,7 @@ if ($conn) {
                             'low'    => ['label'=>'Low',   'color'=>'#555',   'bg'=>'#f0f0f0','icon'=>'fa-arrow-down'],
                         ];
                         $category_map = [
-                            'event'    => ['label'=>'Event',    'color'=>'#1d4ed8','bg'=>'#dbeafe','icon'=>'fa-calendar-alt'],
+                            'event'    => ['label'=>'Event',    'color'=>'#065f46','bg'=>'#d1fae5','icon'=>'fa-calendar-alt'],
                             'deadline' => ['label'=>'Deadline', 'color'=>'#b91c1c','bg'=>'#fee2e2','icon'=>'fa-clock'],
                             'policy'   => ['label'=>'Policy',   'color'=>'#6d28d9','bg'=>'#ede9fe','icon'=>'fa-gavel'],
                             'general'  => ['label'=>'General',  'color'=>'#065f46','bg'=>'#d1fae5','icon'=>'fa-info-circle'],
@@ -440,7 +437,7 @@ if ($conn) {
         background: #fef3c7; padding: 2px 10px; border-radius: 20px;
         margin-bottom: 6px;
     }
-    .ann-audience-tag { color: #1d4ed8; font-weight: 600; }
+    .ann-audience-tag { color: #065f46; font-weight: 600; }
     .ann-expires-tag  { color: #b91c1c; font-weight: 600; }
     </style>
 
@@ -578,7 +575,7 @@ if ($conn) {
         pollStats();
         setInterval(pollNotifications, 30000);
         setInterval(pollStats,         30000);
-    })();
+    })()
 
     // ── Lightweight toast for in-page alerts ────────────────────────────────
     function showDashToast(msg, type) {

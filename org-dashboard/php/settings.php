@@ -4,6 +4,22 @@ if (!isset($_SESSION['user_id'])) {
     header("Location: /index.php");
     exit();
 }
+
+require_once dirname(dirname(__DIR__)) . '/db_connection.php';
+
+$org_id = (int) $_SESSION['user_id'];
+$user   = [];
+
+if ($conn) {
+    $r = mysqli_query($conn, "SELECT user_id, username, email, full_name, org_name, org_code, description, contact_person, phone, logo_path FROM users WHERE user_id = $org_id LIMIT 1");
+    if ($r) $user = mysqli_fetch_assoc($r) ?: [];
+    mysqli_close($conn);
+}
+
+$logo_path  = $user['logo_path'] ?? null;
+$avatar_src = $logo_path && file_exists(dirname(dirname(__DIR__)) . '/' . ltrim($logo_path, './'))
+    ? '../../' . ltrim($logo_path, './')
+    : null;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -11,93 +27,129 @@ if (!isset($_SESSION['user_id'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Settings - OrgHub</title>
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <!-- Core Styles -->
     <link rel="stylesheet" href="../css/navbar.css">
-    <link rel="stylesheet" href="../css/dashboard.css">
+    <link rel="stylesheet" href="../css/topbar.css">
+    <link rel="stylesheet" href="../css/notifications.css">
     <link rel="stylesheet" href="../css/settings.css">
 </head>
 <body>
-    <!-- Include navbar -->
-    <?php include '../php/navbar.php'; ?>
 
-    <!-- Main content -->
-    <main class="main-content">
-        <div class="settings-container">
-            <!-- Header -->
-            <div class="settings-header">
-                <h1><i class="fas fa-cog"></i> Settings</h1>
-                <p class="settings-subtitle">Manage your organization profile and preferences</p>
+<?php include '../php/navbar.php'; ?>
+
+    <?php include '../php/topbar.php'; ?>
+    <div class="settings-container">
+
+        <!-- ── Page Header ───────────────────────────────────────────────── -->
+        <div class="settings-header">
+            <div class="settings-header-left">
+                <div class="settings-header-icon">
+                    <i class="fas fa-cog"></i>
+                </div>
+                <div>
+                    <h1>Settings</h1>
+                    <p>Manage your organization profile and preferences</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Organization Profile Card ─────────────────────────────────── -->
+        <div class="settings-card">
+
+            <!-- Card header -->
+            <div class="card-header">
+                <div class="card-header-icon"><i class="fas fa-building"></i></div>
+                <div>
+                    <h2>Organization Profile</h2>
+                    <p>Update your organization's information</p>
+                </div>
             </div>
 
-            <!-- Organization Profile Card -->
-            <div class="settings-card">
-                <div class="card-header">
-                    <i class="fas fa-building"></i>
-                    <h2>Organization Profile</h2>
+            <div class="card-body">
+
+                <!-- ── Logo Section ───────────────────────────────────────── -->
+                <div class="logo-section">
+                    <div class="logo-preview-wrap" id="logoPreviewWrap">
+                        <?php if ($avatar_src): ?>
+                            <img src="<?= htmlspecialchars($avatar_src) ?>" alt="Logo" id="logoPreviewImg">
+                        <?php else: ?>
+                            <div class="logo-initials" id="logoInitials">
+                                <?= strtoupper(substr($user['org_name'] ?? 'O', 0, 2)) ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="logo-upload-info">
+                        <p class="logo-org-name"><?= htmlspecialchars($user['org_name'] ?? '') ?></p>
+                        <p class="logo-org-code"><?= htmlspecialchars($user['org_code'] ?? '') ?></p>
+                        <div class="logo-btn-row">
+                            <button type="button" class="btn-upload-logo" id="uploadLogoBtn">
+                                <i class="fas fa-camera"></i> Change Logo
+                            </button>
+                            <?php if ($logo_path): ?>
+                            <button type="button" class="btn-remove-logo" id="removeLogoBtn">
+                                <i class="fas fa-trash-alt"></i> Remove
+                            </button>
+                            <?php endif; ?>
+                        </div>
+                        <p class="upload-hint">PNG, JPG up to 2MB · Recommended 200×200px</p>
+                        <input type="file" id="logoFileInput" accept="image/*" style="display:none">
+                    </div>
                 </div>
-                <div class="card-body">
-                    <form id="profileForm">
-                        <!-- Organization Name -->
+
+                <div class="divider"></div>
+
+                <!-- ── Profile Form ───────────────────────────────────────── -->
+                <form id="profileForm" novalidate>
+                    <div class="form-row">
                         <div class="form-group">
                             <label for="orgName">Organization Name <span>*</span></label>
-                            <input type="text" id="orgName" value="OrgHub" required>
+                            <input type="text" id="orgName" name="org_name"
+                                   value="<?= htmlspecialchars($user['org_name'] ?? '') ?>" required>
                         </div>
-
-                        <!-- Logo Upload with Preview -->
-                        <div class="form-group logo-group">
-                            <label>Organization Logo</label>
-                            <div class="logo-upload">
-                                <div class="logo-preview" id="logoPreview">
-                                    <img src="https://placehold.co/100x100/2d6a4f/white?text=OH" alt="Logo preview">
-                                </div>
-                                <div class="upload-controls">
-                                    <button type="button" class="btn-upload" id="uploadBtn"><i class="fas fa-upload"></i> Choose Image</button>
-                                    <input type="file" id="logoInput" accept="image/*" style="display: none;">
-                                    <p class="upload-hint">Recommended: 200x200px, PNG or JPG</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Description / Mission -->
                         <div class="form-group">
-                            <label for="mission">Description / Mission</label>
-                            <textarea id="mission" rows="3">Empowering organizations with efficient management tools.</textarea>
+                            <label for="orgCode">Org Code <span>*</span></label>
+                            <input type="text" id="orgCode" name="org_code"
+                                   value="<?= htmlspecialchars($user['org_code'] ?? '') ?>"
+                                   maxlength="20"
+                                   style="text-transform:uppercase;"
+                                   placeholder="e.g. SORG">
+                            <span class="field-hint">
+                                <i class="fas fa-info-circle"></i> Must be unique across all organizations
+                            </span>
                         </div>
-
-                        <!-- Contact Email -->
+                    </div>
+                    <div class="form-group">
+                        <label for="description">Description / Mission</label>
+                        <textarea id="description" name="description" rows="3"><?= htmlspecialchars($user['description'] ?? '') ?></textarea>
+                    </div>
+                    <div class="form-row">
                         <div class="form-group">
-                            <label for="email">Contact Email</label>
-                            <input type="email" id="email" value="contact@orghub.org">
+                            <label for="contactPerson">Contact Person</label>
+                            <input type="text" id="contactPerson" name="contact_person"
+                                   value="<?= htmlspecialchars($user['contact_person'] ?? '') ?>">
                         </div>
-
-                        <!-- Contact Number -->
                         <div class="form-group">
-                            <label for="phone">Contact Number</label>
-                            <input type="tel" id="phone" value="+1 234 567 8900">
+                            <label for="phone">Phone Number</label>
+                            <input type="tel" id="phone" name="phone"
+                                   value="<?= htmlspecialchars($user['phone'] ?? '') ?>">
                         </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn-save" id="saveProfileBtn">
+                            <i class="fas fa-save"></i> Save Changes
+                        </button>
+                    </div>
+                </form>
 
-                        <!-- Adviser Name -->
-                        <div class="form-group">
-                            <label for="adviser">Adviser Name</label>
-                            <input type="text" id="adviser" value="Dr. Maria Santos">
-                        </div>
+            </div><!-- /.card-body -->
+        </div><!-- /.settings-card -->
 
-                        <!-- Save Button -->
-                        <div class="form-actions">
-                            <button type="submit" class="btn-save"><i class="fas fa-save"></i> Save Changes</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+    </div><!-- /.settings-container -->
+</main>
 
-            <!-- Optional: Additional settings cards can be added later -->
-        </div>
-    </main>
-
-    <!-- External JavaScript -->
-    <script src="../js/script.js"></script> <!-- sidebar toggle -->
-    <script src="../js/settings.js"></script> <!-- settings page JS -->
+<script src="../js/navbar.js"></script>
+<script src="../js/script.js"></script>
+<script src="../js/notifications.js"></script>
+<script src="../js/settings.js"></script>
 </body>
 </html>
