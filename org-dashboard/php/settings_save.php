@@ -21,38 +21,20 @@ function respond(bool $ok, string $msg = '', array $extra = []): void {
 // ACTION: save_profile
 // ═════════════════════════════════════════════════════════════════════════════
 if ($action === 'save_profile') {
-    $org_name      = esc($_POST['org_name']      ?? '', $conn);
-    $org_code      = strtoupper(esc($_POST['org_code'] ?? '', $conn));
     $description   = esc($_POST['description']   ?? '', $conn);
     $contact_person= esc($_POST['contact_person']?? '', $conn);
     $phone         = esc($_POST['phone']         ?? '', $conn);
 
-    if (!$org_name) respond(false, 'Organization name is required.');
-    if (!$org_code) respond(false, 'Org code is required.');
-    if (!preg_match('/^[A-Z0-9_\-]{1,20}$/', $org_code)) {
-        respond(false, 'Org code may only contain letters, numbers, hyphens and underscores (max 20 chars).');
-    }
-
-    // Check uniqueness — exclude current user
-    $r = mysqli_query($conn, "SELECT user_id FROM users WHERE org_code = '$org_code' AND user_id != $org_id LIMIT 1");
-    if (mysqli_num_rows($r) > 0) respond(false, 'That org code is already taken by another organization.');
-
     $q = mysqli_query($conn, "
         UPDATE users
-        SET org_name       = '$org_name',
-            org_code       = '$org_code',
-            description    = '$description',
+        SET description    = '$description',
             contact_person = '$contact_person',
             phone          = '$phone',
             updated_at     = NOW()
         WHERE user_id = $org_id
     ");
 
-    if ($q) {
-        $_SESSION['org_name'] = $org_name;
-        $_SESSION['org_code'] = $org_code;
-        respond(true, 'Organization profile updated successfully.', ['org_code' => $org_code]);
-    }
+    if ($q) respond(true, 'Organization profile updated successfully.');
     respond(false, 'Update failed: ' . mysqli_error($conn));
 }
 

@@ -215,12 +215,18 @@ if ($conn) {
                             $created = new DateTime($ev['created_at']);
                     ?>
                         <div class="dash-event-item<?php echo $pinned ? ' ev-pinned' : ''; ?>">
+                            <?php if ($pinned): ?>
+                                <div class="ev-pin-badge"><i class="fas fa-thumbtack"></i></div>
+                            <?php endif; ?>
                             <div class="dash-event-date-block" style="background:#d1fae5;color:#065f46">
                                 <span class="dash-ev-day"><?= $created->format('d') ?></span>
                                 <span class="dash-ev-mon"><?= $created->format('M') ?></span>
                             </div>
                             <div class="dash-event-body">
                                 <span class="dash-event-name"><?= htmlspecialchars($ev['title']) ?></span>
+                                <?php if (!empty($ev['content'])): ?>
+                                <p class="dash-event-desc"><?= htmlspecialchars($ev['content']) ?></p>
+                                <?php endif; ?>
                                 <div class="dash-event-meta">
                                     <span><i class="fas fa-clock"></i> <?= $created->format('h:i A') ?></span>
                                     <?php if ($expires): ?>

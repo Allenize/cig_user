@@ -100,27 +100,9 @@ $avatar_src = $logo_path && file_exists(dirname(dirname(__DIR__)) . '/' . ltrim(
 
                 <!-- ── Profile Form ───────────────────────────────────────── -->
                 <form id="profileForm" novalidate>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="orgName">Organization Name <span>*</span></label>
-                            <input type="text" id="orgName" name="org_name"
-                                   value="<?= htmlspecialchars($user['org_name'] ?? '') ?>" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="orgCode">Org Code <span>*</span></label>
-                            <input type="text" id="orgCode" name="org_code"
-                                   value="<?= htmlspecialchars($user['org_code'] ?? '') ?>"
-                                   maxlength="20"
-                                   style="text-transform:uppercase;"
-                                   placeholder="e.g. SORG">
-                            <span class="field-hint">
-                                <i class="fas fa-info-circle"></i> Must be unique across all organizations
-                            </span>
-                        </div>
-                    </div>
                     <div class="form-group">
-                        <label for="description">Description / Mission</label>
-                        <textarea id="description" name="description" rows="3"><?= htmlspecialchars($user['description'] ?? '') ?></textarea>
+                        <label for="description">Organization Tagline / Mission</label>
+                        <textarea id="description" name="description" rows="3" placeholder="Your organization's tagline or mission statement…"><?= htmlspecialchars($user['description'] ?? '') ?></textarea>
                     </div>
                     <div class="form-row">
                         <div class="form-group">

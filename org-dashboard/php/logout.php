@@ -22,7 +22,7 @@ if (ini_get("session.use_cookies")) {
 
     body {
       font-family: 'DM Sans', sans-serif;
-      background: #0f2318;
+      background: #ade9c8;
       min-height: 100vh;
       display: flex; align-items: center; justify-content: center;
       overflow: hidden;
@@ -39,7 +39,7 @@ if (ini_get("session.use_cookies")) {
     .card {
       position: relative; z-index: 1;
       text-align: center;
-      background: rgba(20, 48, 34, 0.55);
+      background: rgb(20, 48, 34);
       border: 1px solid rgba(183,228,199,0.12);
       border-radius: 28px;
       padding: 3rem 3.2rem 2.6rem;

@@ -9,6 +9,19 @@ require_once dirname(dirname(__DIR__)) . '/db_connection.php';
 
 $userId = $_SESSION['user_id'];
 
+// Fetch org profile for auto-fill in template modal
+$orgUser = [];
+if ($conn) {
+    $orgStmt = mysqli_prepare($conn, "SELECT org_name, description FROM users WHERE user_id = ? LIMIT 1");
+    mysqli_stmt_bind_param($orgStmt, 'i', $userId);
+    mysqli_stmt_execute($orgStmt);
+    $orgResult = mysqli_stmt_get_result($orgStmt);
+    $orgUser = mysqli_fetch_assoc($orgResult) ?: [];
+    mysqli_stmt_close($orgStmt);
+}
+$autoOrgName    = htmlspecialchars($orgUser['org_name']    ?? '', ENT_QUOTES);
+$autoOrgTagline = htmlspecialchars($orgUser['description'] ?? '', ENT_QUOTES);
+
 $submissions = [];
 if ($conn) {
     $submissionsQuery = "
@@ -82,12 +95,117 @@ function docIconBox(string $fileName, bool $isTemplate = false): string {
 function b64img($path) {
     $abs = realpath(__DIR__ . '/' . $path);
     if (!$abs || !file_exists($abs)) return '';
-    $mime = in_array(strtolower(pathinfo($abs, PATHINFO_EXTENSION)), ['jpg','jpeg']) ? 'image/jpeg' : 'image/png';
+    $ext  = strtolower(pathinfo($abs, PATHINFO_EXTENSION));
+    $mime = in_array($ext, ['jpg','jpeg']) ? 'image/jpeg' : ($ext === 'png' ? 'image/png' : 'image/webp');
     return 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($abs));
 }
+
 $plspLogoB64 = b64img('../../plsplogo.png');
-$cigLogoB64  = b64img('../../Assets/CIG.jpg');
-$osasLogoB64 = b64img('../../Assets/OSAS.jpg');
+
+// ── Full org name map (filename without ext => full name) ─────────────────
+$orgNameMap = [
+    // Mandated Organizations
+    'USP'           => 'University Student Parliament',
+    'PDC'           => 'PLSP Dance Company',
+    'PC'            => 'PLSP Chorale',
+    'CRCY'          => 'CRCY-PLSP',
+    // Mandated Student Publication
+    'BS'            => 'Bagong Sinag',
+    // Independent Student Organization
+    'CIG'           => 'Council of Interior Governance',
+    // Student Council / Admin
+    'Admission'     => 'Pamantasan ng Lungsod ng San Pablo',
+    'OSAS'          => 'Office of Student Affairs and Services',
+    'COA'           => 'College of Accountancy',
+    'CAS'           => 'College of Arts and Sciences',
+    'CBAM'          => 'College of Business Administration and Management',
+    'CCSE'          => 'College of Computing Science and Engineering',
+    'CTHM'          => 'College of Tourism Hospitality and Management',
+    'CTHED'         => 'College of Teacher Education',
+    'CNAHS'         => 'College of Nursing and Allied Health Sciences',
+    // Academic Organizations
+    'AIS'           => 'Accounting Information Society',
+    'ACES'          => 'Alliance of Competent English Students',
+    'APA'           => 'Alliance of Public Administration',
+    'ATMS'          => 'Alliance of Tourism and Management Students',
+    'ASO'           => 'ATHLEADS Students Organization',
+    'FMS'           => 'Financial Management Society',
+    'HMS'           => 'Hotelier Management Society',
+    'HRDMS'         => 'Human Resource Development Management Society',
+    'ISC'           => 'Information System Club',
+    'ITS'           => 'Information Technology Society',
+    'MAS'           => 'Management Accounting Society',
+    'MS'            => 'Manthanien Society',
+    'MAPAP'         => 'MAPAP Society',
+    'MMS'           => 'Marketing Management Society',
+    'NSS'           => 'Natural Science Society',
+    'OAS'           => 'Office Administration Society',
+    'PCL'           => 'PLSP Communicators\' League',
+    'ECOS'          => 'PLSP Economics Society – EcoS',
+    'JPIA'          => 'PLSP Junior Institute Philippine Accountant (JPIA)',
+    'SASI'          => 'PLSP Samahang Sikolohiya',
+    'POLSO'         => 'Political Science Society',
+    'SFCE'          => 'Society of Future Computer Engineers',
+    'SFIE'          => 'Society of Future Industrial Engineers',
+    'SJE'           => 'Society of Junior Entrepreneurs',
+    'TVEA'          => 'Technical-Vocational Education Association',
+    'USAF'          => 'Umuusbong na Samahang may Atikha sa Filipino',
+    'UAEE'          => 'United Association of Elementary Educators',
+    'YES'           => 'Young Executive Society',
+    // Socio-Cultural Organizations
+    'CMH'           => 'PLSP Center for Mental Health',
+    'ALIW'          => 'PLSP Association of LGBTQIA+ towards Inclusivity and Diversity (ALIW)',
+    'RC'            => 'Rotaract Club',
+    'YMCA'          => 'Youth Movement for Community Advocacies (YMCA)',
+    // Religious Organizations (no logos)
+    'HODCYO'        => 'House of David Christian Youth Organization',
+    'IGNITE'        => 'Igniting Generations, Nurturing Individuals for the Truth Eternal (IGNITE)',
+    'FSP'           => 'PLSP×FSP',
+    'YLC'           => 'Youth LIFE Club',
+];
+
+// Friendly display name — use map if available, else fallback to filename
+function assetLabel(string $filename, array $map = []): string {
+    $key = pathinfo($filename, PATHINFO_FILENAME);
+    return $map[$key] ?? ucwords(str_replace(['_','-'], ' ', $key));
+}
+
+// Dynamically scan Assets folder for all images
+$assetsDir  = realpath(__DIR__ . '/../../Assets/');
+$assetLogos = []; // [ 'filename' => ['b64'=>'...', 'label'=>'...'] ]
+if ($assetsDir && is_dir($assetsDir)) {
+    $allowed = ['jpg','jpeg','png','webp','gif'];
+    foreach (scandir($assetsDir) as $file) {
+        if ($file === '.' || $file === '..') continue;
+        $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+        if (!in_array($ext, $allowed)) continue;
+        $b64 = b64img('../../Assets/' . $file);
+        if ($b64) $assetLogos[$file] = [
+            'b64'   => $b64,
+            'label' => assetLabel($file, $orgNameMap),
+        ];
+    }
+}
+
+// Admission logo from Assets (left logo in template output header)
+$admissionLogoB64 = '';
+if ($assetsDir && is_dir($assetsDir)) {
+    foreach (scandir($assetsDir) as $file) {
+        if (stripos(pathinfo($file, PATHINFO_FILENAME), 'admission') !== false) {
+            $admissionLogoB64 = b64img('../../Assets/' . $file);
+            break;
+        }
+    }
+}
+if (!$admissionLogoB64) $admissionLogoB64 = $plspLogoB64; // fallback
+
+// Religious orgs — no logo files, add as text-only entries
+$religiousOrgs = [
+    'HODCYO' => 'House of David Christian Youth Organization',
+    'IGNITE' => 'Igniting Generations, Nurturing Individuals for the Truth Eternal (IGNITE)',
+    'FSP'    => 'PLSP×FSP',
+    'YLC'    => 'Youth LIFE Club',
+];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -284,7 +402,7 @@ $osasLogoB64 = b64img('../../Assets/OSAS.jpg');
                             </span>
                         </td>
 
-                        <td class="remarks-cell" title="<?= htmlspecialchars($doc['admin_remarks']) ?>">
+                        <td class="remarks-cell">
                             <?php
                             $remark = $doc['admin_remarks'];
                             $st = strtolower($doc['status']);
@@ -299,10 +417,22 @@ $osasLogoB64 = b64img('../../Assets/OSAS.jpg');
                             } else {
                                 $remarkIcon = '<i class="fas fa-comment-alt" style="color:#6b9080;margin-right:5px;flex-shrink:0;"></i>';
                             }
+                            $maxLen  = 60;
+                            $isLong  = mb_strlen($remark) > $maxLen;
+                            $preview = $isLong ? mb_substr($remark, 0, $maxLen) . '…' : $remark;
                             ?>
-                            <div style="display:flex;align-items:center;">
+                            <div style="display:flex;align-items:flex-start;gap:4px;">
                                 <?= $remarkIcon ?>
-                                <span><?= htmlspecialchars($remark) ?></span>
+                                <span>
+                                    <?= htmlspecialchars($preview) ?>
+                                    <?php if ($isLong): ?>
+                                        <button class="see-more-btn"
+                                            data-idx="<?= $i ?>"
+                                            style="background:none;border:none;color:#2d6a4f;font-size:0.78rem;font-weight:600;cursor:pointer;padding:0;margin-left:3px;font-family:inherit;white-space:nowrap;text-decoration:underline;position:relative;z-index:5;">
+                                            See more
+                                        </button>
+                                    <?php endif; ?>
+                                </span>
                             </div>
                         </td>
 
@@ -349,96 +479,178 @@ $osasLogoB64 = b64img('../../Assets/OSAS.jpg');
 <!-- ── Upload Modal ─────────────────────────────────────────────────────── -->
 <div id="uploadModal" class="modal">
     <div class="modal-content upload-modal-content">
-        <div class="modal-content-header">
-            <span class="close-modal" id="closeUploadModal">&times;</span>
-            <h2><i class="fas fa-cloud-upload-alt"></i> Upload Document</h2>
-            <div class="upload-tabs">
+
+        <!-- Left sidebar -->
+        <div class="modal-sidebar">
+            <button class="close-modal" id="closeUploadModal">&times;</button>
+            <div class="modal-sidebar-icon">
+                <i class="fas fa-cloud-upload-alt"></i>
+            </div>
+            <h2 class="modal-sidebar-title">Upload Document</h2>
+            <p class="modal-sidebar-sub">Submit documents to the Council of Internal Governance for review and approval.</p>
+            <div class="modal-steps">
+                <div class="modal-step active" id="step1">
+                    <div class="step-dot"><i class="fas fa-pen"></i></div>
+                    <span>Fill in details</span>
+                </div>
+                <div class="modal-step" id="step2">
+                    <div class="step-dot"><i class="fas fa-paperclip"></i></div>
+                    <span>Attach file or choose template</span>
+                </div>
+                <div class="modal-step" id="step3">
+                    <div class="step-dot"><i class="fas fa-paper-plane"></i></div>
+                    <span>Submit for review</span>
+                </div>
+            </div>
+            <div class="modal-sidebar-footer">
+                <i class="fas fa-check-circle"></i> Accepted: PDF, DOCX, XLSX &middot; Max 10 MB
+            </div>
+        </div>
+
+        <!-- Right content -->
+        <div class="modal-main">
+            <div class="modal-main-tabs">
                 <button class="tab-button active" data-tab="regular-upload">
                     <i class="fas fa-file-upload"></i> Regular Upload
                 </button>
                 <button class="tab-button" data-tab="template-upload">
                     <i class="fas fa-file-contract"></i> Use Template
                 </button>
+                <button class="close-modal" id="closeUploadModalAlt">&times;</button>
+            </div>
+
+            <div class="modal-main-body">
+                <!-- Regular Upload -->
+                <div id="regular-upload" class="tab-content active">
+                    <form id="uploadForm" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label for="docTitle">Document Title <span>*</span></label>
+                            <input type="text" id="docTitle" name="title" required placeholder="Enter document title">
+                        </div>
+                        <div class="form-group">
+                            <label for="docDescription">Description <small>(Optional)</small></label>
+                            <textarea id="docDescription" name="description" rows="3" placeholder="Brief description of this document…"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="relatedEvent">Related Event <small>(Optional)</small></label>
+                            <select id="relatedEvent" name="related_event">
+                                <option value="">None</option>
+                                <option value="Outreach Program">Outreach Program</option>
+                                <option value="Quarterly Meeting">Quarterly Meeting</option>
+                                <option value="Fundraising Gala">Fundraising Gala</option>
+                                <option value="Team Building">Team Building</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>File Upload <span>*</span></label>
+                            <label for="fileUpload" class="file-drop-zone" id="fileDropZone">
+                                <div class="file-drop-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                                <div class="file-drop-text">Drag &amp; drop your file here</div>
+                                <div class="file-drop-or">or <span>browse to upload</span></div>
+                                <div class="file-drop-hint">PDF, DOCX, XLSX &middot; Max 10 MB</div>
+                                <div class="file-drop-name" id="fileDropName"></div>
+                            </label>
+                            <input type="file" id="fileUpload" name="file" accept=".pdf,.docx,.xlsx" required style="display:none;">
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Template Upload -->
+                <div id="template-upload" class="tab-content">
+                    <form id="templateForm">
+                        <div class="form-group">
+                            <label for="templateTitle">Document Title <span>*</span></label>
+                            <input type="text" id="templateTitle" name="title" placeholder="Enter document title" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Select Template <span>*</span></label>
+                            <div class="tpl-input-wrap">
+                                <input type="text" id="templateSelectDisplay" placeholder="Choose a template…" readonly
+                                       onclick="toggleTplDropdown()" autocomplete="off" class="tpl-text-input">
+                                <i class="fas fa-chevron-down tpl-chevron" id="tplChevron"></i>
+                                <input type="hidden" id="templateSelect" name="template_id">
+                                <div class="tpl-dropdown" id="tplDropdown">
+                                    <div class="tpl-dropdown-item" data-value="" onclick="pickTemplate(this,'')">-- Choose a Template --</div>
+                                    <div class="tpl-dropdown-item" data-value="meeting_minutes"  onclick="pickTemplate(this,'Meeting Minutes')">Meeting Minutes</div>
+                                    <div class="tpl-dropdown-item" data-value="event_proposal"   onclick="pickTemplate(this,'Event Proposal')">Event Proposal</div>
+                                    <div class="tpl-dropdown-item" data-value="financial_report" onclick="pickTemplate(this,'Financial Report')">Financial Report</div>
+                                    <div class="tpl-dropdown-item" data-value="incident_report"  onclick="pickTemplate(this,'Incident Report')">Incident Report</div>
+                                    <div class="tpl-dropdown-item" data-value="membership_form"  onclick="pickTemplate(this,'Membership Form')">Membership Form</div>
+                                    <div class="tpl-dropdown-item" data-value="project_proposal" onclick="pickTemplate(this,'Project Proposal')">Project Proposal</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Collaborated Logo <small>(Optional)</small></label>
+                            <input type="hidden" id="collaboratedLogo" name="collaborated_logo" value="">
+                            <div class="logo-picker" id="logoPicker">
+                                <div class="logo-picker-input-wrap">
+                                    <div class="logo-picker-thumb" id="logoPickerThumb"></div>
+                                    <input type="text" id="logoPickerSearch" class="logo-picker-text-input"
+                                           placeholder="No Collaborated Logo"
+                                           oninput="filterLogos(this.value)"
+                                           onfocus="openLogoPicker()"
+                                           autocomplete="off">
+                                    <i class="fas fa-chevron-down logo-picker-arrow" id="logoPickerArrow" onclick="openLogoPicker()"></i>
+                                </div>
+                                <div class="logo-picker-panel" id="logoPickerPanel" style="display:none;">
+                                    <div class="logo-picker-list" id="logoPickerList">
+                                        <div class="logo-picker-item selected" data-value="" data-label="" onclick="selectLogo('','','')">
+                                            <div class="logo-picker-none"><i class="fas fa-ban"></i></div>
+                                            <span>No Collaborated Logo</span>
+                                        </div>
+                                        <?php foreach ($assetLogos as $filename => $info): ?>
+                                        <div class="logo-picker-item"
+                                             data-value="<?= htmlspecialchars($filename) ?>"
+                                             data-label="<?= htmlspecialchars($info['label']) ?>"
+                                             onclick="selectLogo('<?= htmlspecialchars($filename, ENT_QUOTES) ?>','<?= $info['b64'] ?>','<?= htmlspecialchars($info['label'], ENT_QUOTES) ?>')">
+                                            <img src="<?= $info['b64'] ?>" class="logo-picker-img" alt="<?= htmlspecialchars($info['label']) ?>">
+                                            <span><?= htmlspecialchars($info['label']) ?></span>
+                                        </div>
+                                        <?php endforeach; ?>
+                                        <?php if (!empty($religiousOrgs)): ?>
+                                        <div class="logo-picker-group-label"><i class="fas fa-church"></i> Religious Organizations</div>
+                                        <?php foreach ($religiousOrgs as $code => $name): ?>
+                                        <div class="logo-picker-item"
+                                             data-value="__religious_<?= htmlspecialchars($code) ?>"
+                                             data-label="<?= htmlspecialchars($name) ?>"
+                                             onclick="selectLogo('__religious_<?= htmlspecialchars($code, ENT_QUOTES) ?>','','<?= htmlspecialchars($name, ENT_QUOTES) ?>')">
+                                            <div class="logo-picker-none"><i class="fas fa-church"></i></div>
+                                            <span><?= htmlspecialchars($name) ?></span>
+                                        </div>
+                                        <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="organizationName">Organization Name <span>*</span></label>
+                            <input type="text" id="organizationName" name="organization_name"
+                                   value="<?= $autoOrgName ?>" placeholder="Enter organization name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="organizationTagline">Organization Tagline <small>(Optional)</small></label>
+                            <input type="text" id="organizationTagline" name="organization_tagline"
+                                   value="<?= $autoOrgTagline ?>" placeholder="Enter tagline or leave blank">
+                        </div>
+                        <div id="templateFieldsContainer" class="template-fields-container"></div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="modal-main-footer">
+                <div class="form-actions" id="formActions">
+                    <button type="button" class="btn-cancel" id="cancelBtn"><i class="fas fa-times"></i> Cancel</button>
+                    <button type="submit" class="btn-submit" id="submitBtn"><i class="fas fa-paper-plane"></i> Generate &amp; Submit</button>
+                </div>
             </div>
         </div>
-        <div class="modal-content-body">
-            <!-- Regular Upload -->
-            <div id="regular-upload" class="tab-content active">
-                <form id="uploadForm" enctype="multipart/form-data">
-                    <div class="form-group">
-                        <label for="docTitle">Document Title <span>*</span></label>
-                        <input type="text" id="docTitle" name="title" required placeholder="Enter document title">
-                    </div>
-                    <div class="form-group">
-                        <label for="docDescription">Description <small style="font-weight:400;color:#9ca3af;">(Optional)</small></label>
-                        <textarea id="docDescription" name="description" rows="3" placeholder="Brief description…"></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label for="relatedEvent">Related Event <small style="font-weight:400;color:#9ca3af;">(Optional)</small></label>
-                        <select id="relatedEvent" name="related_event">
-                            <option value="">None</option>
-                            <option value="Outreach Program">Outreach Program</option>
-                            <option value="Quarterly Meeting">Quarterly Meeting</option>
-                            <option value="Fundraising Gala">Fundraising Gala</option>
-                            <option value="Team Building">Team Building</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="fileUpload">File Upload <span>*</span></label>
-                        <input type="file" id="fileUpload" name="file" accept=".pdf,.docx,.xlsx" required>
-                        <small>Allowed: PDF, DOCX, XLSX &nbsp;·&nbsp; Max 10 MB</small>
-                    </div>
-                </form>
-            </div>
-            <!-- Template Upload -->
-            <div id="template-upload" class="tab-content">
-                <form id="templateForm">
-                    <div class="form-group">
-                        <label for="templateTitle">Document Title <span>*</span></label>
-                        <input type="text" id="templateTitle" name="title" placeholder="Enter document title" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="templateSelect">Select Template <span>*</span></label>
-                        <select id="templateSelect" name="template_id" required onchange="loadTemplateFields()">
-                            <option value="">— Choose a Template —</option>
-                            <option value="meeting_minutes">Meeting Minutes</option>
-                            <option value="event_proposal">Event Proposal</option>
-                            <option value="financial_report">Financial Report</option>
-                            <option value="incident_report">Incident Report</option>
-                            <option value="membership_form">Membership Form</option>
-                            <option value="project_proposal">Project Proposal</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="collaboratedLogo">Collaborated Logo <small style="font-weight:400;color:#9ca3af;">(Optional)</small></label>
-                        <select id="collaboratedLogo" name="collaborated_logo">
-                            <option value="">— No Collaborated Logo —</option>
-                            <option value="CIG.jpg">CIG Logo</option>
-                            <option value="OSAS.jpg">OSAS Logo</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="organizationName">Organization Name <span>*</span></label>
-                        <input type="text" id="organizationName" name="organization_name"
-                               value="PLSP Economics Society – EcoS" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="organizationTagline">Organization Tagline <span>*</span></label>
-                        <input type="text" id="organizationTagline" name="organization_tagline"
-                               value="Empowered and committed organization of service." required>
-                    </div>
-                    <div id="templateFieldsContainer" class="template-fields-container"></div>
-                </form>
-            </div>
-        </div>
-        <div class="modal-content-footer">
-            <div class="form-actions" id="formActions">
-                <button type="button" class="btn-cancel" id="cancelBtn">Cancel</button>
-                <button type="submit" class="btn-submit" id="submitBtn">Submit Document</button>
-            </div>
-        </div>
+
     </div>
 </div>
+
 
 <!-- ── Document Preview Modal ───────────────────────────────────────────── -->
 <div id="previewModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);align-items:center;justify-content:center;">
@@ -533,14 +745,14 @@ function buildProjectProposalBody(data) {
     });
     return html;
 }
-const LOGO_PLSP = '<?= $plspLogoB64 ?>';
-const LOGO_MAP  = { 'CIG.jpg':'<?= $cigLogoB64 ?>', 'OSAS.jpg':'<?= $osasLogoB64 ?>' };
+const LOGO_PLSP = '<?= $admissionLogoB64 ?>';
+const LOGO_MAP  = <?= json_encode(array_map(fn($info) => $info['b64'], $assetLogos)) ?>;
 
 function renderTplPreviewBody(data, title) {
-    const orgName    = data.organization_name    || 'PLSP Economics Society – EcoS';
-    const orgTagline = data.organization_tagline || 'Empowered and committed organization of service.';
+    const orgName    = data.organization_name    || '<?= $autoOrgName ?>';
+    const orgTagline = data.organization_tagline || '<?= $autoOrgTagline ?>';
     const bodyContent = (data.template_id === 'project_proposal') ? buildProjectProposalBody(data) : buildGenericBody(data);
-    return `<div style="background:#fff;max-width:700px;margin:20px auto;border-radius:10px;box-shadow:0 2px 16px rgba(0,0,0,.12);overflow:hidden;"><div style="background:#1e3a3a;padding:16px 20px;"><table style="width:100%;border-collapse:collapse;"><tr><td style="width:80px;text-align:center;vertical-align:middle;padding:0 8px 0 0;">${LOGO_PLSP?`<img src="${LOGO_PLSP}" alt="PLSP" style="height:64px;width:auto;display:block;margin:0 auto;">`:''}</td><td style="text-align:center;vertical-align:middle;padding:0 8px;"><div style="font-size:.65rem;font-weight:700;color:#a8d5b5;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px;">PAMANTASAN NG LUNGSOD NG SAN PABLO</div><div style="font-size:1rem;font-weight:800;color:#fff;margin-bottom:3px;">${esc(orgName)}</div><div style="font-size:.73rem;color:#a8d5b5;font-style:italic;">"${esc(orgTagline)}"</div></td><td style="width:80px;text-align:center;vertical-align:middle;padding:0 0 0 8px;">${data.collaborated_logo&&LOGO_MAP[data.collaborated_logo]?`<img src="${LOGO_MAP[data.collaborated_logo]}" alt="Logo" style="height:64px;width:auto;display:block;margin:0 auto;">`:''}</td></tr></table></div><div style="padding:22px 26px;">${bodyContent}</div><div style="background:#f4faf7;border-top:2px solid #2d6a4f;padding:10px 24px;text-align:center;"><div style="font-size:.75rem;color:#2d6a4f;font-style:italic;">"Primed to Lead and Serve for Progress"</div></div></div>`;
+    return `<div style="background:#fff;max-width:700px;margin:20px auto;border-radius:10px;box-shadow:0 2px 16px rgba(0,0,0,.12);overflow:hidden;"><div style="background:#1e3a3a;padding:16px 20px;"><table style="width:100%;border-collapse:collapse;"><tr><td style="width:80px;text-align:center;vertical-align:middle;padding:0 8px 0 0;">${LOGO_PLSP?`<img src="${LOGO_PLSP}" alt="PLSP" style="width:64px;height:64px;border-radius:50%;object-fit:cover;display:block;margin:0 auto;border:2px solid rgba(255,255,255,0.2);">`:''}</td><td style="text-align:center;vertical-align:middle;padding:0 8px;"><div style="font-size:.65rem;font-weight:700;color:#a8d5b5;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px;">PAMANTASAN NG LUNGSOD NG SAN PABLO</div><div style="font-size:1rem;font-weight:800;color:#fff;margin-bottom:3px;">${esc(orgName)}</div><div style="font-size:.73rem;color:#a8d5b5;font-style:italic;">"${esc(orgTagline)}"</div></td><td style="width:80px;text-align:center;vertical-align:middle;padding:0 0 0 8px;">${data.collaborated_logo&&LOGO_MAP[data.collaborated_logo]?`<img src="${LOGO_MAP[data.collaborated_logo]}" alt="Logo" style="width:64px;height:64px;border-radius:50%;object-fit:cover;display:block;margin:0 auto;border:2px solid rgba(255,255,255,0.2);">`:''}</td></tr></table></div><div style="padding:22px 26px;">${bodyContent}</div><div style="background:#f4faf7;border-top:2px solid #2d6a4f;padding:10px 24px;text-align:center;"><div style="font-size:.75rem;color:#2d6a4f;font-style:italic;">"Primed to Lead and Serve for Progress"</div></div></div>`;
 }
 window.openTemplatePreview = function(row) {
     const raw = row ? row.getAttribute('data-submission-data') : null;
@@ -572,6 +784,151 @@ document.addEventListener('keydown', function(e){ if(e.key==='Escape'){ closeTpl
 <script src="../js/navbar.js"></script>
 <script src="../js/notifications.js"></script>
 <script src="../js/document_tracking.js"></script>
+<script>
+/* ── Template fields grid patch ───────────────────────────────
+   Widen modal only for project_proposal.
+   Resets on: close, cancel, backdrop click, tab switch.
+─────────────────────────────────────────────────────────────── */
+(function() {
+    const WIDE_TEMPLATES = new Set(['project_proposal']);
+
+    function resetModalSize() {
+        const mc = document.querySelector('.upload-modal-content');
+        if (mc) mc.classList.remove('modal-wide', 'modal-compact');
+    }
+
+    /* Patch loadTemplateFields */
+    const _orig = window.loadTemplateFields;
+    if (typeof _orig === 'function') {
+        window.loadTemplateFields = function() {
+            _orig.apply(this, arguments);
+            const templateId = document.getElementById('templateSelect').value;
+            const container  = document.getElementById('templateFieldsContainer');
+            const mc         = document.querySelector('.upload-modal-content');
+            if (!container || !mc) return;
+            container.querySelectorAll('.form-group').forEach(function(fg) {
+                if (fg.querySelector('textarea')) fg.classList.add('full-width');
+            });
+            if (WIDE_TEMPLATES.has(templateId)) {
+                mc.classList.add('modal-wide');
+                mc.classList.remove('modal-compact');
+            } else {
+                mc.classList.remove('modal-wide');
+                mc.classList.add('modal-compact');
+            }
+        };
+    }
+
+    /* Reset when template dropdown cleared */
+    var sel = document.getElementById('templateSelect');
+    if (sel) sel.addEventListener('change', function() {
+        if (!this.value) resetModalSize();
+    });
+
+    /* Reset when switching back to Regular Upload tab */
+    document.querySelectorAll('.tab-button').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            if (this.getAttribute('data-tab') === 'regular-upload') resetModalSize();
+        });
+    });
+
+    /* Reset on close button, cancel button, backdrop */
+    var closeBtn = document.getElementById('closeUploadModal');
+    var cancelBtn = document.getElementById('cancelBtn');
+    var modalEl   = document.getElementById('uploadModal');
+    if (closeBtn)  closeBtn.addEventListener('click',  resetModalSize);
+    if (cancelBtn) cancelBtn.addEventListener('click', resetModalSize);
+    if (modalEl)   modalEl.addEventListener('click', function(e) {
+        if (e.target === this) resetModalSize();
+    });
+    /* ── Override validateTemplateForm ────────────────────────────
+       Org name auto-filled from DB. Tagline is optional.
+       Re-define on window so all existing listeners call new version.
+    ───────────────────────────────────────────────────────────── */
+    window.validateTemplateForm = function() {
+        var submitBtn = document.getElementById('submitBtn');
+        var sel       = document.getElementById('templateSelect');
+        var title     = document.getElementById('templateTitle');
+
+        if (!submitBtn) return;
+        if (!sel || !sel.value || !title || !title.value.trim()) {
+            submitBtn.disabled = true;
+            return;
+        }
+        var allFields = document.querySelectorAll(
+            '#templateFieldsContainer input:not([type="hidden"]), ' +
+            '#templateFieldsContainer textarea'
+        );
+        submitBtn.disabled = Array.from(allFields).some(function(f) {
+            return !f.value.trim();
+        });
+    };
+
+    /* Force tagline = space before EVERY submit attempt so original
+       onsubmit and formData.append never see an empty value          */
+    var templateForm = document.getElementById('templateForm');
+    if (templateForm) {
+        templateForm.addEventListener('submit', function() {
+            var tag = document.getElementById('organizationTagline');
+            if (tag && !tag.value.trim()) tag.value = ' ';
+        }, true); // capture phase — runs before the original handler
+    }
+
+    /* Same safety net on the submitBtn click */
+    var submitBtn = document.getElementById('submitBtn');
+    if (submitBtn) {
+        submitBtn.addEventListener('click', function() {
+            var tag = document.getElementById('organizationTagline');
+            if (tag && !tag.value.trim()) tag.value = ' ';
+        }, true);
+    }
+
+    /* Also seed the hidden field right now if empty */
+    var tagEl = document.getElementById('organizationTagline');
+    if (tagEl && !tagEl.value.trim()) tagEl.value = ' ';
+
+    /* Re-attach listeners to new validateTemplateForm */
+    ['templateSelect','templateTitle','organizationName','organizationTagline']
+        .forEach(function(id) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            var evt = (el.tagName === 'SELECT') ? 'change' : 'input';
+            el.addEventListener(evt, window.validateTemplateForm);
+        });
+})();
+
+// Wire alt close button
+var altClose = document.getElementById('closeUploadModalAlt');
+if (altClose) altClose.addEventListener('click', function() {
+    if (typeof closeUploadModal === 'function') closeUploadModal();
+    if (typeof resetModalSize === 'function') resetModalSize();
+});
+
+// File drop zone
+(function() {
+    var zone  = document.getElementById('fileDropZone');
+    var input = document.getElementById('fileUpload');
+    var name  = document.getElementById('fileDropName');
+    if (!zone || !input) return;
+
+    input.addEventListener('change', function() {
+        if (this.files && this.files[0]) {
+            name.textContent = this.files[0].name;
+            zone.classList.add('has-file');
+        }
+    });
+    zone.addEventListener('dragover', function(e) { e.preventDefault(); zone.classList.add('drag-over'); });
+    zone.addEventListener('dragleave', function() { zone.classList.remove('drag-over'); });
+    zone.addEventListener('drop', function(e) {
+        e.preventDefault(); zone.classList.remove('drag-over');
+        if (e.dataTransfer.files[0]) {
+            input.files = e.dataTransfer.files;
+            name.textContent = e.dataTransfer.files[0].name;
+            zone.classList.add('has-file');
+        }
+    });
+})();
+</script>
 <script>
 /* ── Preview modal ─────────────────────────────────────────────────────────── */
 function openPreviewModal(id, ext, title) {
@@ -650,6 +1007,278 @@ document.getElementById('previewModal').addEventListener('click',function(e){if(
         });
     }
 }());
+</script>
+
+<!-- ── Admin Remark Modal ─────────────────────────────────────────────────── -->
+<?php
+// Build JS remarks map
+$remarksMap = [];
+foreach ($submissions as $i => $doc) {
+    $remarksMap[$i] = [
+        'text'  => $doc['admin_remarks'],
+        'title' => $doc['title'] ?? 'Document',
+    ];
+}
+?>
+<script>
+window._remarks = <?= json_encode($remarksMap) ?>;
+</script>
+<div id="remarkModal" style="
+  display:none; position:fixed; inset:0; z-index:10000;
+  background:rgba(0,0,0,0.5); backdrop-filter:blur(4px);
+  align-items:center; justify-content:center;
+">
+  <div style="
+    background:#fff; border-radius:20px;
+    max-width:520px; width:92vw;
+    box-shadow:0 20px 60px rgba(0,0,0,0.25);
+    overflow:hidden;
+    animation: remarkPop 0.28s cubic-bezier(0.34,1.56,0.64,1) both;
+  ">
+    <!-- Header -->
+    <div style="background:#2d6a4f;padding:1.1rem 1.4rem;display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:0.55rem;color:#fff;">
+        <i class="fas fa-comment-alt" style="font-size:1rem;"></i>
+        <span style="font-weight:600;font-size:0.95rem;" id="remarkModalTitle">Admin Remarks</span>
+      </div>
+      <button onclick="closeRemarkModal()" style="background:none;border:none;color:rgba(255,255,255,0.8);font-size:1.4rem;cursor:pointer;line-height:1;padding:0;">&times;</button>
+    </div>
+    <!-- Body -->
+    <div style="padding:1.6rem 1.5rem;">
+      <p id="remarkModalBody" style="
+        font-size:0.92rem; color:#374151; line-height:1.75;
+        white-space:pre-wrap; word-break:break-word;
+        max-height:55vh; overflow-y:auto;
+        background:#f9fafb; border-radius:12px;
+        padding:1rem 1.1rem; border:1px solid #e5e7eb;
+      "></p>
+    </div>
+    <!-- Footer -->
+    <div style="padding:0 1.5rem 1.3rem;display:flex;justify-content:flex-end;">
+      <button onclick="closeRemarkModal()" style="
+        background:#2d6a4f; color:#fff; border:none;
+        padding:0.6rem 1.5rem; border-radius:10px;
+        font-size:0.88rem; font-weight:600; cursor:pointer;
+        font-family:inherit; transition:background 0.2s;
+      " onmouseover="this.style.background='#1a3d2b'" onmouseout="this.style.background='#2d6a4f'">
+        Close
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes remarkPop {
+  from { opacity:0; transform:scale(0.92) translateY(12px); }
+  to   { opacity:1; transform:scale(1) translateY(0); }
+}
+
+/* ── Template custom select ──────────────────────────────────── */
+.tpl-input-wrap { position: relative; }
+.tpl-text-input {
+    width: 100%; padding: 0.68rem 2.2rem 0.68rem 1rem;
+    border: 1.5px solid #dde8e3; border-radius: 9px;
+    font-size: 0.92rem; font-family: inherit;
+    background: #f6faf7; color: #1e3a2e;
+    outline: none; cursor: pointer; caret-color: transparent;
+    box-sizing: border-box;
+}
+.tpl-text-input:hover { border-color: #a8ccba; }
+.tpl-text-input.open { border-color: #2d6a4f; background: #fff; box-shadow: 0 0 0 3px rgba(45,106,79,0.09); }
+.tpl-text-input::placeholder { color: #adc0b8; }
+.tpl-chevron {
+    position: absolute; right: 0.9rem; top: 50%; transform: translateY(-50%);
+    color: #9ca3af; font-size: 0.75rem; pointer-events: none;
+}
+.tpl-text-input.open ~ .tpl-chevron { transform: translateY(-50%) rotate(180deg); }
+.tpl-dropdown {
+    display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+    background: #fff; border: 1.5px solid #dde8e3; border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,20,10,0.12); z-index: 600; overflow: hidden;
+}
+.tpl-dropdown.open { display: block; }
+.tpl-dropdown-item {
+    padding: 0.6rem 1rem; font-size: 0.9rem; color: #1e3a2e; cursor: pointer; font-family: inherit;
+}
+.tpl-dropdown-item:hover { background: #f0faf5; }
+.tpl-dropdown-item.active { background: #e6f4ed; font-weight: 600; color: #2d6a4f; }
+.tpl-dropdown-item:first-child { color: #adc0b8; font-size: 0.86rem; }
+
+/* ── Logo Picker ─────────────────────────────────────────────── */
+.logo-picker { position: relative; }
+.logo-picker-input-wrap {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0 1rem; min-height: 44px; box-sizing: border-box;
+    border: 1.5px solid #dde8e3; border-radius: 9px; background: #f6faf7;
+}
+.logo-picker-input-wrap:hover { border-color: #a8ccba; }
+.logo-picker-input-wrap:focus-within { border-color: #2d6a4f; background: #fff; box-shadow: 0 0 0 3px rgba(45,106,79,0.09); }
+.logo-picker-thumb { display: none; width: 24px; height: 24px; border-radius: 50%; overflow: hidden; flex-shrink: 0; }
+.logo-picker-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.logo-picker-thumb.visible { display: block; }
+.logo-picker-text-input {
+    flex: 1; border: none; outline: none; background: transparent;
+    font-size: 0.92rem; font-family: inherit; color: #1e3a2e;
+    padding: 0.68rem 0; min-width: 0; cursor: text;
+}
+.logo-picker-text-input::placeholder { color: #adc0b8; }
+.logo-picker-arrow { color: #9ca3af; font-size: 0.75rem; flex-shrink: 0; cursor: pointer; }
+.logo-picker-input-wrap:focus-within .logo-picker-arrow { transform: rotate(180deg); }
+.logo-picker-panel {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+    background: #fff; border: 1.5px solid #dde8e3; border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,20,10,0.12); z-index: 600; overflow: hidden;
+}
+.logo-picker-list { max-height: 220px; overflow-y: auto; padding: 0.3rem 0; scrollbar-width: thin; scrollbar-color: #c8ddd5 transparent; }
+.logo-picker-item { display: flex; align-items: center; gap: 0.65rem; padding: 0.48rem 0.85rem; cursor: pointer; font-size: 0.88rem; color: #1e3a2e; }
+.logo-picker-item:hover { background: #f0faf5; }
+.logo-picker-item.selected { background: #e6f4ed; font-weight: 600; color: #2d6a4f; }
+.logo-picker-img { width: 30px; height: 30px; object-fit: contain; border-radius: 5px; flex-shrink: 0; background: #f9f9f9; border: 1px solid #e5e7eb; }
+.logo-picker-none { width: 30px; height: 30px; border-radius: 5px; border: 1px dashed #d1d5db; display: flex; align-items: center; justify-content: center; color: #adc0b8; font-size: 0.78rem; flex-shrink: 0; }
+.logo-picker-group-label { padding: 0.45rem 0.85rem 0.2rem; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; border-top: 1px solid #f0f0f0; margin-top: 0.3rem; display: flex; align-items: center; gap: 0.35rem; }
+.logo-picker-no-results { padding: 0.8rem 1rem; font-size: 0.83rem; color: #9ca3af; text-align: center; }
+</style>
+
+<script>
+function openRemarkModal(text, docTitle) {
+  document.getElementById('remarkModalTitle').textContent = docTitle ? 'Remarks — ' + docTitle : 'Admin Remarks';
+  document.getElementById('remarkModalBody').textContent  = text;
+  const m = document.getElementById('remarkModal');
+  m.style.display = 'flex';
+}
+function closeRemarkModal() {
+  document.getElementById('remarkModal').style.display = 'none';
+}
+document.getElementById('remarkModal').addEventListener('click', function(e) {
+  if (e.target === this) closeRemarkModal();
+});
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeRemarkModal();
+});
+// Event delegation for all "See more" buttons
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest('.see-more-btn');
+  if (btn) {
+    e.stopPropagation();
+    const idx = btn.dataset.idx;
+    const d = window._remarks && window._remarks[idx];
+    if (d) openRemarkModal(d.text, d.title);
+  }
+});
+
+// ── Template custom dropdown ──────────────────────────────────
+function toggleTplDropdown() {
+  var dd   = document.getElementById('tplDropdown');
+  var inp  = document.getElementById('templateSelectDisplay');
+  var open = dd.classList.contains('open');
+  dd.classList.toggle('open', !open);
+  inp.classList.toggle('open', !open);
+  if (!open) {
+    document.addEventListener('click', closeTplOnOutside);
+  }
+}
+function closeTplOnOutside(e) {
+  var wrap = document.querySelector('.tpl-input-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    document.getElementById('tplDropdown').classList.remove('open');
+    document.getElementById('templateSelectDisplay').classList.remove('open');
+    document.removeEventListener('click', closeTplOnOutside);
+  }
+}
+function pickTemplate(el, label) {
+  var val = el.getAttribute('data-value');
+  document.getElementById('templateSelect').value = val;
+  document.getElementById('templateSelectDisplay').value = val ? label : '';
+  document.getElementById('tplDropdown').classList.remove('open');
+  document.getElementById('templateSelectDisplay').classList.remove('open');
+  document.removeEventListener('click', closeTplOnOutside);
+  // Mark active
+  document.querySelectorAll('.tpl-dropdown-item').forEach(function(i) {
+    i.classList.toggle('active', i.getAttribute('data-value') === val);
+  });
+  // Fire loadTemplateFields
+  if (typeof loadTemplateFields === 'function') loadTemplateFields();
+  if (typeof validateTemplateForm === 'function') validateTemplateForm();
+}
+
+// ── Logo Picker ───────────────────────────────────────────────
+// ── Logo Picker ───────────────────────────────────────────────
+function openLogoPicker() {
+  var panel = document.getElementById('logoPickerPanel');
+  if (panel.style.display === 'none') {
+    panel.style.display = 'block';
+    // Clear input so user can type fresh to search
+    var inp = document.getElementById('logoPickerSearch');
+    if (inp) { inp.value = ''; filterLogos(''); }
+    document.addEventListener('click', closeLogoOnOutside);
+  }
+}
+function closeLogoOnOutside(e) {
+  var picker = document.getElementById('logoPicker');
+  if (picker && !picker.contains(e.target)) {
+    document.getElementById('logoPickerPanel').style.display = 'none';
+    // Restore selected label in input
+    var hidden  = document.getElementById('collaboratedLogo');
+    var inp     = document.getElementById('logoPickerSearch');
+    if (inp) {
+      var selected = document.querySelector('.logo-picker-item.selected');
+      inp.value = (hidden && hidden.value && selected) ? (selected.getAttribute('data-label') || '') : '';
+    }
+    document.removeEventListener('click', closeLogoOnOutside);
+  }
+}
+function selectLogo(value, b64, label) {
+  document.getElementById('collaboratedLogo').value = value;
+  var inp   = document.getElementById('logoPickerSearch');
+  var thumb = document.getElementById('logoPickerThumb');
+  inp.value = value ? label : '';
+  inp.placeholder = value ? '' : 'No Collaborated Logo';
+  if (value && b64) {
+    thumb.innerHTML = '<img src="' + b64 + '" alt="' + label + '">';
+    thumb.classList.add('visible');
+  } else {
+    thumb.innerHTML = '';
+    thumb.classList.remove('visible');
+  }
+  document.querySelectorAll('.logo-picker-item').forEach(function(el) {
+    el.classList.toggle('selected', el.getAttribute('data-value') === value);
+  });
+  document.getElementById('logoPickerPanel').style.display = 'none';
+  document.removeEventListener('click', closeLogoOnOutside);
+}
+function filterLogos(q) {
+  var items = document.querySelectorAll('#logoPickerList .logo-picker-item');
+  var lower = q.toLowerCase().trim();
+  var visible = 0;
+  items.forEach(function(item) {
+    var label = (item.getAttribute('data-label') || '').toLowerCase();
+    var match = !lower || label.includes(lower);
+    item.style.display = match ? '' : 'none';
+    if (match) visible++;
+  });
+  document.querySelectorAll('.logo-picker-group-label').forEach(function(lbl) {
+    var next = lbl.nextElementSibling;
+    var anyVisible = false;
+    while (next && !next.classList.contains('logo-picker-group-label')) {
+      if (next.style.display !== 'none') anyVisible = true;
+      next = next.nextElementSibling;
+    }
+    lbl.style.display = anyVisible ? '' : 'none';
+  });
+  var noRes = document.getElementById('logoPickerNoResults');
+  if (visible === 0) {
+    if (!noRes) {
+      noRes = document.createElement('div');
+      noRes.id = 'logoPickerNoResults';
+      noRes.className = 'logo-picker-no-results';
+      noRes.textContent = 'No logos found';
+      document.getElementById('logoPickerList').appendChild(noRes);
+    }
+    noRes.style.display = '';
+  } else if (noRes) {
+    noRes.style.display = 'none';
+  }
+}
 </script>
 </body>
 </html>

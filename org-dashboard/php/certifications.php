@@ -81,7 +81,7 @@ $type_icons = [
             <div class="cert-empty">
                 <div class="cert-empty-icon"><i class="fas fa-certificate"></i></div>
                 <h3>No certifications yet</h3>
-                <p>Certifications issued by the PLSP OSDS/CIG Office will appear here once received.</p>
+                <p>Certifications issued by the PLSP OSAS/CIG Office will appear here once received.</p>
             </div>
             <?php else: ?>
             <div class="table-responsive">

@@ -235,7 +235,7 @@ $approval_rate = $total_submissions > 0 ? round(($approved / $total_submissions)
                 </div>
             </div>
 
-            <!-- Monthly Bar Chart -->
+            <!-- Monthly Progress Bars -->
             <div class="report-card">
                 <div class="report-card-header">
                     <div class="report-card-header-left">
@@ -252,31 +252,49 @@ $approval_rate = $total_submissions > 0 ? round(($approved / $total_submissions)
                     <?php else:
                         $max_val = max(array_map(fn($m) => (int)$m['total'], $monthly_data)) ?: 1;
                     ?>
-                    <div class="bar-chart-wrap">
-                        <div class="bar-chart">
-                            <?php foreach ($monthly_data as $m): ?>
-                            <div class="bar-group">
-                                <div class="bar-stack">
-                                    <?php if ((int)$m['approved'] > 0): ?>
-                                    <div class="bar-seg seg-green" style="height:<?= round(((int)$m['approved']/$max_val)*140) ?>px" title="Approved: <?= $m['approved'] ?>"></div>
-                                    <?php endif; ?>
-                                    <?php if ((int)$m['pending'] > 0): ?>
-                                    <div class="bar-seg seg-amber" style="height:<?= round(((int)$m['pending']/$max_val)*140) ?>px" title="Pending: <?= $m['pending'] ?>"></div>
-                                    <?php endif; ?>
-                                    <?php if ((int)$m['rejected'] > 0): ?>
-                                    <div class="bar-seg seg-red" style="height:<?= round(((int)$m['rejected']/$max_val)*140) ?>px" title="Rejected: <?= $m['rejected'] ?>"></div>
-                                    <?php endif; ?>
-                                </div>
-                                <span class="bar-total"><?= $m['total'] ?></span>
-                                <span class="bar-label"><?= $m['month'] ?></span>
-                            </div>
-                            <?php endforeach; ?>
-                        </div>
-                        <div class="bar-legend">
+                    <div class="monthly-progress-list">
+                        <!-- Legend -->
+                        <div class="mp-legend">
                             <span><span class="legend-dot" style="background:#10b981"></span> Approved</span>
                             <span><span class="legend-dot" style="background:#f59e0b"></span> Pending</span>
                             <span><span class="legend-dot" style="background:#ef4444"></span> Rejected</span>
                         </div>
+                        <?php foreach ($monthly_data as $m):
+                            $total    = (int)$m['total'];
+                            $approved = (int)$m['approved'];
+                            $pending  = (int)$m['pending'];
+                            $rejected = (int)$m['rejected'];
+                            $pctApproved = $total > 0 ? round(($approved / $total) * 100) : 0;
+                            $pctPending  = $total > 0 ? round(($pending  / $total) * 100) : 0;
+                            $pctRejected = $total > 0 ? 100 - $pctApproved - $pctPending   : 0;
+                            $barWidth    = $max_val > 0 ? round(($total / $max_val) * 100)  : 0;
+                        ?>
+                        <div class="mp-row">
+                            <div class="mp-month"><?= htmlspecialchars($m['month']) ?></div>
+                            <div class="mp-bar-wrap">
+                                <div class="mp-bar-outer" style="width:<?= $barWidth ?>%">
+                                    <?php if ($pctApproved > 0): ?>
+                                    <div class="mp-seg mp-approved" style="width:<?= $pctApproved ?>%"
+                                         title="Approved: <?= $approved ?>"></div>
+                                    <?php endif; ?>
+                                    <?php if ($pctPending > 0): ?>
+                                    <div class="mp-seg mp-pending" style="width:<?= $pctPending ?>%"
+                                         title="Pending: <?= $pending ?>"></div>
+                                    <?php endif; ?>
+                                    <?php if ($pctRejected > 0): ?>
+                                    <div class="mp-seg mp-rejected" style="width:<?= $pctRejected ?>%"
+                                         title="Rejected: <?= $rejected ?>"></div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                            <div class="mp-total"><?= $total ?> <span>total</span></div>
+                            <div class="mp-counts">
+                                <?php if ($approved > 0): ?><span class="mp-count mp-c-green"><?= $approved ?> approved</span><?php endif; ?>
+                                <?php if ($pending  > 0): ?><span class="mp-count mp-c-amber"><?= $pending  ?> pending</span><?php endif; ?>
+                                <?php if ($rejected > 0): ?><span class="mp-count mp-c-red"><?= $rejected   ?> rejected</span><?php endif; ?>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
                     </div>
                     <?php endif; ?>
                 </div>
