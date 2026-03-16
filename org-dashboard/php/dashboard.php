@@ -112,6 +112,7 @@ if ($conn) {
     <!-- Main content -->
     <main class="main-content">
       <?php include '../php/topbar.php'; ?>
+      <?php include '../php/restriction_banner.php'; ?>
         <div class="dashboard-container">
             <!-- Welcome Banner -->
             <div class="welcome-banner">

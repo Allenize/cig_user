@@ -1,10 +1,5 @@
 <?php
-session_start();
-if (!isset($_SESSION['user_id'])) {
-    header("Location: /index.php");
-    exit();
-}
-
+require_once __DIR__ . '/auth_guard.php';
 require_once dirname(dirname(__DIR__)) . '/db_connection.php';
 
 $userId = $_SESSION['user_id'];
@@ -236,6 +231,7 @@ $religiousOrgs = [
 
 <?php include '../php/navbar.php'; ?>
     <?php include '../php/topbar.php'; ?>
+<?php include __DIR__ . '/restriction_banner.php'; ?>
 
     <div class="document-container">
 

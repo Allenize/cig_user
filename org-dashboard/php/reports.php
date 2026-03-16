@@ -1,10 +1,5 @@
 <?php
-session_start();
-if (!isset($_SESSION['user_id'])) {
-    header("Location: /index.php");
-    exit();
-}
-
+require_once __DIR__ . '/auth_guard.php';
 require_once dirname(dirname(__DIR__)) . '/db_connection.php';
 
 $org_id   = (int) $_SESSION['user_id'];
@@ -470,4 +465,4 @@ const REPORT_DATA = {
 <script src="../js/notifications.js"></script>
 <script src="../js/reports.js"></script>
 </body>
-</html>
+</html> 

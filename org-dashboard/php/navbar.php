@@ -6,7 +6,7 @@ if (isset($_SESSION['user_id'])) {
     $_nb_id   = (int) $_SESSION['user_id'];
     $_nb_conn = @mysqli_connect("localhost", "root", "", "cig_system");
     if ($_nb_conn) {
-        $_nb_r = mysqli_query($_nb_conn, "SELECT org_name, org_code, logo_path FROM users WHERE user_id = $_nb_id LIMIT 1");
+        $_nb_r = mysqli_query($_nb_conn, "SELECT org_name, org_code, logo_path, credentials_verified FROM users WHERE user_id = $_nb_id LIMIT 1");
         if ($_nb_r) $_nb_user = mysqli_fetch_assoc($_nb_r) ?: [];
         mysqli_close($_nb_conn);
     }
@@ -16,6 +16,7 @@ $_nb_org_name  = htmlspecialchars($_nb_user['org_name']  ?? ($_SESSION['org_name
 $_nb_org_code  = htmlspecialchars($_nb_user['org_code']  ?? ($_SESSION['org_code']  ?? ''));
 $_nb_logo_path = $_nb_user['logo_path'] ?? null;
 $_nb_initials  = strtoupper(substr($_nb_user['org_name'] ?? $_nb_org_code, 0, 2));
+$_nb_verified  = !empty($_nb_user['credentials_verified']) || ($_SESSION['role'] ?? '') === 'admin';
 
 $_nb_logo_url = null;
 if ($_nb_logo_path) {
@@ -33,12 +34,10 @@ function nb_active(string $page): string {
 ?>
 <aside class="sidebar" id="sidebar">
 
-    <!-- ── Header: logo only, centered ──────────────────────────────────── -->
+    <!-- ── Header: logo links to credential verification ── -->
     <div class="sidebar-header">
-
-        <!-- Logo — centered, click to refresh -->
-        <a href="javascript:location.reload()" class="sidebar-org" title="<?= $_nb_org_name ?>">
-            <div class="sidebar-org-avatar" id="sidebarAvatar">
+        <a href="credential_verification.php" class="sidebar-org" title="<?= $_nb_verified ? $_nb_org_name : 'Complete Credential Verification' ?>">
+            <div class="sidebar-org-avatar <?= !$_nb_verified ? 'avatar-unverified' : '' ?>" id="sidebarAvatar">
                 <?php if ($_nb_logo_url): ?>
                     <img src="<?= htmlspecialchars($_nb_logo_url) ?>"
                          alt="<?= $_nb_org_name ?>"
@@ -46,17 +45,20 @@ function nb_active(string $page): string {
                          id="sidebarAvatarImg">
                 <?php else: ?>
                     <span class="sidebar-org-initials" id="sidebarAvatarInitials">
-                        <?= $_nb_initials ?>
+                        <?= $_nb_initials ?: '<i class="fas fa-shield-halved"></i>' ?>
                     </span>
+                <?php endif; ?>
+                <?php if (!$_nb_verified): ?>
+                <div class="avatar-lock-badge"><i class="fas fa-lock"></i></div>
                 <?php endif; ?>
             </div>
         </a>
-
     </div>
 
-    <!-- ── Navigation ─────────────────────────────────────────────────────── -->
+    <!-- ── Navigation ── -->
     <nav class="sidebar-nav">
         <ul>
+            <?php if ($_nb_verified): ?>
             <li class="<?= nb_active('dashboard.php') ?>">
                 <a href="dashboard.php" data-tooltip="Dashboard">
                     <i class="fas fa-tachometer-alt"></i>
@@ -99,6 +101,32 @@ function nb_active(string $page): string {
                     <span class="nav-label">Settings</span>
                 </a>
             </li>
+            <?php else: ?>
+            <!-- Locked nav items — unverified -->
+            <li class="nav-locked active-locked">
+                <a href="credential_verification.php" data-tooltip="Verify Credentials" class="nav-verify-link">
+                    <i class="fas fa-shield-halved"></i>
+                    <span class="nav-label">Verify</span>
+                </a>
+            </li>
+            <?php foreach ([
+                ['fa-tachometer-alt','Dashboard'],
+                ['fa-users','Members'],
+                ['fa-folder-open','Documents'],
+                ['fa-file-alt','Reports'],
+                ['fa-certificate','Certifications'],
+                ['fa-archive','Archive'],
+                ['fa-cog','Settings'],
+            ] as [$icon, $label]): ?>
+            <li class="nav-locked" data-tooltip="Complete verification to unlock">
+                <span class="nav-lock-item">
+                    <i class="fas <?= $icon ?>"></i>
+                    <span class="nav-label"><?= $label ?></span>
+                    <i class="fas fa-lock nav-lock-icon"></i>
+                </span>
+            </li>
+            <?php endforeach; ?>
+            <?php endif; ?>
         </ul>
     </nav>
 
@@ -191,6 +219,7 @@ function nb_active(string $page): string {
 </div>
 
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 function showLogoutModal(e) {
   if (e) e.preventDefault();
@@ -212,7 +241,15 @@ function hideLogoutModal() {
   setTimeout(() => { overlay.style.display = 'none'; }, 320);
 }
 function doLogout() {
-  window.location.href = 'logout.php';
+  if (typeof html2canvas !== 'undefined') {
+    html2canvas(document.body, { scale:0.4, useCORS:true, allowTaint:true, logging:false })
+      .then(canvas => {
+        try { sessionStorage.setItem('logout_bg', canvas.toDataURL('image/jpeg', 0.6)); } catch(e) {}
+        window.location.href = 'logout.php';
+      }).catch(() => { window.location.href = 'logout.php'; });
+  } else {
+    window.location.href = 'logout.php';
+  }
 }
 // Close on backdrop click
 document.getElementById('logoutOverlay').addEventListener('click', function(e) {
