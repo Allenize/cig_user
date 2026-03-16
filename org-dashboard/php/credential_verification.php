@@ -28,33 +28,30 @@ $credPct     = round(($credFilled / $credTotal) * 100);
 $credAllMet  = ($credFilled === $credTotal);
 $isVerified  = !empty($user['credentials_verified']);
 
-// ── Accreditation documents (11 required) ────────────────────────────────
+// ── Accreditation documents (11 required) — all online ───────────────────
 $accredDocs = [
-    ['key'=>'letter_of_intent',         'seq'=>1,  'phase'=>1, 'label'=>'Letter of Intent',                'hint'=>'OSLS Form 1 s. 24–25 — use your organization letterhead'],
-    ['key'=>'constitution_bylaws',      'seq'=>2,  'phase'=>1, 'label'=>'Constitution and By-Laws',       'hint'=>'Signed by all officers; reviewed and signed by Advisers/College Dean'],
-    ['key'=>'resolution_ratification',  'seq'=>3,  'phase'=>1, 'label'=>'Resolution / Ratification',      'hint'=>'If applicable — for minor or major amendments to org documents'],
-    ['key'=>'list_of_officers',         'seq'=>4,  'phase'=>1, 'label'=>'List of Officers',               'hint'=>'Academic Year format with photo, position, college/program'],
-    ['key'=>'list_of_members',          'seq'=>5,  'phase'=>1, 'label'=>'List of Members',                'hint'=>'Name, program, year/section, address, email, contact'],
-    ['key'=>'list_of_representatives',  'seq'=>6,  'phase'=>1, 'label'=>'List of Representatives',       'hint'=>'Gender Dev, Mental Health, Anti-Hazing, Anti-Drug, Anti-Smoking, Anti-HIV, Env, Multi-Faith'],
-    ['key'=>'pledge_against_hazing',    'seq'=>7,  'phase'=>1, 'label'=>'Pledge Against Hazing',         'hint'=>'Pangako Laban sa Hazing — signed by President and Chief Adviser'],
-    ['key'=>'adviser_acceptance',       'seq'=>8,  'phase'=>1, 'label'=>'Adviser Letter of Acceptance',  'hint'=>'At least 2 teacher-advisers; one must be regular full-time faculty'],
-    ['key'=>'calendar_activities',      'seq'=>9,  'phase'=>1, 'label'=>'Proposed Calendar of Activities','hint'=>'Must not conflict with USP/Institutional activities; include Env. Extension'],
-    ['key'=>'calendar_plan',            'seq'=>10, 'phase'=>1, 'label'=>'Proposed Calendar Plan of Activities','hint'=>'Same format — include partners, objectives, budget source, expected outcomes'],
-    ['key'=>'jpia_audited_report',      'seq'=>11, 'phase'=>1, 'label'=>'JPIA Audited Report',           'hint'=>'Not required for new applicants — previous A.Y. financial statement'],
+    ['key'=>'letter_of_intent',         'seq'=>1,  'label'=>'Letter of Intent',                     'hint'=>'OSLS Form 1 s. 24–25 — use your organization letterhead'],
+    ['key'=>'constitution_bylaws',      'seq'=>2,  'label'=>'Constitution and By-Laws',              'hint'=>'Signed by all officers; reviewed and signed by Advisers/College Dean'],
+    ['key'=>'resolution_ratification',  'seq'=>3,  'label'=>'Resolution / Ratification',             'hint'=>'If applicable — for minor or major amendments to org documents'],
+    ['key'=>'list_of_officers',         'seq'=>4,  'label'=>'List of Officers',                      'hint'=>'Academic Year format with photo, position, college/program'],
+    ['key'=>'list_of_members',          'seq'=>5,  'label'=>'List of Members',                       'hint'=>'Name, program, year/section, address, email, contact'],
+    ['key'=>'list_of_representatives',  'seq'=>6,  'label'=>'List of Representatives',              'hint'=>'Gender Dev, Mental Health, Anti-Hazing, Anti-Drug, Anti-Smoking, Anti-HIV, Env, Multi-Faith'],
+    ['key'=>'pledge_against_hazing',    'seq'=>7,  'label'=>'Pledge Against Hazing',                'hint'=>'Pangako Laban sa Hazing — signed by President and Chief Adviser'],
+    ['key'=>'adviser_acceptance',       'seq'=>8,  'label'=>'Adviser Letter of Acceptance',         'hint'=>'At least 2 teacher-advisers; one must be regular full-time faculty'],
+    ['key'=>'calendar_activities',      'seq'=>9,  'label'=>'Proposed Calendar of Activities',      'hint'=>'Must not conflict with USP/Institutional activities; include Env. Extension'],
+    ['key'=>'calendar_plan',            'seq'=>10, 'label'=>'Proposed Calendar Plan of Activities', 'hint'=>'Include partners, objectives, budget source, expected outcomes'],
+    ['key'=>'jpia_audited_report',      'seq'=>11, 'label'=>'JPIA Audited Report',                  'hint'=>'Not required for new applicants — previous A.Y. financial statement'],
 ];
 
-// ── Process steps ─────────────────────────────────────────────────────────
+// ── Online-only process steps ─────────────────────────────────────────────
 $processSteps = [
-    ['phase'=>1,'num'=>1, 'title'=>'Submit Requirements (Online)',   'desc'=>'Submit soft copies of all required documents in PDF format to plspaccreditation@gmail.com. Each document in a separate file, organized in one folder, in the specified sequence.'],
-    ['phase'=>1,'num'=>2, 'title'=>'Assessment Result',              'desc'=>'Wait for the initial assessment result. You will be notified if any revisions are needed.'],
-    ['phase'=>1,'num'=>3, 'title'=>'Submit Revised Documents',       'desc'=>'If revisions are required, submit the updated documents and wait for the assessment result again.'],
-    ['phase'=>1,'num'=>4, 'title'=>'Approval for Printing',          'desc'=>'Once all documents are finalized and accepted, you will receive confirmation to print your submitted documents.'],
-    ['phase'=>1,'num'=>5, 'title'=>'Secure Signatories',             'desc'=>'Ensure all necessary signatories — Officers, Chief Advisers, or Dean — approve the documents.'],
-    ['phase'=>2,'num'=>6, 'title'=>'Submit Hard Copy',               'desc'=>'Submit one (1) hard copy of the final documents to the OSDS/CIG Office for final evaluation.'],
-    ['phase'=>2,'num'=>7, 'title'=>'Final Document Review',          'desc'=>'Submitted hard copies undergo a final check and will be forwarded to OSDS Director and VP of SLS if passed.'],
-    ['phase'=>2,'num'=>8, 'title'=>'Notification of Approval',       'desc'=>'Once approved, you will be notified of the status and the release of your documents.'],
-    ['phase'=>2,'num'=>9, 'title'=>'Scan and Duplicate Documents',   'desc'=>'Scan all required documents (items 1–10), create duplicates, send scanned PDFs via email, and submit softbound copies.'],
-    ['phase'=>2,'num'=>10,'title'=>'Awarding of Accreditation Certificate','desc'=>'Once accreditation is granted, your organization will be officially recognized and may schedule EED activities per approved calendar.'],
+    ['num'=>1, 'title'=>'Fill in Organization Profile',      'desc'=>'Complete all 5 organization credentials — name, code, contact person, phone, and tagline — in the form on this page.'],
+    ['num'=>2, 'title'=>'Upload Required Documents',          'desc'=>'Upload all 11 required documents in PDF format. Each document must be a separate file.'],
+    ['num'=>3, 'title'=>'Submit for Online Assessment',       'desc'=>'Once all documents are uploaded, submit them for online review by the CIG Compliance Division.'],
+    ['num'=>4, 'title'=>'Initial Assessment Result',          'desc'=>'Wait for the initial assessment result online. You will be notified through the system if revisions are needed.'],
+    ['num'=>5, 'title'=>'Revise & Resubmit (if needed)',      'desc'=>'If revisions are required, update and re-upload the flagged documents. Resubmit for reassessment.'],
+    ['num'=>6, 'title'=>'Approval Notification',              'desc'=>'Once all documents pass the assessment, you will receive an online approval notification from the OSDS Director and VP of SLS.'],
+    ['num'=>7, 'title'=>'Accreditation Certificate Awarded',  'desc'=>'Upon final approval, your organization is officially recognized and may schedule EED activities per your approved calendar.'],
 ];
 
 // ── Load existing submissions ─────────────────────────────────────────────
@@ -75,10 +72,14 @@ $overallTotal     = $credTotal + count($accredDocs);
 $overallCompleted = $credFilled + $docsSubmitted;
 $overallPct       = round(($overallCompleted / $overallTotal) * 100);
 
-// Determine active process step
+// Determine active process step (online 7-step flow)
 $activeStep = 1;
-if ($docsSubmitted === count($accredDocs)) $activeStep = 2;
-if ($docsApproved  === count($accredDocs)) $activeStep = 6;
+if ($credAllMet)                                    $activeStep = 2;
+if ($credAllMet && $docsSubmitted > 0)              $activeStep = 3;
+if ($credAllMet && $docsSubmitted === count($accredDocs)) $activeStep = 4;
+if ($docsApproved > 0)                              $activeStep = 5;
+if ($docsApproved === count($accredDocs))            $activeStep = 6;
+if ($isVerified && $docsApproved === count($accredDocs)) $activeStep = 7;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -243,18 +244,6 @@ if ($docsApproved  === count($accredDocs)) $activeStep = 6;
 .doc-upload-btn:hover { background:#e8f5ee; border-color:#2d6a4f; }
 .doc-upload-input { display:none; }
 
-/* Phase divider */
-.phase-divider {
-    display:flex; align-items:center; gap:0.6rem;
-    margin:0.5rem 0 0.2rem;
-}
-.phase-divider span {
-    font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em;
-    color:#fff; background:linear-gradient(90deg,#1a3d2b,#2d6a4f);
-    padding:0.25rem 0.75rem; border-radius:20px; white-space:nowrap;
-    display:flex; align-items:center; gap:0.35rem;
-}
-
 /* ── Process steps ── */
 .process-steps { display:flex; flex-direction:column; }
 .process-step {
@@ -278,16 +267,6 @@ if ($docsApproved  === count($accredDocs)) $activeStep = 6;
 .process-step.waiting .process-step-title { color:#9ab5ac; }
 .process-step-desc { font-size:0.76rem; color:#6b8f7a; line-height:1.5; }
 .process-step.waiting .process-step-desc { color:#c8ddd5; }
-.process-step-phase-label {
-    font-size:0.66rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;
-    color:#fff; background:#b45309; border-radius:20px; padding:0.1rem 0.5rem;
-    display:inline-block; margin-bottom:0.5rem;
-}
-
-/* ── Softbind info card ── */
-.softbind-colors { display:flex; flex-direction:column; gap:0.35rem; margin:0.7rem 0; }
-.softbind-color-item { display:flex; align-items:center; gap:0.6rem; font-size:0.8rem; color:#374151; }
-.softbind-color-dot { width:14px; height:14px; border-radius:3px; flex-shrink:0; }
 
 /* Verified banner */
 .cv-verified-banner {
@@ -310,13 +289,6 @@ if ($docsApproved  === count($accredDocs)) $activeStep = 6;
     display:flex; align-items:center; gap:0.4rem;
 }
 .cv-verified-banner a:hover { background:#e8f5ee; }
-
-/* Email chip */
-.email-chip {
-    display:inline-flex; align-items:center; gap:0.35rem;
-    background:#e3f2eb; border:1px solid #b8d9c4; color:#2d6a4f;
-    border-radius:20px; padding:0.2rem 0.65rem; font-size:0.75rem; font-weight:600; margin-top:0.3rem;
-}
 
 /* Submit all btn */
 .btn-submit-all {
@@ -427,29 +399,17 @@ if ($docsApproved  === count($accredDocs)) $activeStep = 6;
                 </div>
                 <div class="cv-card-body" style="padding:1rem 1.4rem;">
 
-                    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:9px;padding:0.7rem 1rem;margin-bottom:1rem;font-size:0.8rem;color:#92400e;display:flex;align-items:flex-start;gap:0.5rem;">
-                        <i class="fas fa-info-circle" style="flex-shrink:0;margin-top:1px"></i>
-                        <span>Submit soft copies in <strong>PDF format</strong>. Each document in a separate file.
-                        Send the folder to <span style="font-weight:700">plspaccreditation@gmail.com</span> after uploading here.</span>
+                    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:0.7rem 1rem;margin-bottom:1rem;font-size:0.8rem;color:#1e40af;display:flex;align-items:flex-start;gap:0.5rem;">
+                        <i class="fas fa-cloud-upload-alt" style="flex-shrink:0;margin-top:1px"></i>
+                        <span>Upload all documents in <strong>PDF format</strong> directly through this system. Each document must be a separate file. The system will notify you of assessment results online.</span>
                     </div>
 
                     <div class="doc-list" id="docList">
-                        <?php
-                        $currentPhase = 0;
-                        foreach ($accredDocs as $doc):
+                        <?php foreach ($accredDocs as $doc):
                             $sub    = $existing[$doc['key']] ?? null;
                             $status = $sub['status'] ?? 'pending';
                             $fname  = $sub['file_name'] ?? null;
-                            if ($doc['phase'] !== $currentPhase):
-                                $currentPhase = $doc['phase'];
                         ?>
-                        <div class="phase-divider">
-                            <span>
-                                <i class="fas <?= $doc['phase'] === 1 ? 'fa-laptop' : 'fa-building' ?>"></i>
-                                <?= $doc['phase'] === 1 ? 'Phase 1 — Initial Assessment (Online)' : 'Phase 2 — Final Assessment (Physical)' ?>
-                            </span>
-                        </div>
-                        <?php endif; ?>
                         <div class="doc-item" id="docitem_<?= $doc['key'] ?>">
                             <div class="doc-seq <?= $status ?>">
                                 <?php if ($status === 'approved'): ?>
@@ -480,7 +440,7 @@ if ($docsApproved  === count($accredDocs)) $activeStep = 6;
                                        data-key="<?= $doc['key'] ?>"
                                        data-label="<?= htmlspecialchars($doc['label'], ENT_QUOTES) ?>"
                                        data-seq="<?= $doc['seq'] ?>"
-                                       data-phase="<?= $doc['phase'] ?>"
+                                       data-phase="1"
                                        onchange="uploadDoc(this)">
                             </label>
                         </div>
@@ -498,34 +458,25 @@ if ($docsApproved  === count($accredDocs)) $activeStep = 6;
             <!-- Process steps -->
             <div class="cv-card">
                 <div class="cv-card-header">
-                    <i class="fas fa-route"></i>
-                    <h3>Accreditation Process</h3>
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <h3>Online Accreditation Process</h3>
                 </div>
                 <div class="cv-card-body" style="padding:1rem 1.3rem;">
                     <div class="process-steps">
-                        <?php $prevPhase = 0; foreach ($processSteps as $step):
+                        <?php foreach ($processSteps as $step):
                             $sNum    = $step['num'];
                             $sDone   = $sNum < $activeStep;
                             $sActive = $sNum === $activeStep;
                             $sCls    = $sDone ? 'done' : ($sActive ? 'active' : 'waiting');
-                            if ($step['phase'] !== $prevPhase):
-                                $prevPhase = $step['phase'];
+                            $isLast  = $sNum === count($processSteps);
                         ?>
-                        <div class="process-step-phase-label">
-                            <?= $step['phase'] === 1 ? '📡 Phase 1 — Online' : '🏢 Phase 2 — Physical' ?>
-                        </div>
-                        <?php endif; ?>
-                        <div class="process-step <?= $sCls ?> <?= $sNum === count($processSteps) ? 'last' : '' ?>">
+                        <div class="process-step <?= $sCls ?> <?= $isLast ? 'last' : '' ?>">
                             <div class="process-step-num">
                                 <?= $sDone ? '<i class="fas fa-check" style="font-size:0.55rem"></i>' : $sNum ?>
                             </div>
                             <div class="process-step-body">
                                 <div class="process-step-title"><?= htmlspecialchars($step['title']) ?></div>
-                                <div class="process-step-desc"><?= htmlspecialchars($step['desc']) ?>
-                                    <?php if ($sNum === 1): ?>
-                                    <br><span class="email-chip"><i class="fas fa-envelope"></i> plspaccreditation@gmail.com</span>
-                                    <?php endif; ?>
-                                </div>
+                                <div class="process-step-desc"><?= htmlspecialchars($step['desc']) ?></div>
                             </div>
                         </div>
                         <?php endforeach; ?>
@@ -533,35 +484,33 @@ if ($docsApproved  === count($accredDocs)) $activeStep = 6;
                 </div>
             </div>
 
-            <!-- Softbind details -->
+            <!-- Online submission guidelines -->
             <div class="cv-card">
                 <div class="cv-card-header">
-                    <i class="fas fa-book"></i>
-                    <h3>Softbind Details</h3>
+                    <i class="fas fa-circle-info"></i>
+                    <h3>Online Submission Guidelines</h3>
                 </div>
                 <div class="cv-card-body">
-                    <p style="font-size:0.8rem;color:#4a6b58;margin:0 0 0.6rem;line-height:1.5;">Cover must be <strong>hard, clear plastic</strong>. Cover page must include: Official Seal, Organization Name, and Academic Year.</p>
-                    <p style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:#6b8f7a;margin:0 0 0.4rem;">Color Coding</p>
-                    <div class="softbind-colors">
+                    <div style="display:flex;flex-direction:column;gap:0.6rem;">
                         <?php foreach ([
-                            ['#1d4ed8','Mandated'],
-                            ['#16a34a','Academic'],
-                            ['#ca8a04','Non-Academic'],
-                            ['#ea580c','Socio-Cultural'],
-                            ['#7c4d2d','Religious'],
-                            ['#dc2626','Sports'],
-                        ] as [$col,$lbl]): ?>
-                        <div class="softbind-color-item">
-                            <div class="softbind-color-dot" style="background:<?= $col ?>"></div>
-                            <span><?= $lbl ?></span>
+                            ['fa-file-pdf',     '#1d4ed8', 'PDF Format Only',          'All documents must be uploaded as individual PDF files.'],
+                            ['fa-list-ol',      '#166534', 'Correct Sequence',          'Upload documents in the numbered order shown (1–11).'],
+                            ['fa-cloud-upload-alt','#2d6a4f','Upload Directly Here',   'Use the Upload button beside each document row on this page.'],
+                            ['fa-bell',         '#b45309', 'Await Online Notification', 'Assessment results and revision requests will be sent through this system.'],
+                            ['fa-rotate-right', '#7c3aed', 'Re-upload if Needed',       'If a document is flagged for revision, replace it using the Replace button.'],
+                            ['fa-award',        '#166534', 'Certificate Awarded Online','Accreditation certificate will be issued digitally upon final approval.'],
+                        ] as [$icon, $color, $title, $desc]): ?>
+                        <div style="display:flex;align-items:flex-start;gap:0.75rem;padding:0.55rem 0.75rem;background:#f6faf7;border-radius:9px;border-left:3px solid <?= $color ?>;">
+                            <i class="fas <?= $icon ?>" style="color:<?= $color ?>;font-size:0.85rem;flex-shrink:0;margin-top:2px;"></i>
+                            <div>
+                                <div style="font-size:0.82rem;font-weight:700;color:#1a3d2b;margin-bottom:0.1rem;"><?= $title ?></div>
+                                <div style="font-size:0.76rem;color:#6b8f7a;line-height:1.4;"><?= $desc ?></div>
+                            </div>
                         </div>
                         <?php endforeach; ?>
                     </div>
-                    <div style="margin-top:0.9rem;padding-top:0.8rem;border-top:1px solid #edf2ef;font-size:0.75rem;color:#9ab5ac;line-height:1.5;">
-                        <i class="fas fa-info-circle" style="color:#2d6a4f"></i>
-                        After accreditation, CIG will monitor approved activities by requiring submission of narrative reports and supporting documents.
-                    </div>
-                    <div style="margin-top:0.6rem;font-size:0.7rem;color:#c8ddd5;">
+                    <div style="margin-top:0.9rem;padding-top:0.8rem;border-top:1px solid #edf2ef;font-size:0.72rem;color:#9ab5ac;line-height:1.5;">
+                        <i class="fas fa-book-open" style="color:#2d6a4f"></i>
                         References: OVPSLS Form 1 / Letter of Intent · PLSP Student Handbook 2018
                     </div>
                 </div>
