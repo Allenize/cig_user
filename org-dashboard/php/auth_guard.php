@@ -56,7 +56,15 @@ if ($_cv_conn) {
     $_cv_row = mysqli_fetch_assoc(mysqli_stmt_get_result($_cv_stmt));
     mysqli_stmt_close($_cv_stmt);
     mysqli_close($_cv_conn);
-    $_SESSION['credentials_verified'] = !empty($_cv_row['credentials_verified']);
+
+    $_db_verified = !empty($_cv_row['credentials_verified']);
+
+    // Detect revocation: was verified in session, now false in DB
+    if (!empty($_SESSION['credentials_verified']) && !$_db_verified) {
+        $_SESSION['just_revoked'] = true;
+    }
+
+    $_SESSION['credentials_verified'] = $_db_verified;
 }
 
 // ── Redirect unverified users ─────────────────────────────────────────────

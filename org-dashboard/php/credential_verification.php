@@ -4,6 +4,10 @@ require_once __DIR__ . '/db_connection.php';
 
 $userId = (int)$_SESSION['user_id'];
 
+// Detect and clear the revocation flash flag set by auth_guard
+$wasJustRevoked = !empty($_SESSION['just_revoked']);
+unset($_SESSION['just_revoked']);
+
 // Load org profile
 $stmt = mysqli_prepare($conn, "SELECT org_name, org_code, contact_person, phone, description, credentials_verified FROM users WHERE user_id = ? LIMIT 1");
 mysqli_stmt_bind_param($stmt, 'i', $userId);
@@ -343,6 +347,24 @@ if ($isVerified && $docsApproved === count($accredDocs)) $activeStep = 7;
     color:#166534; background:#f0fdf4; border-left-color:#22c55e;
 }
 
+/* Revoked banner */
+.cv-revoked-banner {
+    background:linear-gradient(135deg,#7f1d1d,#dc2626); border-radius:16px;
+    padding:1.3rem 1.6rem; display:flex; align-items:center; gap:1rem;
+    box-shadow:0 4px 16px rgba(220,38,38,0.25);
+}
+.cv-revoked-banner-icon {
+    width:46px; height:46px; border-radius:50%;
+    background:rgba(255,255,255,0.15); border:2px solid rgba(255,255,255,0.25);
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.2rem; color:#fff; flex-shrink:0;
+}
+.cv-revoked-banner h3 { font-size:0.95rem; font-weight:700; color:#fff; margin:0 0 0.15rem; }
+.cv-revoked-banner p  { font-size:0.78rem; color:rgba(254,202,202,0.9); margin:0; }
+.doc-remarks.approved {
+    color:#166534; background:#f0fdf4; border-left-color:#22c55e;
+}
+
 /* Submit all btn */
 .btn-submit-all {
     width:100%; padding:0.75rem; border:none; border-radius:9px;
@@ -386,6 +408,17 @@ if ($isVerified && $docsApproved === count($accredDocs)) $activeStep = 7;
     </div>
 
     <!-- State banners -->
+    <?php if ($wasJustRevoked): ?>
+    <!-- 🚫 Just revoked — show prominent warning first -->
+    <div class="cv-revoked-banner">
+        <div class="cv-revoked-banner-icon"><i class="fas fa-ban"></i></div>
+        <div>
+            <h3>Access Revoked by Admin</h3>
+            <p>Your organization's accreditation access has been revoked by the CIG Admin. Please review your documents and resubmit, or contact the office for clarification.</p>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <?php if ($isVerified): ?>
     <!-- ✅ Fully verified by admin -->
     <div class="cv-verified-banner">
@@ -398,7 +431,7 @@ if ($isVerified && $docsApproved === count($accredDocs)) $activeStep = 7;
     </div>
 
     <?php elseif ($isWaitingForAdmin): ?>
-    <!-- ⏳ All submitted — waiting for admin to grant -->
+    <!-- All submitted — waiting for admin to grant -->
     <div class="cv-waiting-banner">
         <div class="cv-waiting-banner-icon"><i class="fas fa-hourglass-half"></i></div>
         <div>
@@ -409,7 +442,7 @@ if ($isVerified && $docsApproved === count($accredDocs)) $activeStep = 7;
     </div>
 
     <?php else: ?>
-    <!-- 📋 Still filling in / uploading -->
+    <!-- Still filling in / uploading -->
     <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:14px;padding:1rem 1.4rem;display:flex;align-items:center;gap:0.9rem;">
         <div style="width:38px;height:38px;border-radius:50%;background:#fef3c7;border:2px solid #fde68a;display:flex;align-items:center;justify-content:center;font-size:1rem;color:#b45309;flex-shrink:0;">
             <i class="fas fa-clipboard-list"></i>
@@ -451,7 +484,7 @@ if ($isVerified && $docsApproved === count($accredDocs)) $activeStep = 7;
                                     <?php if ($locked): ?>
                                     <span class="cv-field-badge locked"><i class="fas fa-lock" style="font-size:0.6rem"></i> Fixed</span>
                                     <?php else: ?>
-                                    <span class="cv-field-badge <?= $ok ? 'ok' : 'needed' ?>"><?= $ok ? '✓ Saved' : '✗ Required' ?></span>
+                                    <span class="cv-field-badge <?= $ok ? 'ok' : 'needed' ?>"><?= $ok ? '<i class="fas fa-check"></i> Saved' : '<i class="fas fa-xmark"></i> Required' ?></span>
                                     <?php endif; ?>
                                 </div>
                                 <?php if ($isArea): ?>
@@ -522,9 +555,9 @@ if ($isVerified && $docsApproved === count($accredDocs)) $activeStep = 7;
                             </div>
                             <span class="doc-status-badge <?= $status ?>">
                                 <?= match($status) {
-                                    'approved'  => '✓ Approved',
-                                    'submitted' => '⏳ Submitted',
-                                    'revision'  => '⚠ Revision',
+                                    'approved'  => '<i class="fas fa-circle-check"></i> Approved',
+                                    'submitted' => '<i class="fas fa-clock"></i> Submitted',
+                                    'revision'  => '<i class="fas fa-rotate-right"></i> Revision',
                                     default     => 'Pending'
                                 } ?>
                             </span>
@@ -707,7 +740,7 @@ function uploadDoc(input) {
             // Update status badge
             var badge = item.querySelector('.doc-status-badge');
             badge.className = 'doc-status-badge submitted';
-            badge.textContent = '⏳ Submitted';
+            badge.innerHTML = '<i class="fas fa-clock"></i> Submitted';
             // Show filename
             var hint = item.querySelector('.doc-hint');
             var existing = item.querySelector('.doc-file-name');

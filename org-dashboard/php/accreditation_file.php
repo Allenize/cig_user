@@ -26,37 +26,29 @@ if (!$isAdmin && (int)$row['user_id'] !== (int)$_SESSION['user_id']) {
 }
 
 $fileName   = $row['file_name'];
-$storedPath = $row['file_path'];   // "uploads/accreditation/{uid}/file.pdf"
+$storedPath = $row['file_path'];
 $userId     = (int)$row['user_id'];
 $ext        = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
-$base       = basename($fileName);
+$base_name  = basename($fileName);
 $sep        = DIRECTORY_SEPARATOR;
 
 // __DIR__ = C:\xampp\htdocs\cig_user\org-dashboard\php
-// Pop 3 levels: php -> org-dashboard -> cig_user -> htdocs
-$parts = explode($sep, rtrim(__DIR__, $sep));
-array_pop($parts); // remove 'php'
-array_pop($parts); // remove 'org-dashboard'
-array_pop($parts); // remove 'cig_user'
-$htdocs  = implode($sep, $parts); // C:\xampp\htdocs
-$orgDash = $htdocs . $sep . 'cig_user' . $sep . 'org-dashboard';
+// Files are saved by doc_upload.php to: dirname(dirname(__DIR__))/uploads/...
+// which resolves to: C:\xampp\htdocs\cig_user\uploads\...
+$base = dirname(dirname(__DIR__)); // C:\xampp\htdocs\cig_user
+$sep  = DIRECTORY_SEPARATOR;
 
-// Build candidates — all absolute, no ".." anywhere
 $candidates = [];
-
-// 1. orgDash + stored path exactly
+// 1. base + stored relative path
 if ($storedPath) {
-    $candidates[] = $orgDash . $sep . str_replace(['/', '\\'], $sep, ltrim($storedPath, '/\\'));
+    $candidates[] = $base . $sep . str_replace(['/', '\\'], $sep, ltrim($storedPath, '/\\'));
 }
-
-// 2. orgDash + uploads/accreditation/{uid}/{base}
-$candidates[] = $orgDash . $sep . 'uploads' . $sep . 'accreditation' . $sep . $userId . $sep . $base;
-
-// 3. orgDash + uploads/accreditation/{base}
-$candidates[] = $orgDash . $sep . 'uploads' . $sep . 'accreditation' . $sep . $base;
-
-// 4. orgDash + uploads/{base}
-$candidates[] = $orgDash . $sep . 'uploads' . $sep . $base;
+// 2. base + uploads/accreditation/{uid}/{file}
+$candidates[] = $base . $sep . 'uploads' . $sep . 'accreditation' . $sep . $userId . $sep . $base_name;
+// 3. base + uploads/accreditation/{file}
+$candidates[] = $base . $sep . 'uploads' . $sep . 'accreditation' . $sep . $base_name;
+// 4. base + uploads/{file}
+$candidates[] = $base . $sep . 'uploads' . $sep . $base_name;
 
 // Find file
 $diskPath = null;
@@ -67,21 +59,19 @@ foreach ($candidates as $c) {
 if (!$diskPath) {
     http_response_code(404);
     header('Content-Type: text/html; charset=utf-8');
-    // Also check if the file exists using glob as an alternative test
-    $globTest = glob($orgDash . $sep . 'uploads' . $sep . 'accreditation' . $sep . $userId . $sep . '*');
+    $globTest = glob($base . $sep . 'uploads' . $sep . 'accreditation' . $sep . $userId . $sep . '*');
     echo '<!DOCTYPE html><html><head><meta charset="UTF-8">
     <style>body{font-family:Arial,sans-serif;padding:1.5rem;background:#f9f9f9;}
     h3{color:#c0392b;}code{background:#f0f0f0;padding:2px 5px;border-radius:3px;font-size:.82em;display:block;margin:2px 0;word-break:break-all;}</style></head><body>
     <h3>File not found</h3>
     <p><b>file_name:</b> <code>' . htmlspecialchars($fileName) . '</code></p>
     <p><b>file_path:</b> <code>' . htmlspecialchars($storedPath ?? '') . '</code></p>
-    <p><b>htdocs:</b> <code>' . htmlspecialchars($htdocs) . '</code></p>
-    <p><b>orgDash:</b> <code>' . htmlspecialchars($orgDash) . '</code></p>
-    <p><b>orgDash exists:</b> <code>' . (is_dir($orgDash) ? 'YES' : 'NO — wrong path!') . '</code></p>
+    <p><b>base:</b> <code>' . htmlspecialchars($base) . '</code></p>
+    <p><b>base exists:</b> <code>' . (is_dir($base) ? 'YES' : 'NO — wrong path!') . '</code></p>
     <p><b>Tried:</b></p>';
     foreach ($candidates as $c) { echo '<code>' . htmlspecialchars($c) . ' [' . (file_exists($c)?'EXISTS':'missing') . ']</code>'; }
     if ($globTest !== false) {
-        echo '<p><b>Files in accreditation/' . $userId . '/:</b></p>';
+        echo '<p><b>Files in uploads/accreditation/' . $userId . '/:</b></p>';
         if (empty($globTest)) { echo '<code>(folder empty or not found)</code>'; }
         foreach ($globTest as $g) { echo '<code>' . htmlspecialchars($g) . '</code>'; }
     }

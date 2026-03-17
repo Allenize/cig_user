@@ -1,12 +1,5 @@
 <?php
-session_start();
-if (!isset($_SESSION['user_id'])) {
-    header("Location: index.php");
-    exit();
-}
-
-// dashboard.php is at cig_user/org-dashboard/php/dashboard.php
-// db_connection.php is at org-dashboard/php/db_connection.php
+require_once __DIR__ . '/auth_guard.php';
 require_once __DIR__ . '/db_connection.php';
 
 $announcements_db   = [];
@@ -18,15 +11,13 @@ $pending_documents  = 0;
 if ($conn) {
     $org_id  = (int) ($_SESSION['user_id'] ?? 0);
 
-    // Total Members: users sharing the same org_code with role='user'
-    $org_code_res = mysqli_query($conn, "SELECT org_code FROM users WHERE user_id = $org_id LIMIT 1");
-    $org_code_row = mysqli_fetch_assoc($org_code_res);
-    $org_code     = mysqli_real_escape_string($conn, $org_code_row['org_code'] ?? '');
+    // Total Members: from org_members table
+    $r = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM org_members WHERE org_id = $org_id AND status = 'active'");
+    $total_members = (int) mysqli_fetch_assoc($r)['cnt'];
 
-    if ($org_code) {
-        $r = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM users WHERE org_code = '$org_code' AND role != 'org' AND user_id != $org_id");
-        $total_members = (int) mysqli_fetch_assoc($r)['cnt'];
-    }
+    // Fetch org_code (needed for announcements audience filtering)
+    $r = mysqli_query($conn, "SELECT org_code FROM users WHERE user_id = $org_id LIMIT 1");
+    $org_code = mysqli_fetch_assoc($r)['org_code'] ?? '';
 
     // Total Documents: all submissions by this org
     $r = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM submissions WHERE org_id = $org_id");
@@ -620,10 +611,10 @@ window.__SM = {
     timeout:  1800,
     warn:     120,
     verified: <?= !empty($_SESSION['credentials_verified']) ? 'true' : 'false' ?>,
-    pingUrl:  '../php/ping_session.php',
-    logoutUrl:'../php/logout.php',
+    pingUrl:  'ping_session.php',
+    logoutUrl:'logout.php',
     loginUrl: 'index.php',
-    checkUrl: '../php/credential_verify_save.php'
+    checkUrl: 'credential_verify_save.php'
 };
 </script>
 <script src="../js/session_manager.js"></script>

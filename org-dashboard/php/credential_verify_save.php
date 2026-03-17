@@ -17,7 +17,7 @@ if (!empty($_POST['check_only'])) {
     $chkRow = mysqli_fetch_assoc(mysqli_stmt_get_result($chk));
     mysqli_stmt_close($chk);
     $verified = !empty($chkRow['credentials_verified']);
-    if ($verified) $_SESSION['credentials_verified'] = true;
+    $_SESSION['credentials_verified'] = $verified;
     echo json_encode(['verified' => $verified]);
     exit();
 }

@@ -70,6 +70,23 @@
         'color:#fff;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer;',
         'font-family:inherit;display:flex;align-items:center;justify-content:center;gap:.4rem;}',
         '#sm-verified-toast .toast-btn:hover{background:rgba(255,255,255,.32);}',
+        /* Revoked banner */
+        '#sm-revoked-banner{position:fixed;inset:0;z-index:99999;',
+        'background:rgba(0,0,0,.7);backdrop-filter:blur(6px);',
+        'display:none;align-items:center;justify-content:center;}',
+        '#sm-revoked-banner.open{display:flex;}',
+        '#sm-revoked-card{background:#fff;border-radius:20px;width:92vw;max-width:400px;',
+        'overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.35);}',
+        '#sm-revoked-head{background:linear-gradient(135deg,#7f1d1d,#dc2626);',
+        'padding:1.2rem 1.5rem;display:flex;align-items:center;gap:.8rem;}',
+        '#sm-revoked-head i{font-size:1.2rem;color:#fca5a5;}',
+        '#sm-revoked-head h3{font-size:.97rem;font-weight:700;color:#fff;margin:0;}',
+        '#sm-revoked-body{padding:1.3rem 1.5rem;font-size:.88rem;color:#374151;line-height:1.6;}',
+        '#sm-revoked-body p{margin:0 0 .5rem;}',
+        '#sm-revoked-bar{height:4px;background:#fee2e2;margin:0 1.5rem 1.2rem;border-radius:20px;overflow:hidden;}',
+        '#sm-revoked-fill{height:100%;background:#dc2626;border-radius:20px;',
+        'animation:revokedFill 3s linear forwards;}',
+        '@keyframes revokedFill{from{width:100%}to{width:0%}}',
     ].join('');
     document.head.appendChild(style);
 
@@ -100,12 +117,29 @@
     vToast.innerHTML =
         '<div class="toast-top">' +
             '<i class="fas fa-award" style="font-size:1.1rem;flex-shrink:0;"></i>' +
-            '<span class="toast-msg">🎉 Access granted by Admin!</span>' +
+            '<span class="toast-msg">Access granted by Admin!</span>' +
         '</div>' +
         '<button class="toast-btn" onclick="window.location.href=\'dashboard.php\'">' +
             '<i class="fas fa-arrow-right"></i> Go to Dashboard' +
         '</button>';
     document.body.appendChild(vToast);
+
+    /* Revoked banner */
+    var rBanner = document.createElement('div');
+    rBanner.id  = 'sm-revoked-banner';
+    rBanner.innerHTML =
+        '<div id="sm-revoked-card">' +
+            '<div id="sm-revoked-head">' +
+                '<i class="fas fa-ban"></i>' +
+                '<h3>Access Revoked</h3>' +
+            '</div>' +
+            '<div id="sm-revoked-body">' +
+                '<p>Your organization\'s accreditation access has been revoked by the CIG Admin.</p>' +
+                '<p style="color:#9ab5ac;font-size:.82rem;">Redirecting to the verification page…</p>' +
+            '</div>' +
+            '<div id="sm-revoked-bar"><div id="sm-revoked-fill"></div></div>' +
+        '</div>';
+    document.body.appendChild(rBanner);
 
     /* ── State ───────────────────────────────────────────────────────────── */
     var warnTimer    = null;
@@ -204,9 +238,34 @@
         }, POLL_INTERVAL);
     }
 
+    /* ── Revocation poll (verified users only) ───────────────────────────── */
+    if (IS_VERIFIED) {
+        var revokeTimer = setInterval(function() {
+            var fd = new FormData();
+            fd.append('check_only', '1');
+            fetch(CHECK_URL, { method: 'POST', body: fd, credentials: 'same-origin' })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (d.verified === false) {
+                    clearInterval(revokeTimer);
+                    showRevokedBanner();
+                    setTimeout(function() {
+                        window.location.href = 'credential_verification.php';
+                    }, 3000);
+                }
+            })
+            .catch(function() {});
+        }, POLL_INTERVAL);
+    }
+
     /* ── Verified toast ──────────────────────────────────────────────────── */
     function showVerifiedToast() {
         vToast.classList.add('show');
+    }
+
+    /* ── Revoked banner ──────────────────────────────────────────────────── */
+    function showRevokedBanner() {
+        document.getElementById('sm-revoked-banner').classList.add('open');
     }
 
     /* ── Backdrop click closes warning (resets, doesn't log out) ─────────── */
