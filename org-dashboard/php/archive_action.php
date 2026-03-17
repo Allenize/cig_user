@@ -3,7 +3,7 @@ session_start();
 if (!isset($_SESSION['user_id'])) { http_response_code(401); exit(); }
 
 header('Content-Type: application/json');
-require_once dirname(dirname(__DIR__)) . '/db_connection.php';
+require_once __DIR__ . '/db_connection.php';
 
 $data   = json_decode(file_get_contents('php://input'), true);
 $action = $data['action'] ?? '';

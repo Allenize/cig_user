@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/auth_guard.php';
-require_once dirname(dirname(__DIR__)) . '/db_connection.php';
+require_once __DIR__ . '/db_connection.php';
 
 $userId = $_SESSION['user_id'];
 

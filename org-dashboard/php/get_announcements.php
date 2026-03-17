@@ -7,7 +7,7 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-require_once dirname(dirname(__DIR__)) . '/db_connection.php';
+require_once __DIR__ . '/db_connection.php';
 
 $org_code = mysqli_real_escape_string($conn, $_SESSION['org_code'] ?? '');
 

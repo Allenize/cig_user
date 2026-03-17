@@ -3,7 +3,7 @@ session_start();
 if (!isset($_SESSION['user_id'])) { http_response_code(401); exit(); }
 
 header('Content-Type: application/json');
-require_once dirname(dirname(__DIR__)) . '/db_connection.php';
+require_once __DIR__ . '/db_connection.php';
 
 $org_id = (int) $_SESSION['user_id'];
 $action = $_POST['action'] ?? ($_GET['action'] ?? '');

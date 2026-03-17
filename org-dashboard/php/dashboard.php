@@ -1,13 +1,13 @@
 <?php
 session_start();
 if (!isset($_SESSION['user_id'])) {
-    header("Location: /index.php");
+    header("Location: index.php");
     exit();
 }
 
 // dashboard.php is at cig_user/org-dashboard/php/dashboard.php
-// db_connection.php is at cig_user/db_connection.php
-require_once dirname(dirname(__DIR__)) . '/db_connection.php';
+// db_connection.php is at org-dashboard/php/db_connection.php
+require_once __DIR__ . '/db_connection.php';
 
 $announcements_db   = [];
 $total_members      = 0;
@@ -610,5 +610,22 @@ if ($conn) {
         setTimeout(() => t.remove(), 4500);
     }
     </script>
+<script>
+window.__PAGE_TYPE = 'protected';
+window.__LOGIN_URL = 'index.php';
+</script>
+<script src="../js/no_back.js"></script>
+<script>
+window.__SM = {
+    timeout:  1800,
+    warn:     120,
+    verified: <?= !empty($_SESSION['credentials_verified']) ? 'true' : 'false' ?>,
+    pingUrl:  '../php/ping_session.php',
+    logoutUrl:'../php/logout.php',
+    loginUrl: 'index.php',
+    checkUrl: '../php/credential_verify_save.php'
+};
+</script>
+<script src="../js/session_manager.js"></script>
 </body>
 </html>

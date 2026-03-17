@@ -1,8 +1,6 @@
 <?php
 require_once __DIR__ . '/auth_guard.php';
-require_once dirname(dirname(__DIR__)) . '/db_connection.php';
-
-if (($_SESSION['role'] ?? '') === 'admin') { header("Location: admin-dashboard.php"); exit(); }
+require_once __DIR__ . '/db_connection.php';
 
 $userId = (int)$_SESSION['user_id'];
 
@@ -12,6 +10,9 @@ mysqli_stmt_bind_param($stmt, 'i', $userId);
 mysqli_stmt_execute($stmt);
 $user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt));
 mysqli_stmt_close($stmt);
+
+// Sync session with DB truth
+$_SESSION['credentials_verified'] = !empty($user['credentials_verified']);
 
 // ── Credential fields (org profile) ──────────────────────────────────────
 $credFields = [
@@ -50,13 +51,13 @@ $processSteps = [
     ['num'=>3, 'title'=>'Submit for Online Assessment',       'desc'=>'Once all documents are uploaded, submit them for online review by the CIG Compliance Division.'],
     ['num'=>4, 'title'=>'Initial Assessment Result',          'desc'=>'Wait for the initial assessment result online. You will be notified through the system if revisions are needed.'],
     ['num'=>5, 'title'=>'Revise & Resubmit (if needed)',      'desc'=>'If revisions are required, update and re-upload the flagged documents. Resubmit for reassessment.'],
-    ['num'=>6, 'title'=>'Approval Notification',              'desc'=>'Once all documents pass the assessment, you will receive an online approval notification from the OSDS Director and VP of SLS.'],
-    ['num'=>7, 'title'=>'Accreditation Certificate Awarded',  'desc'=>'Upon final approval, your organization is officially recognized and may schedule EED activities per your approved calendar.'],
+    ['num'=>6, 'title'=>'Admin Reviews & Grants Access',    'desc'=>'The CIG Admin reviews all submitted documents. Once everything is approved, the admin will grant your organization full system access.'],
+    ['num'=>7, 'title'=>'Accreditation Certificate Awarded',  'desc'=>'Upon admin approval, your organization is officially recognized and may schedule EED activities per your approved calendar.'],
 ];
 
 // ── Load existing submissions ─────────────────────────────────────────────
 $existing = [];
-$res = mysqli_query($conn, "SELECT doc_key, doc_status AS status, file_name, uploaded_at AS submitted_at FROM `documents` WHERE user_id = $userId AND doc_key IS NOT NULL");
+$res = mysqli_query($conn, "SELECT doc_key, doc_status AS status, file_name, admin_notes, document_id, uploaded_at AS submitted_at FROM `documents` WHERE user_id = $userId AND doc_key IS NOT NULL");
 if ($res) { while ($row = mysqli_fetch_assoc($res)) $existing[$row['doc_key']] = $row; }
 
 $docsSubmitted = 0; $docsApproved = 0;
@@ -67,10 +68,13 @@ foreach ($accredDocs as $d) {
 }
 $docPct = round(($docsSubmitted / count($accredDocs)) * 100);
 
-// Overall progress — credentials (5) + documents (11) = 16 total items
+// Overall progress counts approved docs toward completion
 $overallTotal     = $credTotal + count($accredDocs);
-$overallCompleted = $credFilled + $docsSubmitted;
+$overallCompleted = $credFilled + $docsApproved;
 $overallPct       = round(($overallCompleted / $overallTotal) * 100);
+
+// Waiting state: profile complete + all docs uploaded → waiting for admin
+$isWaitingForAdmin = $credAllMet && ($docsSubmitted === count($accredDocs)) && !$isVerified;
 
 // Determine active process step (online 7-step flow)
 $activeStep = 1;
@@ -178,12 +182,17 @@ if ($isVerified && $docsApproved === count($accredDocs)) $activeStep = 7;
 .cv-field-badge { font-size:0.67rem; font-weight:600; border-radius:20px; padding:0.1rem 0.5rem; text-transform:none; letter-spacing:0; }
 .cv-field-badge.ok     { background:#e8f5ee; color:#166534; }
 .cv-field-badge.needed { background:#fee2e2; color:#dc3545; }
+.cv-field-badge.locked { background:#f1f5f9; color:#64748b; display:inline-flex; align-items:center; gap:0.25rem; }
 .cv-field input, .cv-field textarea {
     width:100%; padding:0.6rem 0.9rem; border:1.5px solid #dde8e3; border-radius:8px;
     font-size:0.88rem; font-family:inherit; background:#f6faf7; color:#1e3a2e; outline:none; box-sizing:border-box;
 }
 .cv-field.is-filled input, .cv-field.is-filled textarea { background:#f0faf5; border-color:#b8d9c4; }
 .cv-field.is-missing input, .cv-field.is-missing textarea { border-color:#fca5a5; background:#fff9f9; }
+.cv-field.is-locked input {
+    background:#f1f5f9; border-color:#e2e8f0; color:#64748b;
+    cursor:not-allowed; user-select:none;
+}
 .cv-field input:focus, .cv-field textarea:focus { border-color:#2d6a4f; background:#fff; box-shadow:0 0 0 3px rgba(45,106,79,0.09); }
 .cv-field input::placeholder, .cv-field textarea::placeholder { color:#adc0b8; }
 .cv-field textarea { resize:vertical; min-height:65px; }
@@ -290,6 +299,50 @@ if ($isVerified && $docsApproved === count($accredDocs)) $activeStep = 7;
 }
 .cv-verified-banner a:hover { background:#e8f5ee; }
 
+/* Waiting for admin banner */
+.cv-waiting-banner {
+    background:linear-gradient(135deg,#1e3a5f,#1d4ed8); border-radius:16px;
+    padding:1.3rem 1.6rem; display:flex; align-items:center; gap:1rem;
+    box-shadow:0 4px 16px rgba(29,78,216,0.2);
+}
+.cv-waiting-banner-icon {
+    width:46px; height:46px; border-radius:50%;
+    background:rgba(255,255,255,0.15); border:2px solid rgba(255,255,255,0.25);
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.2rem; color:#fff; flex-shrink:0; animation: pulse-icon 2s infinite;
+}
+@keyframes pulse-icon { 0%,100%{opacity:1;} 50%{opacity:0.5;} }
+.cv-waiting-banner h3 { font-size:0.95rem; font-weight:700; color:#fff; margin:0 0 0.15rem; }
+.cv-waiting-banner p  { font-size:0.78rem; color:rgba(191,219,254,0.85); margin:0; }
+.cv-waiting-banner-badge {
+    margin-left:auto; flex-shrink:0;
+    background:rgba(255,255,255,0.15); border:1.5px solid rgba(255,255,255,0.25);
+    color:#fff; padding:0.45rem 1rem; border-radius:20px;
+    font-size:0.8rem; font-weight:700;
+    display:flex; align-items:center; gap:0.4rem; white-space:nowrap;
+}
+
+.doc-actions { display:flex; gap:0.4rem; flex-shrink:0; align-items:center; }
+
+.doc-view-btn {
+    display:inline-flex; align-items:center; gap:0.3rem;
+    padding:0.25rem 0.6rem; border-radius:6px; font-size:0.7rem; font-weight:700;
+    background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe;
+    cursor:pointer; text-decoration:none; white-space:nowrap;
+    font-family:inherit;
+}
+.doc-view-btn:hover { background:#dbeafe; }
+
+.doc-remarks {
+    font-size:0.72rem; color:#b45309; margin-top:0.25rem;
+    background:#fff7ed; border-left:3px solid #f97316;
+    padding:0.25rem 0.5rem; border-radius:0 6px 6px 0;
+    line-height:1.4;
+}
+.doc-remarks.approved {
+    color:#166534; background:#f0fdf4; border-left-color:#22c55e;
+}
+
 /* Submit all btn */
 .btn-submit-all {
     width:100%; padding:0.75rem; border:none; border-radius:9px;
@@ -332,15 +385,39 @@ if ($isVerified && $docsApproved === count($accredDocs)) $activeStep = 7;
         <?php endif; ?>
     </div>
 
-    <!-- Verified banner -->
+    <!-- State banners -->
     <?php if ($isVerified): ?>
+    <!-- ✅ Fully verified by admin -->
     <div class="cv-verified-banner">
         <div class="cv-verified-banner-icon"><i class="fas fa-award"></i></div>
         <div>
-            <h3>Organization credentials are verified!</h3>
-            <p>You now have full access to the system. Continue submitting your accreditation documents below.</p>
+            <h3>Organization credentials verified by Admin!</h3>
+            <p>Your accreditation has been approved by the CIG Admin. You now have full access to the system.</p>
         </div>
         <a href="dashboard.php"><i class="fas fa-arrow-right"></i> Go to Dashboard</a>
+    </div>
+
+    <?php elseif ($isWaitingForAdmin): ?>
+    <!-- ⏳ All submitted — waiting for admin to grant -->
+    <div class="cv-waiting-banner">
+        <div class="cv-waiting-banner-icon"><i class="fas fa-hourglass-half"></i></div>
+        <div>
+            <h3>Submitted — Waiting for Admin Approval</h3>
+            <p>All your credentials and documents have been submitted. The CIG Admin will review and grant you system access. You will be notified once approved.</p>
+        </div>
+        <div class="cv-waiting-banner-badge"><i class="fas fa-clock"></i> Under Review</div>
+    </div>
+
+    <?php else: ?>
+    <!-- 📋 Still filling in / uploading -->
+    <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:14px;padding:1rem 1.4rem;display:flex;align-items:center;gap:0.9rem;">
+        <div style="width:38px;height:38px;border-radius:50%;background:#fef3c7;border:2px solid #fde68a;display:flex;align-items:center;justify-content:center;font-size:1rem;color:#b45309;flex-shrink:0;">
+            <i class="fas fa-clipboard-list"></i>
+        </div>
+        <div>
+            <div style="font-size:0.88rem;font-weight:700;color:#92400e;margin-bottom:0.15rem;">Complete your profile and upload all documents to request access</div>
+            <div style="font-size:0.78rem;color:#b45309;">Once all <?= $credTotal ?> profile fields and <?= count($accredDocs) ?> documents are submitted, the CIG Admin will review and grant system access.</div>
+        </div>
     </div>
     <?php endif; ?>
 
@@ -362,20 +439,29 @@ if ($isVerified && $docsApproved === count($accredDocs)) $activeStep = 7;
                     <form id="cvForm">
                         <div class="cv-fields-grid">
                             <?php foreach ($credFields as $key => $req):
-                                $val = htmlspecialchars($user[$key] ?? '');
-                                $ok  = !empty(trim($user[$key] ?? ''));
-                                $cls = $ok ? 'is-filled' : 'is-missing';
+                                $val    = htmlspecialchars($user[$key] ?? '');
+                                $ok     = !empty(trim($user[$key] ?? ''));
+                                $locked = in_array($key, ['org_name', 'org_code']);
+                                $cls    = $locked ? 'is-locked' : ($ok ? 'is-filled' : 'is-missing');
                                 $isArea = $key === 'description';
                             ?>
                             <div class="cv-field <?= $cls ?> <?= $isArea ? 'span2' : '' ?>">
                                 <div class="cv-field-label">
                                     <span><i class="fas <?= $req['icon'] ?>"></i><?= $req['label'] ?></span>
+                                    <?php if ($locked): ?>
+                                    <span class="cv-field-badge locked"><i class="fas fa-lock" style="font-size:0.6rem"></i> Fixed</span>
+                                    <?php else: ?>
                                     <span class="cv-field-badge <?= $ok ? 'ok' : 'needed' ?>"><?= $ok ? '✓ Saved' : '✗ Required' ?></span>
+                                    <?php endif; ?>
                                 </div>
                                 <?php if ($isArea): ?>
                                 <textarea id="cv_<?= $key ?>" name="<?= $key ?>" rows="2" placeholder="<?= htmlspecialchars($req['hint']) ?>"><?= $val ?></textarea>
+                                <?php elseif ($locked): ?>
+                                <input type="text" value="<?= $val ?>" readonly tabindex="-1"
+                                       placeholder="<?= htmlspecialchars($req['hint']) ?>">
                                 <?php else: ?>
-                                <input type="text" id="cv_<?= $key ?>" name="<?= $key ?>" value="<?= $val ?>" placeholder="<?= htmlspecialchars($req['hint']) ?>">
+                                <input type="text" id="cv_<?= $key ?>" name="<?= $key ?>" value="<?= $val ?>"
+                                       placeholder="<?= htmlspecialchars($req['hint']) ?>">
                                 <?php endif; ?>
                             </div>
                             <?php endforeach; ?>
@@ -383,7 +469,7 @@ if ($isVerified && $docsApproved === count($accredDocs)) $activeStep = 7;
                         <div class="cv-submit-row">
                             <button type="submit" class="btn-verify" id="verifyBtn">
                                 <i class="fas fa-save"></i>
-                                <?= $credAllMet ? 'Update Profile' : 'Save & Verify' ?>
+                                <?= $credAllMet ? 'Update Profile' : 'Save Profile' ?>
                             </button>
                         </div>
                     </form>
@@ -406,13 +492,16 @@ if ($isVerified && $docsApproved === count($accredDocs)) $activeStep = 7;
 
                     <div class="doc-list" id="docList">
                         <?php foreach ($accredDocs as $doc):
-                            $sub    = $existing[$doc['key']] ?? null;
-                            $status = $sub['status'] ?? 'pending';
-                            $fname  = $sub['file_name'] ?? null;
+                            $sub        = $existing[$doc['key']] ?? null;
+                            $status     = $sub['status'] ?? 'pending';
+                            $fname      = $sub['file_name'] ?? null;
+                            $docId      = (int)($sub['document_id'] ?? 0);
+                            $remarks    = trim($sub['admin_notes'] ?? '');
+                            $isApproved = $status === 'approved';
                         ?>
                         <div class="doc-item" id="docitem_<?= $doc['key'] ?>">
                             <div class="doc-seq <?= $status ?>">
-                                <?php if ($status === 'approved'): ?>
+                                <?php if ($isApproved): ?>
                                 <i class="fas fa-check" style="font-size:0.6rem"></i>
                                 <?php else: ?>
                                 <?= $doc['seq'] ?>
@@ -424,6 +513,12 @@ if ($isVerified && $docsApproved === count($accredDocs)) $activeStep = 7;
                                 <?php if ($fname): ?>
                                 <div class="doc-file-name"><i class="fas fa-paperclip" style="font-size:0.65rem"></i> <?= htmlspecialchars($fname) ?></div>
                                 <?php endif; ?>
+                                <?php if ($remarks !== ''): ?>
+                                <div class="doc-remarks <?= $isApproved ? 'approved' : '' ?>">
+                                    <i class="fas <?= $isApproved ? 'fa-circle-check' : 'fa-comment-dots' ?>" style="font-size:0.65rem;margin-right:0.25rem"></i>
+                                    <strong>Remark:</strong> <?= htmlspecialchars($remarks) ?>
+                                </div>
+                                <?php endif; ?>
                             </div>
                             <span class="doc-status-badge <?= $status ?>">
                                 <?= match($status) {
@@ -433,16 +528,27 @@ if ($isVerified && $docsApproved === count($accredDocs)) $activeStep = 7;
                                     default     => 'Pending'
                                 } ?>
                             </span>
-                            <label class="doc-upload-btn" title="Upload PDF">
-                                <i class="fas fa-upload" style="font-size:0.7rem"></i>
-                                <?= $fname ? 'Replace' : 'Upload' ?>
-                                <input type="file" class="doc-upload-input" accept=".pdf"
-                                       data-key="<?= $doc['key'] ?>"
-                                       data-label="<?= htmlspecialchars($doc['label'], ENT_QUOTES) ?>"
-                                       data-seq="<?= $doc['seq'] ?>"
-                                       data-phase="1"
-                                       onchange="uploadDoc(this)">
-                            </label>
+                            <div class="doc-actions">
+                                <?php if ($fname && $docId): ?>
+                                <button class="doc-view-btn"
+                                   onclick="openDocPreview(<?= $docId ?>,'<?= addslashes(htmlspecialchars($doc['label'])) ?>')"
+                                   title="View uploaded file">
+                                    <i class="fas fa-eye" style="font-size:0.65rem"></i> View
+                                </button>
+                                <?php endif; ?>
+                                <?php if (!$isApproved): ?>
+                                <label class="doc-upload-btn" title="<?= $fname ? 'Replace file' : 'Upload PDF' ?>">
+                                    <i class="fas fa-upload" style="font-size:0.7rem"></i>
+                                    <?= $fname ? 'Replace' : 'Upload' ?>
+                                    <input type="file" class="doc-upload-input" accept=".pdf"
+                                           data-key="<?= $doc['key'] ?>"
+                                           data-label="<?= htmlspecialchars($doc['label'], ENT_QUOTES) ?>"
+                                           data-seq="<?= $doc['seq'] ?>"
+                                           data-phase="1"
+                                           onchange="uploadDoc(this)">
+                                </label>
+                                <?php endif; ?>
+                            </div>
                         </div>
                         <?php endforeach; ?>
                     </div>
@@ -624,8 +730,133 @@ function uploadDoc(input) {
 </script>
 
 </main>
+<?php if ($isWaitingForAdmin && !$isVerified): ?>
+<script>
+// Auto-check every 30 seconds if admin has granted access
+setInterval(function() {
+    fetch('credential_verify_save.php', {
+        method: 'POST',
+        body: new URLSearchParams({ check_only: '1' })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        if (d.verified) {
+            window.location.reload();
+        }
+    })
+    .catch(function() {});
+}, 30000);
+</script>
+<?php endif; ?>
 <script src="../js/script.js"></script>
 <script src="../js/navbar.js"></script>
 <script src="../js/notifications.js"></script>
+<script>
+window.__PAGE_TYPE = 'protected';
+window.__LOGIN_URL = 'index.php';
+</script>
+<script src="../js/no_back.js"></script>
+<script>
+window.__SM = {
+    timeout:  86400,   // 24h — effectively disabled on this page (user is reviewing files)
+    warn:     120,
+    verified: false,
+    pingUrl:  'ping_session.php',
+    logoutUrl:'logout.php',
+    loginUrl: 'index.php',
+    checkUrl: 'credential_verify_save.php'
+};
+</script>
+<script src="../js/session_manager.js"></script>
+<!-- ── Document Preview Modal ─────────────────────────────────────────── -->
+<div id="docPreviewModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:18px;width:92vw;max-width:1000px;height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.4);">
+        <!-- Header -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 18px;background:#1a3d2b;color:#fff;flex-shrink:0;border-radius:18px 18px 0 0;">
+            <div style="display:flex;align-items:center;gap:9px;min-width:0;">
+                <i class="fas fa-file-pdf" style="font-size:1.1rem;color:#52b788;flex-shrink:0;"></i>
+                <span id="docPreviewTitle" style="font-size:.95rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+            </div>
+            <div style="display:flex;align-items:center;gap:0.5rem;">
+                <a id="docPreviewDownload" href="#" target="_blank"
+                   style="background:rgba(255,255,255,.15);border:none;color:#fff;padding:0.3rem 0.75rem;border-radius:6px;font-size:0.78rem;font-weight:600;text-decoration:none;display:flex;align-items:center;gap:0.35rem;">
+                    <i class="fas fa-download" style="font-size:0.7rem;"></i> Download
+                </a>
+                <button onclick="closeDocPreview()" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:1.2rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">&times;</button>
+            </div>
+        </div>
+        <!-- Loading -->
+        <div id="docPreviewLoading" style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:12px;color:#666;">
+            <i class="fas fa-spinner fa-spin" style="font-size:2rem;color:#2d6a4f;"></i>
+            <span style="font-size:.9rem;">Loading document…</span>
+        </div>
+        <!-- Error -->
+        <div id="docPreviewError" style="display:none;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:10px;color:#c0392b;">
+            <i class="fas fa-exclamation-triangle" style="font-size:2rem;"></i>
+            <span id="docPreviewErrorMsg" style="font-size:.9rem;text-align:center;max-width:400px;"></span>
+        </div>
+        <!-- PDF iframe -->
+        <iframe id="docPreviewFrame" style="display:none;flex:1;border:none;width:100%;"></iframe>
+    </div>
+</div>
+
+<script>
+function openDocPreview(docId, title) {
+    var modal   = document.getElementById('docPreviewModal');
+    var loading = document.getElementById('docPreviewLoading');
+    var errDiv  = document.getElementById('docPreviewError');
+    var frame   = document.getElementById('docPreviewFrame');
+    var titleEl = document.getElementById('docPreviewTitle');
+    var dlBtn   = document.getElementById('docPreviewDownload');
+
+    // Reset state
+    loading.style.display = 'flex';
+    errDiv.style.display  = 'none';
+    frame.style.display   = 'none';
+    frame.src             = '';
+    titleEl.textContent   = title;
+
+    var url = 'accreditation_file.php?doc_id=' + docId;
+    dlBtn.href = url + '&download=1';
+
+    // Load PDF in iframe
+    frame.src = url;
+    frame.onload = function() {
+        loading.style.display = 'none';
+        frame.style.display   = 'block';
+    };
+    frame.onerror = function() {
+        loading.style.display = 'none';
+        errDiv.style.display  = 'flex';
+        document.getElementById('docPreviewErrorMsg').textContent = 'Failed to load document.';
+    };
+
+    modal.style.display = 'flex';
+
+    // Keep session alive while modal is open — ping every 4 minutes
+    window._previewPingInterval = setInterval(function() {
+        fetch('ping_session.php', { method: 'POST', credentials: 'same-origin' }).catch(function(){});
+    }, 4 * 60 * 1000);
+}
+
+function closeDocPreview() {
+    document.getElementById('docPreviewModal').style.display = 'none';
+    document.getElementById('docPreviewFrame').src = '';
+    // Stop keep-alive ping
+    if (window._previewPingInterval) {
+        clearInterval(window._previewPingInterval);
+        window._previewPingInterval = null;
+    }
+}
+
+document.getElementById('docPreviewModal').addEventListener('click', function(e) {
+    if (e.target === this) closeDocPreview();
+});
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeDocPreview();
+});
+</script>
+
 </body>
 </html>

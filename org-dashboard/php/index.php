@@ -1,7 +1,23 @@
 <?php
+// No-cache so browser back button can't show this after login
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Pragma: no-cache");
+header("Expires: Sat, 01 Jan 2000 00:00:00 GMT");
+
+// If already logged in redirect to appropriate page
+session_start();
+if (isset($_SESSION['user_id'])) {
+    if (empty($_SESSION['credentials_verified']) && ($_SESSION['role'] ?? '') !== 'admin') {
+        header("Location: credential_verification.php");
+    } else {
+        header("Location: dashboard.php");
+    }
+    exit();
+}
+
 // ── Dynamically load all logos from the assets folder ────────────────────────
-$assets_dir = __DIR__ . '/assets/';
-$assets_url = './assets/';
+$assets_dir = dirname(dirname(__DIR__)) . '/Assets/';
+$assets_url = '../../Assets/';
 $logo_files = [];
 
 if (is_dir($assets_dir)) {
@@ -21,7 +37,7 @@ $logos_json = json_encode($logo_files);
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>OrgHub · Login</title>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
 
@@ -196,5 +212,11 @@ $logos_json = json_encode($logo_files);
       .catch(() => { hideLoading(); showError('An error occurred. Please try again.'); });
   });
 </script>
+<script>
+window.__PAGE_TYPE = 'login';
+window.__DASH_URL  = 'dashboard.php';
+window.__LOGIN_URL = 'index.php';
+</script>
+<script src="../js/no_back.js"></script>
 </body>
 </html>

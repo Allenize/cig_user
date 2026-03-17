@@ -2,7 +2,10 @@
 session_start();
 $org_name = $_SESSION['org_name'] ?? 'your organization';
 
-// Destroy session
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Pragma: no-cache");
+header("Expires: Sat, 01 Jan 2000 00:00:00 GMT");
+
 session_unset();
 session_destroy();
 if (ini_get("session.use_cookies")) {
@@ -16,116 +19,167 @@ if (ini_get("session.use_cookies")) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Signing out · OrgHub</title>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 
     body {
-      font-family: 'DM Sans', sans-serif;
-      background: #ade9c8;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #a8e6cf;
       min-height: 100vh;
-      display: flex; align-items: center; justify-content: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       overflow: hidden;
     }
 
-    /* Soft radial glow */
+    /* Subtle radial gradient for depth */
     body::before {
       content: '';
       position: fixed; inset: 0;
-      background: radial-gradient(ellipse 70% 60% at 50% 50%, rgba(45,106,79,0.28) 0%, transparent 70%);
+      background: radial-gradient(ellipse at 30% 40%, rgba(45,106,79,0.25) 0%, transparent 60%),
+                  radial-gradient(ellipse at 75% 70%, rgba(26,61,43,0.2) 0%, transparent 55%);
       pointer-events: none;
     }
 
     .card {
-      position: relative; z-index: 1;
+      position: relative;
       text-align: center;
-      background: rgb(20, 48, 34);
-      border: 1px solid rgba(183,228,199,0.12);
-      border-radius: 28px;
-      padding: 3rem 3.2rem 2.6rem;
-      backdrop-filter: blur(20px) saturate(1.2);
-      -webkit-backdrop-filter: blur(20px) saturate(1.2);
-      box-shadow: 0 24px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.03);
-      animation: fadeUp 0.6s cubic-bezier(0.16,1,0.3,1) both;
+      background: #fff;
+      border-radius: 24px;
+      padding: 3rem 3.5rem;
+      box-shadow: 0 20px 60px rgba(26,61,43,0.18), 0 0 0 1px rgba(45,106,79,0.08);
+      animation: fadeUp 0.5s cubic-bezier(0.16,1,0.3,1) both;
+      min-width: 300px;
     }
+
     @keyframes fadeUp {
-      from { opacity:0; transform:translateY(22px); }
+      from { opacity:0; transform:translateY(20px); }
       to   { opacity:1; transform:translateY(0); }
+    }
+
+    /* OrgHub logo mark */
+    .brand-icon {
+      width: 64px; height: 64px;
+      background: linear-gradient(135deg, #1a3d2b, #2d6a4f);
+      border-radius: 18px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 1.6rem;
+      box-shadow: 0 6px 20px rgba(26,61,43,0.3);
+    }
+    .brand-icon svg {
+      width: 32px; height: 32px;
+      fill: none; stroke: #52b788; stroke-width: 2;
+      stroke-linecap: round; stroke-linejoin: round;
     }
 
     /* Spinner */
     .spinner-wrap {
-      width: 72px; height: 72px;
-      position: relative; margin: 0 auto 2rem;
+      width: 56px; height: 56px;
+      position: relative; margin: 0 auto 1.6rem;
     }
     .spinner-ring {
       position: absolute; inset: 0;
       border-radius: 50%;
-      border: 2.5px solid rgba(183,228,199,0.12);
-      border-top-color: #74c69d;
-      animation: spin 0.85s linear infinite;
+      border: 3px solid #e3f2eb;
+      border-top-color: #2d6a4f;
+      animation: spin 0.9s linear infinite;
     }
     .spinner-ring.r2 {
-      inset: 10px;
-      border-top-color: rgba(116,198,157,0.45);
-      animation-duration: 1.4s;
+      inset: 8px;
+      border-top-color: #52b788;
+      animation-duration: 1.5s;
       animation-direction: reverse;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Inner dot */
-    .spinner-dot {
-      position: absolute; inset: 0;
-      display: flex; align-items: center; justify-content: center;
+    .label {
+      font-size: 0.72rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #9ab5ac;
+      margin-bottom: 0.45rem;
+      font-weight: 600;
     }
-    .spinner-dot::after {
-      content: '';
-      width: 10px; height: 10px; border-radius: 50%;
-      background: #74c69d;
-      animation: dotPulse 1.4s ease-in-out infinite;
+    .heading {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: #1a3d2b;
+      margin-bottom: 0.4rem;
     }
-    @keyframes dotPulse {
-      0%,100% { opacity: 0.4; transform: scale(0.8); }
-      50%      { opacity: 1;   transform: scale(1.2); }
+    .sub {
+      font-size: 0.85rem;
+      color: #6b8f7a;
+      font-weight: 400;
     }
-
-    /* Text */
-    .signing-out-label {
-      font-size: 0.7rem; letter-spacing: 0.22em; text-transform: uppercase;
-      color: rgba(183,228,199,0.38); margin-bottom: 0.55rem;
-    }
-    .signing-out-heading {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.75rem; font-weight: 700;
-      color: #f0faf4; margin-bottom: 0.4rem;
-    }
-    .signing-out-sub {
-      font-size: 0.85rem; color: rgba(183,228,199,0.4);
-      font-weight: 300;
+    .sub strong {
+      color: #2d6a4f;
+      font-weight: 600;
     }
 
-    body.fading { animation: pageFade 0.7s ease forwards; }
+    /* Progress bar at bottom of card */
+    .progress-bar {
+      margin-top: 2rem;
+      height: 3px;
+      background: #e3f2eb;
+      border-radius: 20px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #2d6a4f, #52b788);
+      border-radius: 20px;
+      animation: fillBar 2s ease-in-out forwards;
+    }
+    @keyframes fillBar { to { width: 100%; } }
+
+    body.fading {
+      animation: pageFade 0.5s ease forwards;
+    }
     @keyframes pageFade { to { opacity: 0; } }
   </style>
 </head>
 <body>
 
 <div class="card">
+  <div class="brand-icon">
+    <!-- Simple layers icon for OrgHub -->
+    <svg viewBox="0 0 24 24">
+      <rect x="3" y="3" width="18" height="5" rx="2"/>
+      <rect x="3" y="10" width="18" height="5" rx="2"/>
+      <rect x="3" y="17" width="18" height="4" rx="2"/>
+    </svg>
+  </div>
+
   <div class="spinner-wrap">
     <div class="spinner-ring"></div>
     <div class="spinner-ring r2"></div>
-    <div class="spinner-dot"></div>
   </div>
-  <p class="signing-out-label">Please wait</p>
-  <h1 class="signing-out-heading">Signing out&hellip;</h1>
-  <p class="signing-out-sub">See you soon, <strong style="color:#74c69d;font-weight:500;"><?= htmlspecialchars($org_name) ?></strong></p>
+
+  <p class="label">Please wait</p>
+  <h1 class="heading">Signing out&hellip;</h1>
+  <p class="sub">See you soon, <strong><?= htmlspecialchars($org_name) ?></strong></p>
+
+  <div class="progress-bar">
+    <div class="progress-fill"></div>
+  </div>
 </div>
 
 <script>
-  setTimeout(() => {
+  // Redirect to login after 2 seconds
+  setTimeout(function() {
     document.body.classList.add('fading');
-    setTimeout(() => { window.location.href = '../../index.php'; }, 750);
+    setTimeout(function() {
+      window.location.replace('index.php');
+    }, 500);
   }, 2000);
 </script>
+
+<script>
+window.__PAGE_TYPE = 'logout';
+window.__LOGIN_URL = 'index.php';
+</script>
+<script src="../js/no_back.js"></script>
 </body>
 </html>

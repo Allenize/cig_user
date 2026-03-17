@@ -5,7 +5,7 @@ if (!isset($_SESSION['user_id'])) {
     echo json_encode(['success'=>false,'message'=>'Not authenticated']); exit();
 }
 
-require_once dirname(dirname(__DIR__)) . '/db_connection.php';
+require_once __DIR__ . '/db_connection.php';
 $userId   = (int)$_SESSION['user_id'];
 $docKey   = trim($_POST['doc_key']   ?? '');
 $docLabel = trim($_POST['doc_label'] ?? '');

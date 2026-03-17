@@ -3,7 +3,7 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 session_start();
-require 'db_connection.php';
+require __DIR__ . '/db_connection.php';
 
 header('Content-Type: application/json');
 
@@ -44,11 +44,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $update->bind_param("i", $user['user_id']);
             $update->execute();
 
-            // Everyone goes to dashboard — restriction handled inside
+            // Admin goes straight to dashboard
+            // Unverified users go to credential verification page
+            // Verified users go to dashboard
             if ($user['role'] === 'admin') {
-                $redirect = './org-dashboard/php/admin-dashboard.php';
+                $redirect = 'dashboard.php';
+            } elseif (empty($user['credentials_verified'])) {
+                $redirect = 'credential_verification.php';
             } else {
-                $redirect = './org-dashboard/php/dashboard.php';
+                $redirect = 'dashboard.php';
             }
 
             echo json_encode([

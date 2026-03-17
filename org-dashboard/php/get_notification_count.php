@@ -13,7 +13,7 @@ if (!isset($_SESSION['user_id'])) {
 
 header('Content-Type: application/json');
 
-require_once dirname(dirname(__DIR__)) . '/db_connection.php';
+require_once __DIR__ . '/db_connection.php';
 
 $unread = 0;
 
