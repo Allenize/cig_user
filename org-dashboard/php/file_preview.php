@@ -25,11 +25,11 @@ if (!$submissionId) {
 }
 
 // Fetch file metadata
-$stmt = $conn->prepare("SELECT file_name, file_path, submitted_by FROM submissions WHERE submission_id = ? LIMIT 1");
-$stmt->bind_param("i", $submissionId);
-$stmt->execute();
-$row = $stmt->get_result()->fetch_assoc();
-$stmt->close();
+$stmt = mysqli_prepare($conn, "SELECT file_name, file_path, submitted_by FROM submissions WHERE submission_id = ? LIMIT 1");
+mysqli_stmt_bind_param($stmt, "i", $submissionId);
+mysqli_stmt_execute($stmt);
+$row = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt));
+mysqli_stmt_close($stmt);
 
 if (!$row) { http_response_code(404); die("Document not found"); }
 if ((int)$row['submitted_by'] !== (int)$_SESSION['user_id']) { http_response_code(403); die("Access denied"); }

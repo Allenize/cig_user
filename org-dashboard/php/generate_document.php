@@ -4,30 +4,24 @@
  * Unified document generator — supports both DOCX and PDF output.
  *
  * Public API (used by upload_document.php):
- *   generateDocument($template, $data, $title, $format, $collaboratedLogo, $orgName, $orgTagline)
+ *   generateDocument($template, $data, $title, $format, $collaboratedLogo, $orgName, $orgTagline, $orgLogoPath)
  *     $format : 'docx' | 'pdf'
  *     returns : absolute path to the generated temp file, or false on failure
  */
 
-/* ══════════════════════════════════════════════════════════════════════════════
- * ENTRY POINT
- * ══════════════════════════════════════════════════════════════════════════════ */
-
-function generateDocument($template, $data, $title, $format = 'docx', $collaboratedLogo = null, $organizationName = null, $organizationTagline = null) {
+function generateDocument($template, $data, $title, $format = 'docx', $collaboratedLogo = null, $organizationName = null, $organizationTagline = null, $orgLogoPath = null) {
     $format = strtolower($format);
 
-    // Always generate DOCX first
-    $docxPath = generateDocx($template, $data, $title, $collaboratedLogo, $organizationName, $organizationTagline);
+    $docxPath = generateDocx($template, $data, $title, $collaboratedLogo, $organizationName, $organizationTagline, $orgLogoPath);
     if (!$docxPath) return false;
 
     if ($format !== 'pdf') return $docxPath;
 
-    // Convert DOCX → PDF via LibreOffice (same engine used by the preview modal)
     $tmpDir  = sys_get_temp_dir();
     $soffice = findLibreOffice();
     if (!$soffice) {
         error_log('generateDocument: LibreOffice not found, returning DOCX instead');
-        return $docxPath; // fall back to DOCX
+        return $docxPath;
     }
 
     $cmd  = sprintf('"%s" --headless --convert-to pdf --outdir "%s" "%s" 2>&1', $soffice, $tmpDir, $docxPath);
@@ -57,7 +51,7 @@ function findLibreOffice() {
  * DOCX GENERATION
  * ══════════════════════════════════════════════════════════════════════════════ */
 
-function generateDocx($template, $data, $title, $collaboratedLogo = null, $organizationName = null, $organizationTagline = null) {
+function generateDocx($template, $data, $title, $collaboratedLogo = null, $organizationName = null, $organizationTagline = null, $orgLogoPath = null) {
     $tempDir  = sys_get_temp_dir();
     $docxPath = $tempDir . '/' . uniqid('doc_') . '.docx';
 
@@ -72,31 +66,64 @@ function generateDocx($template, $data, $title, $collaboratedLogo = null, $organ
         return false;
     }
 
-    $xmlContent = createDocumentXml($title, $template, $data, $collaboratedLogo, $organizationName, $organizationTagline);
+    $xmlContent = createDocumentXml($title, $template, $data, $collaboratedLogo, $organizationName, $organizationTagline, $orgLogoPath);
 
     $zip->addFromString('[Content_Types].xml',          getContentTypes());
     $zip->addFromString('_rels/.rels',                  getRelationships());
-    $zip->addFromString('word/_rels/document.xml.rels', getDocumentRelationships($collaboratedLogo));
+    $zip->addFromString('word/_rels/document.xml.rels', getDocumentRelationships($collaboratedLogo, $orgLogoPath));
     $zip->addFromString('word/document.xml',            $xmlContent);
 
-    // Main (PLSP) logo
-    $logoPath = __DIR__ . '/../../plsplogo.png';
-    if (file_exists($logoPath)) {
+    // Base: cig_user/ — two levels up from php/
+    $_genBase   = dirname(dirname(__DIR__));
+    $_genAssets = $_genBase . DIRECTORY_SEPARATOR . 'Assets' . DIRECTORY_SEPARATOR;
+
+    // Left logo: Admission.png from Assets
+    $logoPath = '';
+    foreach (['Admission.png', 'admission.png', 'Admission.jpg', 'admission.jpg'] as $_af) {
+        if (file_exists($_genAssets . $_af)) { $logoPath = $_genAssets . $_af; break; }
+    }
+    if (!$logoPath) {
+        foreach ([$_genBase . '/plsplogo.png', $_genBase . '/Assets/plsplogo.png'] as $_pf) {
+            if (file_exists($_pf)) { $logoPath = $_pf; break; }
+        }
+    }
+    if ($logoPath && file_exists($logoPath)) {
         $imageData = file_get_contents($logoPath);
         if ($imageData) {
-            $zip->addFromString('word/media/image1.png', $imageData);
+            $ext = strtolower(pathinfo($logoPath, PATHINFO_EXTENSION)) ?: 'png';
+            $zip->addFromString('word/media/image1.' . $ext, $imageData);
         }
     }
 
-    // Collaborated logo
+    // Collaborated logo (image2)
     if ($collaboratedLogo) {
-        $collabPath = __DIR__ . '/../../Assets/' . basename($collaboratedLogo);
+        $collabFile = basename($collaboratedLogo);
+        $collabPath = $_genAssets . $collabFile;
+        if (!file_exists($collabPath)) {
+            foreach (scandir($_genAssets) as $_cf) {
+                if (strcasecmp($_cf, $collabFile) === 0) {
+                    $collabPath = $_genAssets . $_cf;
+                    break;
+                }
+            }
+        }
         if (file_exists($collabPath)) {
             $imageData = file_get_contents($collabPath);
             if ($imageData) {
-                $ext = pathinfo($collabPath, PATHINFO_EXTENSION);
+                $ext = strtolower(pathinfo($collabPath, PATHINFO_EXTENSION));
                 $zip->addFromString('word/media/image2.' . $ext, $imageData);
             }
+        } else {
+            error_log("Collaborated logo not found: $collabPath");
+        }
+    }
+
+    // Org logo (image3)
+    if (!empty($orgLogoPath) && file_exists($orgLogoPath)) {
+        $imageData = file_get_contents($orgLogoPath);
+        if ($imageData) {
+            $ext = strtolower(pathinfo($orgLogoPath, PATHINFO_EXTENSION)) ?: 'jpg';
+            $zip->addFromString('word/media/image3.' . $ext, $imageData);
         }
     }
 
@@ -106,18 +133,17 @@ function generateDocx($template, $data, $title, $collaboratedLogo = null, $organ
 
 // ── XML helpers ──────────────────────────────────────────────────────────────
 
-function createDocumentXml($title, $template, $data, $collaboratedLogo = null, $organizationName = null, $organizationTagline = null) {
-    $docTitle     = htmlspecialchars($title);
-    $templateName = htmlspecialchars($template['name']);
-    $orgName      = htmlspecialchars($organizationName ?: 'PLSP Economics Society - EcoS');
-    $orgTagline   = htmlspecialchars($organizationTagline ?: 'Empowered and committed organization of service.');
+function createDocumentXml($title, $template, $data, $collaboratedLogo = null, $organizationName = null, $organizationTagline = null, $orgLogoPath = null) {
+    $docTitle   = htmlspecialchars($title);
+    $orgName    = htmlspecialchars($organizationName ?: 'Organization');
+    $orgTagline = htmlspecialchars($organizationTagline ?: '');
 
     $c  = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
     $c .= '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" ';
     $c .= 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">';
     $c .= '<w:body>';
 
-    // Header table
+    // ── Header table ──
     $c .= '<w:tbl><w:tblPr>';
     $c .= '<w:tblW w:w="9200" w:type="dxa"/>';
     $c .= '<w:tblBorders>'
@@ -131,7 +157,7 @@ function createDocumentXml($title, $template, $data, $collaboratedLogo = null, $
     $c .= '<w:tblCellMar><w:top w:w="100" w:type="dxa"/><w:left w:w="100" w:type="dxa"/><w:bottom w:w="100" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar>';
     $c .= '</w:tblPr><w:tr>';
 
-    // Left cell - PLSP logo
+    // Left cell - PLSP logo (Admission.png)
     $c .= '<w:tc><w:tcPr><w:tcW w:w="2800" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>';
     $c .= '<w:p><w:pPr><w:jc w:val="center"/></w:pPr>';
     $c .= docxInlineImage('rId4', 1, 'Logo', '700000', '700000');
@@ -141,30 +167,39 @@ function createDocumentXml($title, $template, $data, $collaboratedLogo = null, $
     $c .= '<w:tc><w:tcPr><w:tcW w:w="3600" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>';
     $c .= '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="22"/></w:rPr><w:t>PAMANTASAN NG LUNGSOD NG SAN PABLO</w:t></w:r></w:p>';
     $c .= '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="28"/></w:rPr><w:t>' . $orgName . '</w:t></w:r></w:p>';
-    $c .= '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:i/><w:sz w:val="20"/></w:rPr><w:t>"' . $orgTagline . '"</w:t></w:r></w:p>';
+    if (!empty(trim($orgTagline))) {
+        $c .= '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:i/><w:sz w:val="20"/></w:rPr><w:t>&#x201C;' . $orgTagline . '&#x201D;</w:t></w:r></w:p>';
+    }
     $c .= '</w:tc>';
 
-    // Right cell - collaborated logo or blank
+    // Right cell — org logo (image3) + collaborated logo (image2), side by side
     $c .= '<w:tc><w:tcPr><w:tcW w:w="2800" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>';
     $c .= '<w:p><w:pPr><w:jc w:val="center"/></w:pPr>';
-    if ($collaboratedLogo) {
+
+    $hasOrgLogo   = !empty($orgLogoPath) && file_exists($orgLogoPath);
+    $hasCollabLogo = !empty($collaboratedLogo);
+
+    if ($hasOrgLogo) {
+        $c .= docxInlineImage('rId6', 3, 'OrgLogo', '700000', '700000');
+    }
+    if ($hasCollabLogo) {
+        if ($hasOrgLogo) {
+            $c .= '<w:r><w:t xml:space="preserve"> </w:t></w:r>';
+        }
         $c .= docxInlineImage('rId5', 2, 'CollaboratedLogo', '700000', '700000');
     }
-    $c .= '</w:p></w:tc>';
+    $c .= '</w:p>';
+    $c .= '</w:tc>';
 
     $c .= '</w:tr></w:tbl>';
 
-    // Title block
-    $c .= '<w:p/>';
-    $c .= '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="28"/></w:rPr><w:t>' . $docTitle . '</w:t></w:r></w:p>';
-    $c .= '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:i/><w:sz w:val="22"/></w:rPr><w:t>(' . $templateName . ')</w:t></w:r></w:p>';
-    $c .= '<w:p><w:r><w:t>Generated on: ' . date('F d, Y') . '</w:t></w:r></w:p>';
-    $c .= '<w:p/>';
-
     // Body content
     if (isset($template['name']) && $template['name'] === 'Project Proposal') {
-        $c .= buildProjectProposalContent($data);
+        $c .= buildProjectProposalContent($data, $organizationName);
     } else {
+        $c .= '<w:p/>';
+        $c .= '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="28"/></w:rPr><w:t>' . $docTitle . '</w:t></w:r></w:p>';
+        $c .= '<w:p/>';
         foreach ($template['fields'] as $fieldId => $fieldLabel) {
             $fieldValue = isset($data[$fieldId]) ? htmlspecialchars($data[$fieldId]) : '';
             $c .= '<w:p><w:r><w:rPr><w:b/><w:color w:val="2F5233"/></w:rPr><w:t>' . htmlspecialchars($fieldLabel) . ':</w:t></w:r></w:p>';
@@ -178,7 +213,7 @@ function createDocumentXml($title, $template, $data, $collaboratedLogo = null, $
     // Footer
     $c .= '<w:p/>';
     $c .= '<w:p><w:pPr><w:pBdr><w:top w:val="single" w:sz="24" w:space="1" w:color="000000"/></w:pBdr></w:pPr></w:p>';
-    $c .= '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:i/><w:sz w:val="22"/></w:rPr><w:t>"Primed to Lead and Serve for Progress"</w:t></w:r></w:p>';
+    $c .= '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:i/><w:sz w:val="22"/></w:rPr><w:t>&#x201C;Primed to Lead and Serve for Progress&#x201D;</w:t></w:r></w:p>';
     $c .= '<w:sectPr><w:pgMar w:top="1080" w:right="1080" w:bottom="1080" w:left="1080" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr>';
     $c .= '</w:body></w:document>';
 
@@ -221,14 +256,27 @@ function getRelationships() {
         . '</Relationships>';
 }
 
-function getDocumentRelationships($collaboratedLogo = null) {
+function getDocumentRelationships($collaboratedLogo = null, $orgLogoPath = null) {
     $r  = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-        . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-        . '<Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image1.png"/>';
+        . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">';
+
+    // rId4 = left logo (Admission.png)
+    $r .= '<Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image1.png"/>';
+
+    // rId5 = collaborated logo (image2)
     if ($collaboratedLogo) {
-        $ext = pathinfo($collaboratedLogo, PATHINFO_EXTENSION);
+        $ext = strtolower(pathinfo(basename($collaboratedLogo), PATHINFO_EXTENSION));
+        if (!$ext) $ext = 'jpg';
         $r .= '<Relationship Id="rId5" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image2.' . $ext . '"/>';
     }
+
+    // rId6 = org logo (image3)
+    if (!empty($orgLogoPath) && file_exists($orgLogoPath)) {
+        $ext = strtolower(pathinfo($orgLogoPath, PATHINFO_EXTENSION));
+        if (!$ext) $ext = 'jpg';
+        $r .= '<Relationship Id="rId6" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image3.' . $ext . '"/>';
+    }
+
     $r .= '</Relationships>';
     return $r;
 }
@@ -237,26 +285,52 @@ function getDocumentRelationships($collaboratedLogo = null) {
  * PROJECT PROPOSAL DOCX CONTENT
  * ══════════════════════════════════════════════════════════════════════════════ */
 
-function buildProjectProposalContent($data) {
+function buildProjectProposalContent($data, $organizationName = null) {
     $c = '';
+    $orgName = htmlspecialchars($organizationName ?: ($data['organization'] ?? ''));
 
+    // ── Date (left-aligned, bold) ──
     if (!empty($data['proposal_date'])) {
-        $c .= '<w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:t>' . htmlspecialchars($data['proposal_date']) . '</w:t></w:r></w:p><w:p/>';
-    }
-    foreach (['recipient_1', 'recipient_2'] as $key) {
-        if (!empty($data[$key])) {
-            $c .= '<w:p><w:r><w:t>' . htmlspecialchars($data[$key]) . '</w:t></w:r></w:p>';
-        }
-    }
-    $c .= '<w:p/>';
-    if (!empty($data['dear_opening'])) {
-        $c .= '<w:p><w:r><w:t>' . htmlspecialchars($data['dear_opening']) . '</w:t></w:r></w:p>';
-    }
-    if (!empty($data['opening_statement'])) {
-        $c .= '<w:p><w:r><w:t>' . htmlspecialchars($data['opening_statement']) . '</w:t></w:r></w:p><w:p/>';
+        $c .= '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>' . htmlspecialchars($data['proposal_date']) . '</w:t></w:r></w:p><w:p/>';
     }
 
-    // I. Identifying Information
+    // ── Recipient 1 ──
+    // Title is fixed: "Vice President for Student Affairs"
+    // Name comes from user input (recipient_1 field)
+    if (!empty($data['recipient_1'])) {
+        $c .= '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>' . htmlspecialchars(trim($data['recipient_1'])) . '</w:t></w:r></w:p>';
+        $c .= '<w:p><w:r><w:t>Vice President for Academic Affairs</w:t></w:r></w:p>';
+        $c .= '<w:p/>';
+    }
+
+    // ── Recipient 2 ──
+    // Title is fixed: "Dean, Office of Student Affairs and Services"
+    if (!empty($data['recipient_2'])) {
+        $c .= '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>' . htmlspecialchars(trim($data['recipient_2'])) . '</w:t></w:r></w:p>';
+        $c .= '<w:p><w:r><w:t>Dean, Office of Student Affairs and Services</w:t></w:r></w:p>';
+        $c .= '<w:p/>';
+    }
+
+    // ── Dear line — dynamic: uses recipient_2 name (Dean) ──
+    $dearName = trim($data['recipient_2'] ?? '');
+    if ($dearName) {
+        $c .= '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Dear ' . htmlspecialchars($dearName) . ',</w:t></w:r></w:p>';
+    }
+
+    // ── Opening statement (no label shown) ──
+    if (!empty($data['opening_statement'])) {
+        $c .= '<w:p/>';
+        foreach (explode("\n", $data['opening_statement']) as $line) {
+            $c .= '<w:p><w:r><w:t>' . htmlspecialchars(trim($line) ?: ' ') . '</w:t></w:r></w:p>';
+        }
+        $c .= '<w:p/>';
+    }
+
+    // ── PROJECT PROPOSAL heading ──
+    $c .= '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="28"/></w:rPr><w:t>PROJECT PROPOSAL</w:t></w:r></w:p>';
+    $c .= '<w:p/>';
+
+    // ── I. Identifying Information ──
     $c .= '<w:p><w:r><w:rPr><w:b/><w:sz w:val="24"/></w:rPr><w:t>I. Identifying Information</w:t></w:r></w:p>';
     $c .= docxTable([
         ['Organization',             $data['organization']         ?? ''],
@@ -264,18 +338,21 @@ function buildProjectProposalContent($data) {
         ['Type of Project',          $data['project_type']         ?? ''],
         ['Project Involvement',      $data['project_involvement']  ?? ''],
         ['Project Location',         $data['project_location']     ?? ''],
-        ['Proposed Start Date',      $data['proposed_start_date']  ?? ''],
+        ['Proposed Start Date & Time',$data['proposed_start_date'] ?? ''],
         ['Proposed Completion Date', $data['proposed_end_date']    ?? ''],
         ['Number of Participants',   $data['number_participants']  ?? ''],
     ]);
     $c .= '<w:p/>';
 
-    // II. Project Description
+    // ── II. Project Description ──
     $c .= '<w:p><w:r><w:rPr><w:b/><w:sz w:val="24"/></w:rPr><w:t>II. Project Description</w:t></w:r></w:p>';
+
+    // A. Summary
     $c .= '<w:p><w:r><w:rPr><w:b/><w:sz w:val="22"/></w:rPr><w:t>A. SUMMARY OF THE PROJECT</w:t></w:r></w:p>';
     $c .= docxIndentedText($data['project_summary'] ?? '');
     $c .= '<w:p/>';
 
+    // B. Project Goal and Objectives (inserted after Summary)
     $c .= '<w:p><w:r><w:rPr><w:b/><w:sz w:val="22"/></w:rPr><w:t>B. PROJECT GOAL AND OBJECTIVES</w:t></w:r></w:p>';
     $c .= '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Goal:</w:t></w:r></w:p>';
     $c .= docxIndentedText($data['project_goal'] ?? '');
@@ -291,11 +368,12 @@ function buildProjectProposalContent($data) {
     }
     $c .= '<w:p/>';
 
+    // C. Expected Outputs
     $c .= '<w:p><w:r><w:rPr><w:b/><w:sz w:val="22"/></w:rPr><w:t>C. EXPECTED OUTPUTS</w:t></w:r></w:p>';
     $c .= docxBulletList($data['expected_outputs'] ?? '');
     $c .= '<w:p/>';
 
-    // III. Budget
+    // ── III. Budget ──
     $c .= '<w:p><w:r><w:rPr><w:b/><w:sz w:val="24"/></w:rPr><w:t>III. Budget</w:t></w:r></w:p>';
     $c .= docxTable([
         ['Source of Fund',           $data['budget_source']  ?? ''],
@@ -304,7 +382,7 @@ function buildProjectProposalContent($data) {
     ]);
     $c .= '<w:p/>';
 
-    // IV. Monitoring and Evaluation
+    // ── IV. Monitoring and Evaluation ──
     $c .= '<w:p><w:r><w:rPr><w:b/><w:sz w:val="24"/></w:rPr><w:t>IV. Monitoring and Evaluation</w:t></w:r></w:p>';
     $c .= '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Monitoring:</w:t></w:r></w:p>';
     $c .= docxBulletList($data['monitoring_details'] ?? '');
@@ -313,31 +391,64 @@ function buildProjectProposalContent($data) {
     $c .= docxBulletList($data['evaluation_details'] ?? '');
     $c .= '<w:p/>';
 
-    // V. Security Plan
+    // ── V. Security Plan ──
     $c .= '<w:p><w:r><w:rPr><w:b/><w:sz w:val="24"/></w:rPr><w:t>V. Security Plan</w:t></w:r></w:p>';
     $c .= docxBulletList($data['security_plan'] ?? '');
     $c .= '<w:p/><w:p/>';
 
-    // Signatures
+    // ── Closing statement (no label, italic) ──
     if (!empty($data['closing_statement'])) {
-        $c .= '<w:p><w:r><w:t>' . htmlspecialchars($data['closing_statement']) . '</w:t></w:r></w:p><w:p/>';
+        foreach (explode("\n", $data['closing_statement']) as $line) {
+            $c .= '<w:p><w:r><w:rPr><w:i/></w:rPr><w:t>' . htmlspecialchars(trim($line) ?: ' ') . '</w:t></w:r></w:p>';
+        }
+        $c .= '<w:p/>';
     }
+
+    // ── "Sincerely," (auto-added after closing) ──
+    $c .= '<w:p><w:r><w:t>Sincerely,</w:t></w:r></w:p>';
+    $c .= '<w:p/><w:p/>';
+
+    // ── Sender — name on line 1 (bold), title/org on subsequent lines ──
     if (!empty($data['sender_name'])) {
-        $c .= '<w:p><w:r><w:t>Sincerely,</w:t></w:r></w:p><w:p/><w:p/>';
-        $c .= '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>' . htmlspecialchars($data['sender_name']) . '</w:t></w:r></w:p>';
-    }
-    if (!empty($data['noted_by'])) {
-        $c .= '<w:p/><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Noted by:</w:t></w:r></w:p>';
-        foreach (explode(',', $data['noted_by']) as $person) {
-            $person = trim($person);
-            if ($person !== '') {
-                $c .= '<w:p><w:r><w:t>' . htmlspecialchars($person) . '</w:t></w:r></w:p>';
+        $sLines = array_values(array_filter(array_map('trim', explode("\n", $data['sender_name']))));
+        if (!empty($sLines)) {
+            $c .= '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>' . htmlspecialchars($sLines[0]) . '</w:t></w:r></w:p>';
+            for ($li=1; $li<count($sLines); $li++) {
+                $c .= '<w:p><w:r><w:t>' . htmlspecialchars($sLines[$li]) . '</w:t></w:r></w:p>';
             }
         }
     }
+    $c .= '<w:p/>';
+
+    // ── Noted by (no header, names/titles only) ──
+    $noteList = ['adviser_name','co_adviser_name'];
+    // Support dynamic extra signatories: additional_signer_1 .. additional_signer_5
+    for ($si=1; $si<=5; $si++) {
+        $noteList[] = 'additional_signer_' . $si;
+    }
+    foreach ($noteList as $sigKey) {
+        if (empty($data[$sigKey])) continue;
+        // Each field: "Name\nTitle\nOrg" (newline-separated lines)
+        $sigLines = array_values(array_filter(array_map('trim', explode("\n", $data[$sigKey]))));
+        if (empty($sigLines)) continue;
+        // Line 0 = bold name
+        $c .= '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>' . htmlspecialchars($sigLines[0]) . '</w:t></w:r></w:p>';
+        // Remaining lines = title/org (normal weight)
+        for ($li=1; $li<count($sigLines); $li++) {
+            $c .= '<w:p><w:r><w:t>' . htmlspecialchars($sigLines[$li]) . '</w:t></w:r></w:p>';
+        }
+        $c .= '<w:p/>';
+    }
+
+    // ── Endorsed by (no header) ──
     if (!empty($data['endorsed_by'])) {
-        $c .= '<w:p/><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Endorsed by:</w:t></w:r></w:p>';
-        $c .= '<w:p><w:r><w:t>' . htmlspecialchars($data['endorsed_by']) . '</w:t></w:r></w:p>';
+        $eLines = array_values(array_filter(array_map('trim', explode("\n", $data['endorsed_by']))));
+        if (!empty($eLines)) {
+            $c .= '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>' . htmlspecialchars($eLines[0]) . '</w:t></w:r></w:p>';
+            for ($li=1; $li<count($eLines); $li++) {
+                $c .= '<w:p><w:r><w:t>' . htmlspecialchars($eLines[$li]) . '</w:t></w:r></w:p>';
+            }
+        }
     }
 
     return $c;
@@ -356,10 +467,10 @@ function docxTable(array $rows) {
         . '</w:tblBorders></w:tblPr>';
     foreach ($rows as [$label, $value]) {
         $c .= '<w:tr><w:trPr><w:trHeight w:val="400" w:type="auto"/></w:trPr>';
-        $c .= '<w:tc><w:tcPr><w:tcW w:w="3000" w:type="dxa"/><w:shd w:fill="D3D3D3"/></w:tcPr>'
-            . '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>' . htmlspecialchars($label) . '</w:t></w:r></w:p></w:tc>';
+        $c .= '<w:tc><w:tcPr><w:tcW w:w="3000" w:type="dxa"/><w:shd w:fill="D3D3D3" w:val="clear"/></w:tcPr>'
+            . '<w:p><w:pPr><w:ind w:left="80"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t>' . htmlspecialchars($label) . '</w:t></w:r></w:p></w:tc>';
         $c .= '<w:tc><w:tcPr><w:tcW w:w="6000" w:type="dxa"/></w:tcPr>'
-            . '<w:p><w:r><w:t>' . htmlspecialchars($value) . '</w:t></w:r></w:p></w:tc>';
+            . '<w:p><w:pPr><w:ind w:left="80"/></w:pPr><w:r><w:t>' . htmlspecialchars($value) . '</w:t></w:r></w:p></w:tc>';
         $c .= '</w:tr>';
     }
     $c .= '</w:tbl>';
@@ -369,7 +480,7 @@ function docxTable(array $rows) {
 function docxIndentedText($text) {
     $c = '';
     foreach (explode("\n", $text) as $line) {
-        $c .= '<w:p><w:pPr><w:ind w:left="720"/></w:pPr><w:r><w:t>' . htmlspecialchars(trim($line) ?: ' ') . '</w:t></w:r></w:p>';
+        $c .= '<w:p><w:pPr><w:ind w:left="720"/></w:pPr><w:r><w:t xml:space="preserve">' . htmlspecialchars(trim($line) ?: ' ') . '</w:t></w:r></w:p>';
     }
     return $c;
 }
@@ -378,8 +489,13 @@ function docxBulletList($text) {
     $c = '';
     foreach (explode("\n", $text) as $item) {
         $item = trim($item);
+        $item = ltrim($item, '-•*\t ');
+        $item = trim($item);
         if ($item !== '') {
-            $c .= '<w:p><w:pPr><w:ind w:left="720"/></w:pPr><w:r><w:t>- ' . htmlspecialchars($item) . '</w:t></w:r></w:p>';
+            $c .= '<w:p>'
+                . '<w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr>'
+                . '<w:r><w:t xml:space="preserve">&#x2022;  ' . htmlspecialchars($item) . '</w:t></w:r>'
+                . '</w:p>';
         }
     }
     return $c;

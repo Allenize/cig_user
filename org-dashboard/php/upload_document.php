@@ -13,7 +13,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 // Include database connection
-$conn = mysqli_connect("localhost", "root", "", "cig_system");
+require_once __DIR__ . '/db_connection.php';
 if (!$conn) {
     ob_end_clean();
     http_response_code(500);
@@ -141,26 +141,43 @@ if ($isTemplateUpload) {
 
 function handleTemplateUpload($conn) {
     try {
-        // Get and validate required POST data
         $templateId = isset($_POST['template_id']) ? trim($_POST['template_id']) : null;
         $title = isset($_POST['title']) ? trim($_POST['title']) : 'Document';
         $organizationName = isset($_POST['organization_name']) ? trim($_POST['organization_name']) : null;
         $organizationTagline = isset($_POST['organization_tagline']) ? trim($_POST['organization_tagline']) : null;
-        $collaboratedLogo = isset($_POST['collaborated_logo']) ? trim($_POST['collaborated_logo']) : null;
-        
+        $collaboratedLogo = isset($_POST['collaborated_logo_value']) ? trim($_POST['collaborated_logo_value']) : null;
+        if (empty($collaboratedLogo)) $collaboratedLogo = null;
+
+        // Tagline is optional — use empty string if blank
+        if (empty(trim($organizationTagline ?? ''))) $organizationTagline = '';
+
         error_log("Template Upload Debug: templateId='$templateId', title='$title'");
-        
+
         // Validate required fields
         if (empty($templateId) || empty($title)) {
             throw new Exception('Please select a template and enter a document title');
         }
-        
         if (empty($organizationName)) {
             throw new Exception('Organization name is required');
         }
-        
-        if (empty($organizationTagline)) {
-            throw new Exception('Organization tagline is required');
+
+        // Resolve org logo path from DB
+        $orgLogoPath = null;
+        $userId = (int)$_SESSION['user_id'];
+        $logoStmt = mysqli_prepare($conn, "SELECT logo_path FROM users WHERE user_id = ? LIMIT 1");
+        mysqli_stmt_bind_param($logoStmt, 'i', $userId);
+        mysqli_stmt_execute($logoStmt);
+        $logoRow = mysqli_fetch_assoc(mysqli_stmt_get_result($logoStmt));
+        mysqli_stmt_close($logoStmt);
+        if (!empty($logoRow['logo_path'])) {
+            // logo_path stored as e.g. "../uploads/logos/file.png" relative to php/
+            // Try resolving from php/ first, then from cig_user/ base
+            $_upBase = dirname(dirname(__DIR__)); // cig_user/
+            $logoAbs = realpath(__DIR__ . '/' . $logoRow['logo_path']);
+            if (!$logoAbs || !file_exists($logoAbs)) {
+                $logoAbs = realpath($_upBase . '/' . ltrim($logoRow['logo_path'], './'));
+            }
+            if ($logoAbs && file_exists($logoAbs)) $orgLogoPath = $logoAbs;
         }
         
         // Get template data
@@ -178,6 +195,14 @@ function handleTemplateUpload($conn) {
         foreach ($template['fields'] as $fieldId => $fieldLabel) {
             $data[$fieldId] = $_POST[$fieldId] ?? '';
         }
+        // Collect dynamic additional signers (not in template definition)
+        for ($si = 1; $si <= 5; $si++) {
+            $key = 'additional_signer_' . $si;
+            if (!empty($_POST[$key])) {
+                $data[$key] = trim($_POST[$key]);
+                $template['fields'][$key] = 'Additional Noted by #' . $si;
+            }
+        }
 
         // Determine output format: 'docx' (default) or 'pdf'
         $format = (isset($_POST['output_format']) && strtolower($_POST['output_format']) === 'pdf') ? 'pdf' : 'docx';
@@ -186,7 +211,7 @@ function handleTemplateUpload($conn) {
         if (!function_exists('generateDocument')) {
             throw new Exception('generateDocument() not loaded — check generate_document.php path and syntax.');
         }
-        $generatedPath = generateDocument($template, $data, $title, $format, $collaboratedLogo, $organizationName, $organizationTagline);
+        $generatedPath = generateDocument($template, $data, $title, $format, $collaboratedLogo, $organizationName, $organizationTagline, $orgLogoPath);
 
         if (!$generatedPath || !file_exists($generatedPath)) {
             $zipOk = class_exists('ZipArchive') ? 'yes' : 'NO — enable zip extension';
@@ -234,7 +259,7 @@ function handleTemplateUpload($conn) {
         ], JSON_UNESCAPED_UNICODE);
 
         // Insert into submissions table with file path and JSON snapshot
-        $stmt = $conn->prepare("INSERT INTO submissions (user_id, org_id, title, description, submission_data, status, file_name, file_path, submitted_by) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)");
+        $stmt = mysqli_prepare($conn, "INSERT INTO submissions (user_id, org_id, title, description, submission_data, status, file_name, file_path, submitted_by) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)");
         
         if (!$stmt) {
             throw new Exception('Prepare failed: ' . $conn->error);
@@ -247,7 +272,7 @@ function handleTemplateUpload($conn) {
             $error = $stmt->error;
             // Check for packet size error and provide helpful message
             if (stripos($error, 'packet') !== false || stripos($error, 'lost connection') !== false) {
-                throw new Exception('File is too large or connection was lost. Try a smaller file (max 10MB). Error: ' . $error);
+                throw new Exception('File is too large or connection was lost. Try a smaller file (max 50MB). Error: ' . $error);
             }
             throw new Exception('Execute failed: ' . $error);
         }
@@ -256,7 +281,7 @@ function handleTemplateUpload($conn) {
         $stmt->close();
         
         // Get user name
-        $userStmt = $conn->prepare("SELECT full_name FROM users WHERE user_id = ?");
+        $userStmt = mysqli_prepare($conn, "SELECT full_name FROM users WHERE user_id = ?");
         if (!$userStmt) {
             throw new Exception('Select failed: ' . $conn->error);
         }
@@ -316,11 +341,11 @@ function handleRegularUpload($conn) {
         exit(json_encode(['success' => false, 'message' => 'Invalid file type. Allowed: PDF, DOCX, XLSX']));
     }
     
-    if ($_FILES['file']['size'] > 10 * 1024 * 1024) { // 10MB limit
+    if ($_FILES['file']['size'] > 50 * 1024 * 1024) { // 50MB limit
         ob_end_clean();
         http_response_code(400);
         header('Content-Type: application/json');
-        exit(json_encode(['success' => false, 'message' => 'File size exceeds 10MB limit']));
+        exit(json_encode(['success' => false, 'message' => 'File size exceeds 50MB limit']));
     }
     
     // Get user info
@@ -354,7 +379,7 @@ function handleRegularUpload($conn) {
     
     try {
         // Insert into submissions table with file path
-        $stmt = $conn->prepare("INSERT INTO submissions (user_id, org_id, title, description, status, file_name, file_path, submitted_by) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)");
+        $stmt = mysqli_prepare($conn, "INSERT INTO submissions (user_id, org_id, title, description, status, file_name, file_path, submitted_by) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)");
         
         if (!$stmt) {
             throw new Exception('Prepare failed: ' . $conn->error);
@@ -367,7 +392,7 @@ function handleRegularUpload($conn) {
             $error = $stmt->error;
             // Check for packet size error and provide helpful message
             if (stripos($error, 'packet') !== false || stripos($error, 'lost connection') !== false) {
-                throw new Exception('File is too large or connection was lost. Try a smaller file (max 10MB). Error: ' . $error);
+                throw new Exception('File is too large or connection was lost. Try a smaller file (max 50MB). Error: ' . $error);
             }
             throw new Exception('Execute failed: ' . $error);
         }
@@ -376,7 +401,7 @@ function handleRegularUpload($conn) {
         $stmt->close();
         
         // Get user name
-        $userStmt = $conn->prepare("SELECT full_name FROM users WHERE user_id = ?");
+        $userStmt = mysqli_prepare($conn, "SELECT full_name FROM users WHERE user_id = ?");
         if (!$userStmt) {
             throw new Exception('User select failed: ' . $conn->error);
         }

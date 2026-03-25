@@ -1,3 +1,51 @@
+// ─── Org taglines map (keyed by org logo filename stem) ──────────────────────
+const ORG_TAGLINES = {
+    'ACES': 'Advancing Competency and Excellence in Service',
+    'AIS':  'Advancing Information Systems for Progress',
+    'ALIW': 'Aliw: Joy, Service, and Excellence',
+    'APA':  'Advancing Public Administration',
+    'ASO':  'Advocating Student Organization',
+    'ATMS': 'Advancing Tourism and Management Studies',
+    'BS':   'Building Scholars for the Nation',
+    'CAS':  'College of Arts and Sciences – Excellence in Service',
+    'CBAM': 'College of Business Administration and Management',
+    'CCSE': 'Computing for Change, Service, and Excellence',
+    'CIG':  'Community Innovation and Growth',
+    'CMH':  'College of Medicine and Health Sciences',
+    'COA':  'College of Accountancy',
+    'CTED': 'College of Teacher Education',
+    'CTHM': 'College of Tourism and Hospitality Management',
+    'ECOS': 'Empowered and committed organization of service.',
+    'FMS':  'Future Management Students',
+    'HMS':  'Health and Medical Sciences Student Organization',
+    'HRDMS':'Human Resource Development and Management Society',
+    'ISC':  'Information Systems Circle',
+    'ITS':  'IT Students – Innovate to Serve',
+    'JPIA': 'Junior Philippine Institute of Accountants',
+    'MAPAP':'Management and Public Administration Professionals',
+    'MAS':  'Mathematics and Sciences Society',
+    'MMS':  'Marketing Management Society',
+    'MS':   'Management Society',
+    'NSS':  'Natural Sciences Society',
+    'OAS':  'Outstanding Academic Society',
+    'OSAS': 'Office of Student Affairs and Services',
+    'PC':   'Philippine Collegians',
+    'PCL':  'Philippine Collegiate League',
+    'PDC':  'Philippine Debate Circle',
+    'POLSO':'Political Science Organization',
+    'RC':   'Red Cross Youth',
+    'SASI': 'Science and Social Issues',
+    'SFCE': 'School of Financial and Commercial Education',
+    'SFIE': 'School of Financial and International Education',
+    'SJE':  'Social Justice and Equality',
+    'TVEA': 'Tourism, Values, Excellence, and Advocacy',
+    'UAEE': 'Unity, Advocacy, and Environmental Excellence',
+    'USAF': 'University Student Affairs Federation',
+    'USP':  'University of San Pablo',
+    'YES':  'Youth Empowerment Society',
+    'YMCA': 'Young Men\'s Christian Association',
+};
+
 const templates = {
     'meeting_minutes': {
         name: 'Meeting Minutes',
@@ -5,7 +53,7 @@ const templates = {
             'meeting_date': 'Meeting Date',
             'meeting_time': 'Meeting Time',
             'location': 'Location',
-            'attendees': 'Attendees (comma-separated)',
+            'attendees': 'Attendees',
             'agenda': 'Agenda',
             'discussion': 'Discussion Summary',
             'action_items': 'Action Items',
@@ -68,33 +116,35 @@ const templates = {
     'project_proposal': {
         name: 'Project Proposal',
         fields: {
-            'proposal_date': 'Date',
-            'recipient_1': 'First Recipient Name & Title',
-            'recipient_2': 'Second Recipient Name & Title',
-            'dear_opening': 'Dear [Recipient - Full Name with Title]',
-            'opening_statement': 'Opening Statement',
-            'organization': 'Organization',
-            'project_title': 'Project Title',
-            'project_type': 'Type of Project (Curricular / Non-Curricular / Off-Campus)',
-            'project_involvement': 'Project Involvement (Host / Collaboration / Participant)',
-            'project_location': 'Project Location',
+            'proposal_date':       'Date',
+            'recipient_1':         'Vice President for Academic Affairs (Full Name)',
+            'recipient_2':         'Dean, Office of Student Affairs and Services (Full Name)',
+            'opening_statement':   'Opening Statement',
+            'organization':        'Organization',
+            'project_title':       'Project Title',
+            'project_type':        'Type of Project',
+            'project_involvement': 'Project Involvement',
+            'project_location':    'Project Location',
             'proposed_start_date': 'Proposed Start Date & Time',
-            'proposed_end_date': 'Proposed Completion Date',
+            'proposed_end_date':   'Proposed Completion Date',
             'number_participants': 'Number of Participants',
-            'project_summary': 'A. SUMMARY OF THE PROJECT',
-            'project_goal': 'Goal',
-            'project_objectives': 'Objectives (numbered, one per line)',
-            'expected_outputs': 'C. EXPECTED OUTPUTS (bulleted)',
-            'budget_source': 'Source of Fund',
-            'budget_partner': 'Partner/Donation/Subsidy',
-            'budget_total': 'Total Project Cost',
-            'monitoring_details': 'Monitoring (bulleted)',
-            'evaluation_details': 'Evaluation Strategy (bulleted)',
-            'security_plan': 'V. SECURITY PLAN (bulleted)',
-            'closing_statement': 'Closing Statement',
-            'sender_name': 'Sender Name & Title',
-            'noted_by': 'Noted by (comma-separated names with titles)',
-            'endorsed_by': 'Endorsed by (name and title)'
+            'project_summary':     'A. Summary of the Project',
+            'project_goal':        'Goal',
+            'project_objectives':  'Objectives',
+            'expected_outputs':    'C. Expected Outputs',
+            'budget_source':       'Source of Fund',
+            'budget_partner':      'Partner/Donation/Subsidy',
+            'budget_total':        'Total Project Cost',
+            'monitoring_details':  'Monitoring',
+            'evaluation_details':  'Evaluation Strategy',
+            'security_plan':       'V. Security Plan',
+            'closing_statement':   'Closing Statement',
+            'sender_name':         'Submitted by (Name on line 1, Title/Role on line 2)',
+            'adviser_name':        'Noted by - Adviser (Name on line 1, Title on line 2, Org on line 3)',
+            'co_adviser_name':     'Noted by - Co-Adviser (Name on line 1, Title on line 2, Org on line 3)',
+            'additional_signer_1': 'Additional Noted by #1 (Name, Title, Org — one per line, optional)',
+            'additional_signer_2': 'Additional Noted by #2 (Name, Title, Org — one per line, optional)',
+            'endorsed_by':         'Endorsed by (Name on line 1, Title on line 2)'
         }
     }
 };
@@ -102,7 +152,6 @@ const templates = {
 // ─── DOM refs ────────────────────────────────────────────────────────────────
 const uploadModal    = document.getElementById('uploadModal');
 const openUploadBtn  = document.getElementById('openUploadModal');
-const closeUploadBtn = document.getElementById('closeUploadModal');
 const uploadForm     = document.getElementById('uploadForm');
 const templateForm   = document.getElementById('templateForm');
 const submitBtn      = document.getElementById('submitBtn');
@@ -131,8 +180,6 @@ function closeUploadModal() {
     submitBtn.textContent = 'Upload Document';
 }
 
-closeUploadBtn.onclick = closeUploadModal;
-document.getElementById('cancelBtn').onclick = closeUploadModal;
 window.addEventListener('click', e => { if (e.target === uploadModal) closeUploadModal(); });
 
 // ─── Tab switching ───────────────────────────────────────────────────────────
@@ -174,8 +221,16 @@ const textareaFields = new Set([
     'witnesses','action_taken','recommendations','opening_statement',
     'project_summary','project_goal','project_objectives','expected_outputs',
     'monitoring_details','evaluation_details','security_plan','closing_statement',
-    'attendees','skills','availability'
+    'attendees','skills','availability',
+    'sender_name','adviser_name','co_adviser_name',
+    'additional_signer_1','additional_signer_2','endorsed_by'
 ]);
+
+// Checkbox groups for project_proposal
+const checkboxFields = {
+    'project_type': ['Curricular', 'Non-Curricular', 'Off-Campus'],
+    'project_involvement': ['Host', 'Collaboration', 'Participant']
+};
 
 function loadTemplateFields() {
     const templateSelect = document.getElementById('templateSelect');
@@ -192,23 +247,103 @@ function loadTemplateFields() {
 
     const tmpl = templates[templateId];
     let html = '';
+
     Object.entries(tmpl.fields).forEach(([fieldId, fieldLabel]) => {
-        const isTA  = textareaFields.has(fieldId);
-        const ftype = fieldId.includes('date') ? 'date'
-                    : fieldId.includes('time') ? 'time'
-                    : (fieldId.includes('budget') || fieldId.includes('attendance') || fieldId === 'number_participants') ? 'number'
-                    : 'text';
-        html += `
-        <div class="form-group">
-            <label for="${fieldId}">${fieldLabel}</label>
-            ${isTA
-                ? `<textarea id="${fieldId}" name="${fieldId}" rows="3" placeholder="Enter ${fieldLabel.toLowerCase()}" required></textarea>`
-                : `<input type="${ftype}" id="${fieldId}" name="${fieldId}" placeholder="Enter ${fieldLabel.toLowerCase()}" required>`
-            }
+        // ── Checkbox fields ──
+        if (checkboxFields[fieldId]) {
+            const options = checkboxFields[fieldId];
+            html += `<div class="form-group">
+                <label>${fieldLabel} <span>*</span></label>
+                <div class="checkbox-group" id="chk_group_${fieldId}">`;
+            options.forEach(opt => {
+                const optId = `chk_${fieldId}_${opt.replace(/[^a-z0-9]/gi,'_')}`;
+                html += `<label class="checkbox-option" for="${optId}">
+                    <input type="checkbox" id="${optId}" name="${fieldId}_chk" value="${opt}" onchange="syncCheckboxHidden('${fieldId}')">
+                    <span>${opt}</span>
+                </label>`;
+            });
+            html += `</div>
+                <input type="hidden" id="${fieldId}" name="${fieldId}" required>
+            </div>`;
+            return;
+        }
+
+        // ── Date/time fields ──
+        if (fieldId === 'proposed_start_date') {
+            html += `<div class="form-group">
+                <label for="${fieldId}_date">${fieldLabel} <span>*</span></label>
+                <div style="display:flex;gap:8px;">
+                    <input type="date" id="${fieldId}_date" style="flex:1;" placeholder="Date" required>
+                    <input type="time" id="${fieldId}_time" style="flex:1;" placeholder="Time" required>
+                </div>
+                <input type="hidden" id="${fieldId}" name="${fieldId}" required>
+            </div>`;
+            return;
+        }
+
+        if (fieldId === 'proposed_end_date' || fieldId === 'meeting_date' || fieldId === 'event_date'
+            || fieldId === 'date_joined' || fieldId === 'next_meeting' || fieldId.endsWith('_date')) {
+            html += `<div class="form-group">
+                <label for="${fieldId}">${fieldLabel} <span>*</span></label>
+                <input type="date" id="${fieldId}" name="${fieldId}" required>
+            </div>`;
+            return;
+        }
+
+        // ── Number of Participants → textbox ──
+        if (fieldId === 'number_participants') {
+            html += `<div class="form-group">
+                <label for="${fieldId}">${fieldLabel} <span>*</span></label>
+                <input type="text" id="${fieldId}" name="${fieldId}" placeholder="e.g. 50 students, all members" required>
+            </div>`;
+            return;
+        }
+
+        // ── Textarea fields ──
+        const isTA = textareaFields.has(fieldId);
+        if (isTA) {
+            html += `<div class="form-group">
+                <label for="${fieldId}">${fieldLabel} <span>*</span></label>
+                <textarea id="${fieldId}" name="${fieldId}" rows="3" placeholder="Enter ${fieldLabel.toLowerCase()}" required></textarea>
+            </div>`;
+            return;
+        }
+
+        // ── Standard text input ──
+        html += `<div class="form-group">
+            <label for="${fieldId}">${fieldLabel} <span>*</span></label>
+            <input type="text" id="${fieldId}" name="${fieldId}" placeholder="Enter ${fieldLabel.toLowerCase()}" required>
         </div>`;
     });
+
     container.innerHTML = html;
     mc.classList.add('template-expanded');
+
+    // Attach date+time sync for proposed_start_date
+    const sdDate = document.getElementById('proposed_start_date_date');
+    const sdTime = document.getElementById('proposed_start_date_time');
+    const sdHid  = document.getElementById('proposed_start_date');
+    if (sdDate && sdTime && sdHid) {
+        const syncSD = () => {
+            if (sdDate.value && sdTime.value) {
+                // Format: "Month DD, YYYY at HH:MM AM/PM"
+                const d = new Date(sdDate.value + 'T' + sdTime.value);
+                const opts = { year:'numeric', month:'long', day:'2-digit' };
+                const datePart = d.toLocaleDateString('en-US', opts);
+                const timePart = d.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
+                sdHid.value = datePart + ' at ' + timePart;
+            } else if (sdDate.value) {
+                const d = new Date(sdDate.value);
+                sdHid.value = d.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'2-digit' });
+            } else {
+                sdHid.value = '';
+            }
+            validateTemplateForm();
+        };
+        sdDate.addEventListener('change', syncSD);
+        sdTime.addEventListener('change', syncSD);
+    }
+
     container.querySelectorAll('input, textarea').forEach(f => {
         f.addEventListener('input', validateTemplateForm);
         f.addEventListener('change', validateTemplateForm);
@@ -216,22 +351,32 @@ function loadTemplateFields() {
     validateTemplateForm();
 }
 
+// Sync checkbox selections into hidden input
+function syncCheckboxHidden(fieldId) {
+    const checked = Array.from(
+        document.querySelectorAll(`[name="${fieldId}_chk"]:checked`)
+    ).map(c => c.value);
+    const hidden = document.getElementById(fieldId);
+    if (hidden) {
+        hidden.value = checked.join(', ');
+        validateTemplateForm();
+    }
+}
+
 function validateTemplateForm() {
     const sel     = document.getElementById('templateSelect');
     const title   = document.getElementById('templateTitle');
     const orgName = document.getElementById('organizationName');
-    const orgTag  = document.getElementById('organizationTagline');
-    if (!sel.value || !title.value.trim() || !orgName.value.trim() || !orgTag.value.trim()) {
+    if (!sel || !sel.value || !title || !title.value.trim() || !orgName || !orgName.value.trim()) {
         submitBtn.disabled = true; return;
     }
-    const allFields = templateForm.querySelectorAll('.template-fields-container input, .template-fields-container textarea');
-    submitBtn.disabled = [...allFields].some(f => !f.value.trim());
+    const allRequired = templateForm.querySelectorAll('.template-fields-container input[required], .template-fields-container textarea[required]');
+    submitBtn.disabled = [...allRequired].some(f => !f.value.trim());
 }
 
 document.getElementById('templateSelect')?.addEventListener('change', validateTemplateForm);
 document.getElementById('templateTitle')?.addEventListener('input', validateTemplateForm);
 document.getElementById('organizationName')?.addEventListener('input', validateTemplateForm);
-document.getElementById('organizationTagline')?.addEventListener('input', validateTemplateForm);
 
 // ─── Regular upload submit ───────────────────────────────────────────────────
 uploadForm.onsubmit = function (e) {
@@ -239,7 +384,6 @@ uploadForm.onsubmit = function (e) {
     const formData = new FormData(uploadForm);
     const origText = submitBtn.textContent;
 
-    // Detect extension from chosen file
     const fileInput = document.getElementById('fileUpload');
     const ext = fileInput.files.length
         ? fileInput.files[0].name.split('.').pop().toLowerCase()
@@ -273,7 +417,7 @@ templateForm.onsubmit = function (e) {
     const titleField = document.getElementById('templateTitle');
     const customTitle = titleField ? titleField.value.trim() : '';
     const id    = sel.value;
-    
+
     if (!id) { alert('Please select a template'); return; }
     if (!customTitle) { alert('Please enter a document title'); return; }
 
@@ -281,9 +425,19 @@ templateForm.onsubmit = function (e) {
     formData.append('template_id', id);
     formData.append('title', customTitle);
     formData.append('organization_name',    document.getElementById('organizationName').value);
-    formData.append('organization_tagline', document.getElementById('organizationTagline').value);
-    const logo = document.getElementById('collaboratedLogo').value;
+
+    // Auto-set tagline based on org logo selection
+    const orgLogoSel = document.getElementById('orgLogoSelect');
+    let taglineVal = document.getElementById('organizationTagline')?.value?.trim() || '';
+    if (!taglineVal && orgLogoSel && orgLogoSel.value) {
+        const stem = orgLogoSel.value.replace(/\.[^.]+$/, '').toUpperCase();
+        taglineVal = ORG_TAGLINES[stem] || '';
+    }
+    formData.append('organization_tagline', taglineVal || ' ');
+
+    const logo = document.getElementById('collaboratedLogo')?.value || '';
     if (logo) formData.append('collaborated_logo', logo);
+
     Object.keys(templates[id].fields).forEach(fieldId => {
         const el = document.getElementById(fieldId);
         if (el) formData.append(fieldId, el.value);
@@ -299,7 +453,18 @@ templateForm.onsubmit = function (e) {
             if (data.success) {
                 showToast('Document generated and submitted!', true);
                 const outExt = (data.filename || '').split('.').pop().toLowerCase() || 'docx';
-                addTableRow(customTitle, data.submitted_by || 'You', data.submission_id, outExt, true, data.submission_data || null);
+                let subData = data.submission_data || null;
+                if (subData) {
+                    try {
+                        const parsed = JSON.parse(subData);
+                        const collabVal = document.getElementById('collaboratedLogoHidden') && document.getElementById('useColloborated') && document.getElementById('useColloborated').checked
+                            ? document.getElementById('collaboratedLogo').value
+                            : '';
+                        if (collabVal) parsed.collaborated_logo = collabVal;
+                        subData = JSON.stringify(parsed);
+                    } catch(e) {}
+                }
+                addTableRow(customTitle, data.submitted_by || 'You', data.submission_id, outExt, true, subData);
                 closeUploadModal();
                 setTimeout(() => location.reload(), 1200);
             } else {
@@ -337,730 +502,252 @@ function addTableRow(title, submittedBy, submissionId, ext, isTemplate, submissi
                <i class="fas fa-eye"></i> View
            </button>`;
 
-    const docIconHtml = isTemplate
-        ? `<i class="fas fa-file-contract doc-icon" style="color:#6c3483;font-size:1.3rem;flex-shrink:0"></i>`
-        : `<i class="fas ${icon} doc-icon" style="color:${color};font-size:1.3rem;flex-shrink:0"></i>`;
-
-    const badgeHtml = isTemplate
-        ? `<span class="file-type-badge" style="background:#6c3483;">TEMPLATE</span>`
-        : `<span class="file-type-badge" style="background:${color}">${ext.toUpperCase()}</span>`;
-
     const tr = document.createElement('tr');
-    tr.setAttribute('data-is-template', isTemplate ? '1' : '0');
-    if (submissionDataJson) tr.setAttribute('data-submission-data', submissionDataJson);
+    tr.setAttribute('data-title', title.toLowerCase());
+    tr.setAttribute('data-status', 'pending');
+    tr.setAttribute('data-date', new Date().toISOString().split('T')[0]);
+    if (isTemplate && safeData) tr.setAttribute('data-submission-data', safeData);
     tr.innerHTML = `
         <td>
             <div class="doc-name-cell">
-                ${docIconHtml}
-                <div class="doc-meta-text">
-                    <strong>${escHtml(title)}</strong>
-                    <small>${badgeHtml}</small>
-                </div>
+                <i class="fas ${icon}" style="color:${color};margin-right:8px;"></i>
+                <span class="doc-title">${escHtml(title)}</span>
             </div>
         </td>
         <td>${today}</td>
         <td>${escHtml(submittedBy)}</td>
-        <td><span class="status-badge pending">Pending</span></td>
-        <td>Awaiting review</td>
-        <td><div class="action-btns">${viewBtn}</div></td>`;
+        <td><span class="status-badge status-pending">Pending</span></td>
+        <td>
+            <div class="doc-actions">
+                ${viewBtn}
+            </div>
+        </td>`;
     tbody.insertBefore(tr, tbody.firstChild);
 }
 
-function escHtml(str) {
-    return String(str)
-        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-        .replace(/>/g,'&gt;').replace(/"/g,'&quot;')
-        .replace(/'/g,'&#39;');
+function escHtml(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-// ─── Toast ───────────────────────────────────────────────────────────────────
-function showToast(msg, success) {
-    const old = document.getElementById('dt-toast');
-    if (old) old.remove();
-    const t = document.createElement('div');
-    t.id = 'dt-toast';
-    t.style.cssText = `
-        position:fixed;top:1.5rem;right:1.5rem;z-index:99999;
-        padding:.85rem 1.4rem;border-radius:12px;font-size:.93rem;font-weight:600;
-        box-shadow:0 4px 20px rgba(0,0,0,.2);color:#fff;max-width:360px;
-        display:flex;align-items:center;gap:.6rem;
-        background:${success ? '#27ae60' : '#e74c3c'};`;
-    t.innerHTML = `<i class="fas ${success ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i><span>${msg}</span>`;
-    document.body.appendChild(t);
-    setTimeout(() => t.remove(), 4000);
+function showToast(message, success) {
+    const existing = document.querySelector('.upload-toast');
+    if (existing) existing.remove();
+    const toast = document.createElement('div');
+    toast.className = 'upload-toast';
+    toast.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:99999;padding:12px 20px;border-radius:10px;font-size:.9rem;font-weight:600;color:#fff;background:${success?'#2d6a4f':'#e74c3c'};box-shadow:0 4px 20px rgba(0,0,0,.2);transition:opacity .3s;`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => { toast.style.opacity='0'; setTimeout(() => toast.remove(), 300); }, 3500);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// PREVIEW MODAL  (inject once at runtime so no changes to .php needed)
-// ═══════════════════════════════════════════════════════════════════════════
-(function buildPreviewModal() {
-    const style = document.createElement('style');
-    style.textContent = `
-    #previewModal {
-        display:none;position:fixed;inset:0;z-index:5000;
-        background:rgba(0,0,0,.65);align-items:center;justify-content:center;padding:1rem;
-    }
-    #previewModal.pm-open { display:flex; }
-    #pm-box {
-        background:#fff;border-radius:20px;overflow:hidden;
-        width:92vw;max-width:1100px;height:88vh;
-        display:flex;flex-direction:column;
-        box-shadow:0 24px 60px rgba(0,0,0,.4);
-    }
-    #pm-header {
-        background:#1a3c2f;color:#fff;
-        padding:.75rem 1.25rem;
-        display:flex;align-items:center;gap:.7rem;flex-shrink:0;
-    }
-    #pm-title {
-        flex:1;font-size:1rem;font-weight:600;
-        white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-    }
-    .pm-hbtn {
-        display:inline-flex;align-items:center;gap:.35rem;
-        padding:.4rem 1rem;border-radius:20px;font-size:.82rem;font-weight:600;
-        border:none;cursor:pointer;text-decoration:none;transition:filter .15s;
-    }
-    .pm-hbtn:hover { filter:brightness(1.15); }
-    #pm-dl-btn   { background:#27ae60;color:#fff; }
-    #pm-close-btn{ background:rgba(255,255,255,.18);color:#fff; }
-    #pm-body {
-        flex:1;overflow:hidden;position:relative;background:#e8e8e8;
-    }
-    #pm-body iframe {
-        position:absolute;inset:0;width:100%;height:100%;border:none;
-    }
-    #pm-docx-wrap {
-        position:absolute;inset:0;overflow:auto;padding:20px 0;background:#e8e8e8;
-    }
-    #pm-docx-wrap .docx-wrapper {
-        margin:0 auto;
-    }
-    /* Page sheet */
-    #pm-docx-wrap .docx-wrapper > section {
-        background:white;
-        box-shadow:0 2px 16px rgba(0,0,0,.18);
-        margin:0 auto 24px auto;
-        box-sizing:border-box;
-        position:relative;
-        display:flex;
-        flex-direction:column;
-    }
-    /* Header — fixed at top, full width */
-    #pm-docx-wrap header {
-        display:block !important;
-        position:relative !important;
-        width:100% !important;
-        overflow:visible !important;
-        flex-shrink:0;
-        margin:0 !important;
-        padding:0 !important;
-    }
-    /* Header table must span full width with equal columns */
-    #pm-docx-wrap header table {
-        width:100% !important;
-        table-layout:fixed !important;
-        border-collapse:collapse !important;
-    }
-    #pm-docx-wrap header td {
-        vertical-align:middle !important;
-        text-align:center !important;
-        padding:4px !important;
-        overflow:visible !important;
-    }
-    /* Images inside header — contained, not absolute */
-    #pm-docx-wrap header img {
-        position:relative !important;
-        display:block !important;
-        margin:0 auto !important;
-        max-width:100% !important;
-        max-height:120px !important;
-        width:auto !important;
-        height:auto !important;
-        visibility:visible !important;
-    }
-    /* Footer — fixed at bottom */
-    #pm-docx-wrap footer {
-        display:block !important;
-        position:relative !important;
-        width:100% !important;
-        overflow:visible !important;
-        flex-shrink:0;
-        margin-top:auto !important;
-        padding:0 !important;
-        border-top:1px solid #ccc;
-    }
-    #pm-docx-wrap footer table {
-        width:100% !important;
-        table-layout:fixed !important;
-        border-collapse:collapse !important;
-    }
-    #pm-docx-wrap footer td {
-        vertical-align:middle !important;
-        text-align:center !important;
-        padding:4px !important;
-    }
-    #pm-docx-wrap footer img {
-        position:relative !important;
-        display:block !important;
-        margin:0 auto !important;
-        max-width:100% !important;
-        max-height:60px !important;
-        width:auto !important;
-        height:auto !important;
-        visibility:visible !important;
-    }
-    /* Body content area */
-    #pm-docx-wrap article, #pm-docx-wrap main,
-    #pm-docx-wrap .docx-wrapper > section > div:not(header):not(footer) {
-        flex:1;
-    }
-    /* All images visible by default */
-    #pm-docx-wrap img {
-        visibility:visible !important;
-    }
-    /* Absolutely positioned images — reset to relative */
-    #pm-docx-wrap header img[style*="position:absolute"],
-    #pm-docx-wrap header img[style*="position: absolute"] {
-        position:relative !important;
-        left:auto !important;
-        top:auto !important;
-        transform:none !important;
-    }
-    /* Tables in body */
-    #pm-docx-wrap table {
-        border-collapse:collapse;
-    }
-    #pm-docx-wrap td, #pm-docx-wrap th {
-        vertical-align:top;
-        word-break:break-word;
-    }
-    #pm-xlsx-wrap {
-        position:absolute;inset:0;overflow:auto;background:#fff;padding:1rem;
-    }
-    #pm-xlsx-wrap table  { border-collapse:collapse;font-size:.82rem;min-width:100%; }
-    #pm-xlsx-wrap th,
-    #pm-xlsx-wrap td     { border:1px solid #ccc;padding:.3rem .6rem;white-space:nowrap; }
-    #pm-xlsx-wrap th     { background:#2d6a4f;color:#fff;position:sticky;top:0; }
-    #pm-xlsx-wrap tr:nth-child(even) td { background:#f9fbf9; }
-    #pm-loading {
-        position:absolute;inset:0;background:rgba(255,255,255,.88);
-        display:flex;flex-direction:column;align-items:center;justify-content:center;
-        gap:.8rem;font-size:.95rem;color:#555;z-index:9;
-    }
-    #pm-loading.pm-hidden { display:none; }
-    .pm-spin {
-        width:38px;height:38px;border:4px solid #dde;
-        border-top-color:#2d6a4f;border-radius:50%;
-        animation:pmSpin .7s linear infinite;
-    }
-    @keyframes pmSpin { to { transform:rotate(360deg); } }
-    #pm-err {
-        display:none;position:absolute;inset:0;
-        align-items:center;justify-content:center;
-        flex-direction:column;gap:.6rem;padding:2rem;
-        text-align:center;color:#c0392b;font-weight:600;background:#fff;
-    }
-    #pm-err.pm-show { display:flex; }
-    #pm-err i { font-size:2.5rem; }
-    `;
-    document.head.appendChild(style);
+/* ════════════════════════════════════════════════════════════════════════
+   PERSISTENT AUTOSAVE — survives page reload, browser close, and
+   successful submissions. Next upload session pre-fills from last entry.
+   ════════════════════════════════════════════════════════════════════════ */
+(function () {
+    const DRAFT_KEY    = 'upload_modal_draft_v2';
+    const HISTORY_KEY  = 'upload_modal_last_session';
 
-    const modal = document.createElement('div');
-    modal.id = 'previewModal';
-    modal.innerHTML = `
-    <div id="pm-box">
-        <div id="pm-header">
-            <span id="pm-title">Document</span>
-            <button id="pm-close-btn" class="pm-hbtn"><i class="fas fa-times"></i> Close</button>
-        </div>
-        <div id="pm-body">
-            <div id="pm-loading">
-                <div class="pm-spin"></div>
-                <span id="pm-load-txt">Loading…</span>
-            </div>
-            <div id="pm-err"><i class="fas fa-exclamation-triangle"></i><span id="pm-err-txt"></span></div>
-        </div>
-    </div>`;
-    document.body.appendChild(modal);
+    // ── Fields to track ─────────────────────────────────────────────────
+    const REGULAR_FIELDS   = ['docTitle','docDescription','relatedEvent'];
+    const TEMPLATE_FIELDS  = ['templateTitle','templateSelect','organizationName','organizationTagline','collaboratedLogo'];
 
-    document.getElementById('pm-close-btn').onclick = closePreviewModal;
-    modal.addEventListener('click', e => { if (e.target === modal) closePreviewModal(); });
-}());
-
-let _docxReady = false, _xlsxReady = false;
-
-function closePreviewModal() {
-    document.getElementById('previewModal').classList.remove('pm-open');
-    // Tear down dynamic content
-    ['pm-docx-wrap','pm-xlsx-wrap'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.remove();
-    });
-    const iframe = document.querySelector('#pm-body iframe');
-    if (iframe) iframe.remove();
-    // Reset states
-    document.getElementById('pm-loading').classList.remove('pm-hidden');
-    document.getElementById('pm-err').classList.remove('pm-show');
-}
-
-window.openPreviewModal = function (submissionId, ext, title) {
-    const modal   = document.getElementById('previewModal');
-    const body    = document.getElementById('pm-body');
-    const loading = document.getElementById('pm-loading');
-    const loadTxt = document.getElementById('pm-load-txt');
-    const err     = document.getElementById('pm-err');
-
-    // Reset
-    ['pm-docx-wrap','pm-xlsx-wrap'].forEach(id => { const el=document.getElementById(id); if(el) el.remove(); });
-    const oldIframe = body.querySelector('iframe');
-    if (oldIframe) oldIframe.remove();
-    loading.classList.remove('pm-hidden');
-    err.classList.remove('pm-show');
-
-    document.getElementById('pm-title').textContent = title || 'Document';
-    modal.classList.add('pm-open');
-
-    // Build URL relative to current page location
-    const base = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
-    const url  = base + 'file_preview.php?submission_id=' + submissionId;
-
-    // ── PDF / image ──────────────────────────────────────────────────────────
-    if (ext === 'pdf' || ['jpg','jpeg','png','gif','txt'].includes(ext)) {
-        loadTxt.textContent = 'Loading document…';
-        const iframe = document.createElement('iframe');
-        iframe.src = url;
-        iframe.onload = () => loading.classList.add('pm-hidden');
-        iframe.onerror = () => showPmErr('Failed to load document.');
-        body.appendChild(iframe);
-        return;
+    // ── Collect current form state ───────────────────────────────────────
+    function collectState() {
+        const state = {
+            activeTab: getActiveTab(),
+            regular:   {},
+            template:  {},
+            dynamic:   {},
+            ts:        Date.now()
+        };
+        REGULAR_FIELDS.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) state.regular[id] = el.value;
+        });
+        TEMPLATE_FIELDS.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) state.template[id] = el.value;
+        });
+        // Checkbox states
+        document.querySelectorAll('#templateFieldsContainer input[type="checkbox"]').forEach(cb => {
+            state.dynamic['chk_' + cb.id] = cb.checked;
+        });
+        // Dynamic template fields
+        document.querySelectorAll('#templateFieldsContainer input:not([type="checkbox"]), #templateFieldsContainer textarea, #templateFieldsContainer select').forEach(el => {
+            if (el.id) state.dynamic[el.id] = el.value;
+        });
+        // Collaborated checkbox
+        const collabCb = document.getElementById('useColloborated');
+        if (collabCb) state.template.useColloborated = collabCb.checked;
+        return state;
     }
 
-    // ── DOCX ─────────────────────────────────────────────────────────────────
-    if (ext === 'docx') {
-        loadTxt.textContent = 'Loading document…';
-        const wrap = document.createElement('div');
-        wrap.id = 'pm-docx-wrap';
-        body.appendChild(wrap);
-
-        const base = '/org-dashboard/php/get_docx.php?id=' + submissionId;
-
-        // Fetch raw binary
-        fetch(base + '&mode=binary', { credentials: 'include' })
-        .then(function(r) {
-            if (!r.ok) throw new Error('HTTP ' + r.status);
-            return r.arrayBuffer();
-        })
-        .then(function(buf) {
-            if (buf.byteLength < 100) throw new Error('Empty file');
-
-            // Ensure JSZip + docx-preview loaded before patching
-            return new Promise(function(resolve, reject) {
-                function loadDocxPreview() {
-                    if (typeof docx !== 'undefined') { resolve(buf); return; }
-                    loadScript('https://cdn.jsdelivr.net/npm/docx-preview@0.3.2/dist/docx-preview.min.js',
-                        function() { resolve(buf); }, reject);
-                }
-                if (typeof JSZip !== 'undefined') { loadDocxPreview(); return; }
-                loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
-                    loadDocxPreview, reject);
-            });
-        })
-        .then(function(buf) {
-            // docx-preview skips wp:anchor (floating) drawings entirely.
-            // Fix: detect thin divider images (w/h >= 5) and strip them,
-            // then convert all remaining anchors to inline so logos render.
-            return JSZip.loadAsync(buf).then(function(zip) {
-                // Step 1: find thin horizontal images in word/media
-                var mediaChecks = [];
-                zip.forEach(function(path, file) {
-                    if (/^word\/media\//i.test(path) && !file.dir) {
-                        mediaChecks.push(file.async('uint8array').then(function(bytes) {
-                            var name = path.replace(/^word\/media\//i, '');
-                            var w = 0, h = 0;
-                            if (/\.png$/i.test(path) && bytes.length > 24) {
-                                w = (bytes[16]<<24)|(bytes[17]<<16)|(bytes[18]<<8)|bytes[19];
-                                h = (bytes[20]<<24)|(bytes[21]<<16)|(bytes[22]<<8)|bytes[23];
-                            } else if (/\.jpe?g$/i.test(path)) {
-                                for (var i = 2; i < bytes.length - 8; i++) {
-                                    if (bytes[i]===0xFF && (bytes[i+1]===0xC0||bytes[i+1]===0xC2)) {
-                                        h=(bytes[i+5]<<8)|bytes[i+6]; w=(bytes[i+7]<<8)|bytes[i+8]; break;
-                                    }
-                                }
-                            }
-                            return (h > 0 && w / h >= 5) ? name : null;
-                        }));
-                    }
-                });
-                return Promise.all(mediaChecks).then(function(results) {
-                    var dividerFiles = new Set(results.filter(Boolean));
-                    // Step 2: map rIds to divider filenames via rels files
-                    var relChecks = [];
-                    zip.forEach(function(path, file) {
-                        if (/\.xml\.rels$/i.test(path) && !file.dir) {
-                            relChecks.push(file.async('string').then(function(xml) {
-                                var rids = new Set();
-                                var re = /Id="([^"]+)"[^>]+Target="media\/([^"]+)"/g, m;
-                                while ((m = re.exec(xml)) !== null) {
-                                    if (dividerFiles.has(m[2])) rids.add(m[1]);
-                                }
-                                return { xmlPath: path.replace('_rels/','').replace(/\.rels$/, ''), rids: rids };
-                            }));
-                        }
-                    });
-                    return Promise.all(relChecks);
-                }).then(function(rels) {
-                    var dividerMap = {};
-                    rels.forEach(function(r) { if (r.rids.size > 0) dividerMap[r.xmlPath] = r.rids; });
-                    // Step 3: patch every XML file
-                    var xmlFiles = [];
-                    zip.forEach(function(path, file) { if (/\.xml$/i.test(path) && !file.dir) xmlFiles.push(path); });
-                    return Promise.all(xmlFiles.map(function(path) {
-                        return zip.files[path].async('string').then(function(xml) {
-                            // Remove drawing blocks for divider rIds
-                            var rids = dividerMap[path];
-                            if (rids) {
-                                rids.forEach(function(rid) {
-                                    var e = rid.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                                    xml = xml.replace(new RegExp('<w:drawing>\\s*<wp:anchor\\b[\\s\\S]*?r:embed="'+e+'"[\\s\\S]*?<\/wp:anchor>\\s*<\/w:drawing>','g'), '');
-                                });
-                            }
-                            // Convert remaining anchors to inline
-                            xml = xml
-                                .replace(/<wp:anchor\b[^>]*>/g, '<wp:inline distT="0" distB="0" distL="0" distR="0">')
-                                .replace(/<\/wp:anchor>/g, '</wp:inline>')
-                                .replace(/<wp:wrapNone\s*\/>/g, '')
-                                .replace(/<wp:positionH\b[\s\S]*?<\/wp:positionH>/g, '')
-                                .replace(/<wp:positionV\b[\s\S]*?<\/wp:positionV>/g, '')
-                                .replace(/<wp:simplePos\b[^>]*\/>/g, '')
-                                .replace(/<wp14:sizeRelH\b[\s\S]*?<\/wp14:sizeRelH>/g, '')
-                                .replace(/<wp14:sizeRelV\b[\s\S]*?<\/wp14:sizeRelV>/g, '');
-                            zip.file(path, xml);
-                        });
-                    })).then(function() { return zip.generateAsync({ type: 'arraybuffer' }); });
-                });
-            });
-        })
-        .then(function(patchedBuf) {
-            return docx.renderAsync(patchedBuf, wrap, null, {
-                className:                   'docx-wrapper',
-                inWrapper:                   true,
-                ignoreWidth:                 false,
-                ignoreHeight:                false,
-                breakPages:                  true,
-                ignoreLastRenderedPageBreak: true,
-                experimental:                true,
-                trimXmlDeclaration:          true,
-                renderHeaders:               true,
-                renderFooters:               true,
-                renderFootnotes:             true,
-                renderEndnotes:              true,
-                useBase64URL:                true,
-            });
-        })
-        .then(function() {
-            wrap.querySelectorAll('img').forEach(function(img) {
-                img.style.visibility = 'visible';
-                img.style.display    = 'inline-block';
-                if (img.style.position === 'absolute') {
-                    img.style.position = 'relative';
-                    img.style.left = 'auto';
-                    img.style.top  = 'auto';
-                }
-            });
-            loading.classList.add('pm-hidden');
-        })
-        .catch(function(e) { showPmErr('Error: ' + e.message); });
-        return;
+    // ── Save draft to localStorage ───────────────────────────────────────
+    function saveDraft() {
+        try {
+            localStorage.setItem(DRAFT_KEY, JSON.stringify(collectState()));
+        } catch(e) {}
+        showIndicator('✓ Autosaved');
     }
 
-    // ── XLSX ─────────────────────────────────────────────────────────────────
-    if (ext === 'xlsx' || ext === 'xls') {
-        loadTxt.textContent = 'Loading spreadsheet…';
-        const wrap = document.createElement('div');
-        wrap.id = 'pm-xlsx-wrap';
-        body.appendChild(wrap);
+    // ── Save completed session to history ───────────────────────────────
+    function saveToHistory() {
+        try {
+            const state = collectState();
+            state.savedAt = new Date().toLocaleString();
+            localStorage.setItem(HISTORY_KEY, JSON.stringify(state));
+            localStorage.removeItem(DRAFT_KEY); // clear in-progress draft
+        } catch(e) {}
+    }
 
-        function renderSheet() {
-            fetch(url)
-                .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
-                .then(buf => {
-                    const wb    = XLSX.read(new Uint8Array(buf), { type:'array' });
-                    const names = wb.SheetNames;
-                    let html = '';
-                    if (names.length > 1) {
-                        html += '<div style="display:flex;gap:.4rem;padding:.5rem;background:#f4f4f4;border-bottom:1px solid #ccc;flex-wrap:wrap">';
-                        names.forEach((n,i) => {
-                            html += `<button onclick="pmTab(${i})" id="pm-stab-${i}"
-                                style="padding:.25rem .75rem;border:1px solid #ccc;border-radius:4px;cursor:pointer;
-                                background:${i===0?'#2d6a4f':'#fff'};color:${i===0?'#fff':'#333'}">${n}</button>`;
-                        });
-                        html += '</div>';
-                    }
-                    html += '<div id="pm-sheet"></div>';
-                    wrap.innerHTML = html;
-                    window._pmWb = wb;
-                    pmTab(0);
-                    loading.classList.add('pm-hidden');
-                })
-                .catch(e => showPmErr('Failed to load spreadsheet: ' + e.message));
+    // ── Restore state into form fields ──────────────────────────────────
+    function applyState(state, label) {
+        if (!state) return;
+
+        // Switch to saved tab
+        if (state.activeTab) {
+            const tabBtn = document.querySelector('[data-tab="' + state.activeTab + '"]');
+            if (tabBtn && !tabBtn.classList.contains('active')) tabBtn.click();
         }
-        if (_xlsxReady) { renderSheet(); return; }
-        loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
-            () => { _xlsxReady = true; renderSheet(); },
-            () => showPmErr('Could not load spreadsheet renderer.')
-        );
-        return;
-    }
 
-    // ── Unsupported ──────────────────────────────────────────────────────────
-    loading.classList.add('pm-hidden');
-    showPmErr(`Preview not available for .${ext.toUpperCase()} files — use the Download button.`);
-};
-
-window.pmTab = function (idx) {
-    const wb = window._pmWb; if (!wb) return;
-    wb.SheetNames.forEach((_,i) => {
-        const t = document.getElementById('pm-stab-'+i);
-        if (t) { t.style.background = i===idx?'#2d6a4f':'#fff'; t.style.color = i===idx?'#fff':'#333'; }
-    });
-    const sheet = document.getElementById('pm-sheet');
-    if (sheet) sheet.innerHTML = XLSX.utils.sheet_to_html(wb.Sheets[wb.SheetNames[idx]], {editable:false});
-};
-
-function showPmErr(msg) {
-    document.getElementById('pm-loading').classList.add('pm-hidden');
-    const e = document.getElementById('pm-err');
-    document.getElementById('pm-err-txt').textContent = msg;
-    e.classList.add('pm-show');
-}
-
-function loadScript(src, onload, onerror) {
-    const s = document.createElement('script');
-    s.src = src; s.onload = onload; s.onerror = onerror;
-    document.head.appendChild(s);
-}
-
-
-// ── Inject real images into docx-preview rendered output ─────────────────────
-function injectDocxImages(submissionId, wrap, callback) {
-    fetch('/org-dashboard/php/get_docx.php?id=' + submissionId + '&mode=images', { credentials: 'include' })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            if (!data.images) return;
-            var images = data.images;
-
-            // Find all img tags rendered by docx-preview
-            var imgs = wrap.querySelectorAll('img');
-            imgs.forEach(function(img) {
-                // docx-preview sets src to blob: or data: URLs
-                // We need to match by order or by filename hint in the src
-                var src = img.getAttribute('src') || '';
-                var matched = false;
-
-                // Try to match by filename in src
-                Object.keys(images).forEach(function(filename) {
-                    if (matched) return;
-                    if (src.indexOf(filename) !== -1) {
-                        var info = images[filename];
-                        img.src = 'data:' + info.mime + ';base64,' + info.base64;
-                        img.style.visibility = 'visible';
-                        img.style.display = 'inline-block';
-                        matched = true;
-                    }
-                });
-
-                // If img is broken/empty, try replacing with images in order
-                if (!matched && (img.naturalWidth === 0 || src === '' || src === 'about:blank')) {
-                    img.style.visibility = 'visible';
-                    img.style.display = 'inline-block';
-                }
+        // Regular fields
+        if (state.regular) {
+            REGULAR_FIELDS.forEach(id => {
+                const el = document.getElementById(id);
+                if (el && state.regular[id] !== undefined) el.value = state.regular[id];
             });
+        }
 
-            // Fix all svg <image> elements (docx-preview uses these for WMF/EMF)
-            var svgImgs = wrap.querySelectorAll('image, svg image');
-            var imageKeys = Object.keys(images);
-            var keyIdx = 0;
-            svgImgs.forEach(function(svgImg) {
-                var href = svgImg.getAttribute('href') || svgImg.getAttribute('xlink:href') || '';
-                var matched = false;
-
-                // Match by filename
-                imageKeys.forEach(function(filename) {
-                    if (matched) return;
-                    if (href.indexOf(filename) !== -1) {
-                        var info = images[filename];
-                        var dataUrl = 'data:' + info.mime + ';base64,' + info.base64;
-                        svgImg.setAttribute('href', dataUrl);
-                        svgImg.setAttribute('xlink:href', dataUrl);
-                        svgImg.style.visibility = 'visible';
-                        matched = true;
-                    }
-                });
-
-                // Inject next available image if no match
-                if (!matched && keyIdx < imageKeys.length) {
-                    var info = images[imageKeys[keyIdx]];
-                    var dataUrl = 'data:' + info.mime + ';base64,' + info.base64;
-                    svgImg.setAttribute('href', dataUrl);
-                    svgImg.setAttribute('xlink:href', dataUrl);
-                    svgImg.style.visibility = 'visible';
-                    keyIdx++;
-                }
-            });
-
-            // Also fix any broken img tags with empty src using available images
-            var brokenImgs = wrap.querySelectorAll('img');
-            var remaining = imageKeys.filter(function(k) {
-                return !Object.values(data.rels || {}).includes(k) || true;
-            });
-            var rIdx = 0;
-            brokenImgs.forEach(function(img) {
-                if (img.naturalWidth === 0 && rIdx < remaining.length) {
-                    var info = images[remaining[rIdx]];
-                    if (info) {
-                        img.src = 'data:' + info.mime + ';base64,' + info.base64;
-                        img.style.visibility = 'visible';
-                        img.style.display = 'inline-block';
-                        rIdx++;
+        // Template fields
+        if (state.template) {
+            TEMPLATE_FIELDS.forEach(id => {
+                const el = document.getElementById(id);
+                if (!el || state.template[id] === undefined) return;
+                el.value = state.template[id];
+                if (id === 'templateSelect' && state.template[id]) {
+                    // Load dynamic fields, then restore their values
+                    if (typeof loadTemplateFields === 'function') {
+                        loadTemplateFields();
+                        setTimeout(() => {
+                            if (state.dynamic) restoreDynamic(state.dynamic);
+                            if (typeof validateTemplateForm === 'function') validateTemplateForm();
+                        }, 200);
                     }
                 }
             });
-        })
-        .then(function() { if (callback) callback(); })
-        .catch(function() { if (callback) callback(); });
-}
-
-// ── Freeze header/footer: render into offscreen canvas then replace ───────────
-function freezeHeaderFooter(submissionId, wrap, callback) {
-    // Collect all header and footer elements
-    var els = [];
-    wrap.querySelectorAll('header').forEach(function(el) { els.push({el:el, type:'header'}); });
-    wrap.querySelectorAll('footer').forEach(function(el) { els.push({el:el, type:'footer'}); });
-
-    if (els.length === 0) { if(callback) callback(); return; }
-
-    // Load html2canvas
-    function doFreeze() {
-        var done = 0;
-        var total = els.length;
-
-        els.forEach(function(item) {
-            var el = item.el;
-
-            // Force every img inside to be visible with correct src
-            el.querySelectorAll('img').forEach(function(img) {
-                img.style.cssText += ';visibility:visible!important;display:inline-block!important;';
-                // If src is blob: try to keep it, if broken set a placeholder
-                if (!img.src || img.naturalWidth === 0) {
-                    img.style.display = 'none';
-                }
-            });
-
-            // Get dimensions
-            var rect = el.getBoundingClientRect();
-            var w = Math.max(el.scrollWidth, rect.width, 200);
-            var h = Math.max(el.scrollHeight, rect.height, 20);
-
-            if (h < 5) {
-                done++;
-                if (done >= total && callback) callback();
-                return;
+            const collabCb = document.getElementById('useColloborated');
+            if (collabCb && state.template.useColloborated !== undefined) {
+                collabCb.checked = state.template.useColloborated;
+                if (typeof toggleColloboratedPicker === 'function') toggleColloboratedPicker(collabCb);
             }
+        }
 
-            html2canvas(el, {
-                scale: 2,
-                useCORS: true,
-                allowTaint: true,
-                backgroundColor: '#ffffff',
-                width: w,
-                height: h,
-                windowWidth: document.documentElement.scrollWidth,
-                windowHeight: document.documentElement.scrollHeight,
-                logging: false,
-                imageTimeout: 5000,
-                onclone: function(clonedDoc, clonedEl) {
-                    // In the clone, make ALL images visible
-                    clonedEl.querySelectorAll('img').forEach(function(im) {
-                        if (im.src && im.src !== 'about:blank') {
-                            im.style.visibility = 'visible';
-                            im.style.display = 'inline-block';
-                            im.style.opacity = '1';
-                        }
-                    });
-                    // Fix absolutely positioned elements
-                    clonedEl.style.position = 'relative';
-                    clonedEl.style.overflow = 'visible';
-                }
-            }).then(function(canvas) {
-                // Only replace if canvas has content
-                if (canvas.width > 0 && canvas.height > 0) {
-                    var img = document.createElement('img');
-                    img.src = canvas.toDataURL('image/png', 1.0);
-                    img.style.cssText = 'width:100%;display:block;margin:0;padding:0;border:none;max-width:100%;';
-                    if (el.parentNode) el.parentNode.replaceChild(img, el);
-                }
-                done++;
-                if (done >= total && callback) callback();
-            }).catch(function(e) {
-                console.warn('html2canvas error:', e);
-                done++;
-                if (done >= total && callback) callback();
-            });
-        });
+        if (state.dynamic) restoreDynamic(state.dynamic);
+
+        showIndicator(label || '✓ Draft restored');
     }
 
-    // Wait for all images in the wrap to fully load first
-    var allImgs = Array.from(wrap.querySelectorAll('img'));
-    var loadPromises = allImgs.map(function(img) {
-        return new Promise(function(res) {
-            if (img.complete && img.naturalWidth > 0) { res(); return; }
-            img.onload  = res;
-            img.onerror = res;
-            setTimeout(res, 3000); // max wait 3s
-        });
-    });
-
-    Promise.all(loadPromises).then(function() {
-        // Extra delay for browser to paint
-        setTimeout(function() {
-            if (typeof html2canvas !== 'undefined') {
-                doFreeze();
+    function restoreDynamic(dynamic) {
+        Object.entries(dynamic).forEach(([key, val]) => {
+            if (key.startsWith('chk_')) {
+                const cb = document.getElementById(key.slice(4));
+                if (cb && cb.type === 'checkbox') {
+                    cb.checked = val;
+                    cb.dispatchEvent(new Event('change'));
+                }
             } else {
-                loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
-                    function() { doFreeze(); },
-                    function() { if(callback) callback(); }
-                );
+                const el = document.getElementById(key);
+                if (el && el.type !== 'checkbox') el.value = val;
             }
-        }, 1000);
+        });
+    }
+
+    // ── Visual indicator ─────────────────────────────────────────────────
+    let _indTimer = null;
+    function showIndicator(text) {
+        const el = document.getElementById('autosave-indicator');
+        if (!el) return;
+        el.textContent = text;
+        el.style.opacity = '1';
+        clearTimeout(_indTimer);
+        _indTimer = setTimeout(() => { el.style.opacity = '0'; }, 2200);
+    }
+
+    // ── Watch for input changes and save ─────────────────────────────────
+    let _saveTimer = null;
+    function scheduleSave() {
+        clearTimeout(_saveTimer);
+        _saveTimer = setTimeout(saveDraft, 800);
+    }
+
+    function attachListeners() {
+        const allIds = [...REGULAR_FIELDS, ...TEMPLATE_FIELDS];
+        allIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', scheduleSave);
+        });
+    }
+
+    // Watch for dynamically added fields inside template container
+    function observeDynamic() {
+        const container = document.getElementById('templateFieldsContainer');
+        if (!container) return;
+        new MutationObserver(() => {
+            container.querySelectorAll('input, textarea, select').forEach(el => {
+                if (el.dataset.autosaveWired) return;
+                el.dataset.autosaveWired = '1';
+                el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', scheduleSave);
+            });
+        }).observe(container, { childList: true, subtree: true });
+    }
+
+    // ── On modal open: load draft → fallback to last session ────────────
+    function onModalOpen() {
+        setTimeout(() => {
+            let raw, label;
+            try { raw = localStorage.getItem(DRAFT_KEY); label = '✓ Draft restored'; } catch(e) {}
+            if (!raw) {
+                try { raw = localStorage.getItem(HISTORY_KEY); label = '✓ Last session restored'; } catch(e) {}
+            }
+            if (!raw) return;
+            try { applyState(JSON.parse(raw), label); } catch(e) {}
+        }, 80);
+    }
+
+    // ── After successful submit: save to history ─────────────────────────
+    function patchShowToast() {
+        const orig = window.showToast;
+        if (typeof orig !== 'function') return;
+        window.showToast = function(msg, success) {
+            if (success) saveToHistory();
+            orig(msg, success);
+        };
+    }
+
+    // ── Save on accidental navigation ───────────────────────────────────
+    window.addEventListener('beforeunload', () => {
+        const modal = document.getElementById('uploadModal');
+        if (modal && modal.style.display === 'flex') saveDraft();
     });
-}
 
-// ─── Search & Filter ─────────────────────────────────────────────────────────
-function filterTable() {
-    // Re-query every time so dynamically added rows are included
-    const rows       = document.querySelectorAll('#documentsTable tbody tr');
-    const searchTerm = searchInput.value.toLowerCase();
-    const statusVal  = statusFilter.value.toLowerCase();
-    const dateVal    = dateFilter.value;
+    // ── Init ─────────────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', () => {
+        attachListeners();
+        observeDynamic();
+        patchShowToast();
 
-    rows.forEach(row => {
-        const cells = row.querySelectorAll('td');
-        // Skip empty-state colspan rows
-        if (!cells.length || (cells.length === 1 && cells[0].hasAttribute('colspan'))) return;
+        const openBtn = document.getElementById('openUploadModal');
+        if (openBtn) openBtn.addEventListener('click', onModalOpen);
 
-        const title  = cells[0] ? cells[0].textContent.toLowerCase() : '';
-        const date   = cells[1] ? cells[1].textContent.trim() : '';
-        const status = cells[3] ? cells[3].textContent.trim().toLowerCase() : '';
-
-        const ok = (!searchTerm || title.includes(searchTerm))
-                && (!statusVal  || status.includes(statusVal))
-                && (!dateVal    || date.includes(dateVal));
-
-        row.style.display = ok ? '' : 'none';
+        // Remove old close-button listener if present
+        const closeBtn = document.getElementById('closeUploadModal');
+        if (closeBtn) closeBtn.addEventListener('click', saveDraft);
     });
-}
 
-searchInput.addEventListener('input',  filterTable);
-statusFilter.addEventListener('change', filterTable);
-dateFilter.addEventListener('change',  filterTable);
+    window.clearUploadDraft = function() {
+        try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
+    };
+
+}());

@@ -169,57 +169,52 @@ body {
 .cards-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 1.8rem;
+    gap: 1.2rem;
     margin-bottom: 2.2rem;
 }
 .stat-card {
     background: white;
-    border-radius: 20px;
-    padding: 1.6rem 1.4rem;
-    box-shadow: 0 4px 12px rgba(0, 30, 0, 0.04);
+    border-radius: 14px;
+    padding: 1.25rem 1.2rem;
+    box-shadow: 0 1px 4px rgba(0, 30, 0, 0.05);
     display: flex;
     align-items: center;
-    gap: 1.2rem;
+    gap: 1rem;
     transition: transform 0.2s, box-shadow 0.2s;
-    border: 1px solid #e9f0ec;
-    border-left: 4px solid transparent;
+    border: 1px solid #e4ede8;
+    text-decoration: none;
 }
 .stat-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 12px 24px rgba(0,0,0,0.09);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.07);
 }
 
-/* Per-card accent colors */
-.stat-card.card-members   { border-left-color: #2d6a4f; }
-.stat-card.card-documents { border-left-color: #2d6a4f; }
-.stat-card.card-reports   { border-left-color: #10b981; }
-.stat-card.card-pending   { border-left-color: #f59e0b; }
-
-.stat-card.card-members   .card-icon { background: #e3f2eb; color: #2d6a4f; }
-.stat-card.card-documents .card-icon { background: #e3f2eb; color: #2d6a4f; }
-.stat-card.card-reports   .card-icon { background: #d1fae5; color: #059669; }
-.stat-card.card-pending   .card-icon { background: #fffbeb; color: #d97706; }
+.stat-card.card-members   .card-icon { background: #edf6f1; color: #2d6a4f; }
+.stat-card.card-documents .card-icon { background: #edf6f1; color: #2d6a4f; }
+.stat-card.card-reports   .card-icon { background: #e8faf2; color: #059669; }
+.stat-card.card-pending   .card-icon { background: #fef9ee; color: #d97706; }
 
 .card-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 18px;
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.8rem;
+    font-size: 1.35rem;
     flex-shrink: 0;
 }
 .card-content h3 {
-    font-size: 1.9rem;
+    font-size: 1.75rem;
     font-weight: 700;
     color: #1e3a3a;
     line-height: 1.2;
 }
 .card-content p {
-    color: #5b6e6a;
-    font-weight: 500;
-    font-size: 0.95rem;
+    color: #6b8c7e;
+    font-weight: 400;
+    font-size: 0.875rem;
+    margin-top: 1px;
 }
 
 /* ── Quick Actions Row ── */
@@ -605,10 +600,11 @@ a.stat-card {
     cursor: pointer;
     color: inherit;
     position: relative;
+    text-decoration: none;
 }
 a.stat-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 14px 28px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.08);
 }
 
 /* Arrow hint that appears on hover */
