@@ -16,6 +16,7 @@ if ($conn) {
                s.file_path,
                s.description,
                s.submission_data,
+               s.control_number,
                IF(
                    (s.file_name IS NOT NULL AND s.file_name <> '')
                    OR (s.file_path IS NOT NULL AND s.file_path <> ''),
@@ -103,7 +104,7 @@ if (!$admissionB64) {
 $orgLogoB64 = '';
 if (!empty($_SESSION['user_id'])) {
     $_uid = (int)$_SESSION['user_id'];
-    $_lq  = mysqli_prepare($conn, "SELECT logo_path, description, org_name FROM users WHERE user_id = ? LIMIT 1");
+    $_lq  = mysqli_prepare($conn, "SELECT logo_path, description, org_name, full_name FROM users WHERE user_id = ? LIMIT 1");
     mysqli_stmt_bind_param($_lq, 'i', $_uid);
     mysqli_stmt_execute($_lq);
     $_lr  = mysqli_fetch_assoc(mysqli_stmt_get_result($_lq));
@@ -122,6 +123,7 @@ if (!empty($_SESSION['user_id'])) {
     }
 }
 // Org tagline and name from DB (fixed — based on logged-in user)
+$_lr = $_lr ?? [];
 $orgTaglineFixed = trim($_lr['description'] ?? '');
 $orgNameFixed    = trim($_lr['org_name']    ?? $_SESSION['org_name'] ?? '');
 
@@ -173,6 +175,390 @@ $osasLogoB64 = $_allOrgLogos['OSAS']['b64'] ?? '';
     #previewDocxWrap header table,#previewDocxWrap .docx-wrapper header table { width:100%!important;table-layout:fixed!important;border-collapse:collapse!important; }
     #previewDocxWrap header td,#previewDocxWrap .docx-wrapper header td { vertical-align:middle!important;text-align:center!important;overflow:visible!important;padding:4px!important; }
     #previewDocxWrap header img,#previewDocxWrap .docx-wrapper header img { position:relative!important;display:block!important;margin:0 auto!important;max-width:100%!important;max-height:120px!important;width:auto!important;height:auto!important;left:auto!important;top:auto!important;transform:none!important;visibility:visible!important; }
+
+
+    /* ── Edit / resubmit button ── */
+    .btn-edit {
+        background: #fff7ed !important;
+        color: #c2410c !important;
+        border: 1px solid #fed7aa !important;
+    }
+    .btn-edit:hover {
+        background: #ffedd5 !important;
+        border-color: #fb923c !important;
+    }
+
+    /* ── Edit & Resubmit Modal ── */
+    #editResubmitModal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 10000;
+        background: rgba(0,0,0,.55);
+        align-items: center;
+        justify-content: center;
+    }
+    #editResubmitModal.open { display: flex; }
+    .edit-modal-box {
+        background: #fff;
+        border-radius: 18px;
+        width: 94vw;
+        max-width: 760px;
+        max-height: 92vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        box-shadow: 0 12px 48px rgba(0,0,0,.35);
+        animation: editModalIn .22s ease;
+    }
+    @keyframes editModalIn {
+        from { transform: translateY(24px) scale(.97); opacity: 0; }
+        to   { transform: none; opacity: 1; }
+    }
+    .edit-modal-header {
+        background: linear-gradient(135deg, #b45309 0%, #c2410c 100%);
+        color: #fff;
+        padding: 16px 22px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-shrink: 0;
+    }
+    .edit-modal-header-icon {
+        width: 38px; height: 38px;
+        background: rgba(255,255,255,.18);
+        border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.05rem; flex-shrink: 0;
+    }
+    .edit-modal-header-text { flex: 1; min-width: 0; }
+    .edit-modal-header-text h3 { margin: 0; font-size: 1rem; font-weight: 700; }
+    .edit-modal-header-text p  { margin: 2px 0 0; font-size: .75rem; opacity: .85; }
+    .edit-modal-close {
+        background: rgba(255,255,255,.15);
+        border: none; color: #fff;
+        width: 32px; height: 32px;
+        border-radius: 50%; cursor: pointer;
+        font-size: 1.15rem; display: flex;
+        align-items: center; justify-content: center;
+        flex-shrink: 0; transition: background .15s;
+    }
+    .edit-modal-close:hover { background: rgba(255,255,255,.3); }
+
+    /* Rejection notice strip */
+    .edit-rejection-strip {
+        background: #fff7ed;
+        border-bottom: 1.5px solid #fed7aa;
+        padding: 10px 22px;
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        flex-shrink: 0;
+    }
+    .edit-rejection-strip .rej-icon { color: #ea580c; font-size: 1rem; margin-top: 1px; flex-shrink: 0; }
+    .edit-rejection-strip .rej-body { font-size: .8rem; color: #7c2d12; line-height: 1.5; }
+    .edit-rejection-strip .rej-body strong { display: block; font-size: .82rem; margin-bottom: 2px; color: #c2410c; }
+
+    /* Body */
+    .edit-modal-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px 22px;
+        background: #f9fafb;
+    }
+
+    /* Field card */
+    .edit-field-card {
+        background: #fff;
+        border: 1.5px solid #e5e7eb;
+        border-radius: 10px;
+        margin-bottom: 12px;
+        overflow: hidden;
+        transition: border-color .15s;
+    }
+    .edit-field-card:focus-within { border-color: #2d6a4f; }
+    .edit-field-card.changed { border-color: #fb923c; }
+    .edit-field-label {
+        font-size: .7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        color: #6b7280;
+        padding: 8px 12px 4px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .edit-field-label .changed-pill {
+        display: none;
+        font-size: .65rem;
+        background: #fff7ed;
+        color: #c2410c;
+        border: 1px solid #fed7aa;
+        border-radius: 20px;
+        padding: 1px 7px;
+        font-weight: 600;
+        text-transform: none;
+        letter-spacing: 0;
+    }
+    .edit-field-card.changed .changed-pill { display: inline-block; }
+    .edit-field-input {
+        width: 100%;
+        border: none;
+        outline: none;
+        font-size: .88rem;
+        font-family: inherit;
+        color: #1f2937;
+        padding: 4px 12px 10px;
+        background: transparent;
+        resize: vertical;
+        box-sizing: border-box;
+        line-height: 1.5;
+    }
+    .edit-field-input::placeholder { color: #d1d5db; }
+
+    /* File re-upload zone */
+    .edit-file-zone {
+        border: 2px dashed #d1d5db;
+        border-radius: 10px;
+        padding: 18px;
+        text-align: center;
+        cursor: pointer;
+        transition: border-color .15s, background .15s;
+        margin-bottom: 12px;
+        background: #fff;
+    }
+    .edit-file-zone:hover, .edit-file-zone.drag-over { border-color: #2d6a4f; background: #f0faf4; }
+    .edit-file-zone.has-file { border-color: #2d6a4f; background: #f0faf4; }
+    .edit-file-zone .zone-icon { font-size: 1.4rem; color: #9ca3af; margin-bottom: 6px; }
+    .edit-file-zone.has-file .zone-icon { color: #2d6a4f; }
+    .edit-file-zone .zone-text { font-size: .82rem; color: #6b7280; }
+    .edit-file-zone .zone-file { font-size: .8rem; color: #2d6a4f; font-weight: 600; margin-top: 4px; }
+
+    /* Section heading inside edit modal */
+    .edit-section-heading {
+        font-size: .72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        color: #2d6a4f;
+        margin: 16px 0 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .edit-section-heading::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: #d1fae5;
+    }
+
+    /* Footer */
+    .edit-modal-footer {
+        padding: 14px 22px;
+        background: #fff;
+        border-top: 1px solid #e5e7eb;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-shrink: 0;
+        gap: 10px;
+    }
+    .edit-change-count {
+        font-size: .78rem;
+        color: #6b7280;
+        min-width: 0;
+    }
+    .edit-change-count span { font-weight: 700; color: #c2410c; }
+    .edit-footer-btns { display: flex; gap: 8px; flex-shrink: 0; }
+    .btn-edit-cancel {
+        padding: 8px 18px;
+        border-radius: 8px;
+        border: 1.5px solid #e5e7eb;
+        background: #fff;
+        color: #374151;
+        font-size: .85rem;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: inherit;
+        transition: background .15s;
+    }
+    .btn-edit-cancel:hover { background: #f3f4f6; }
+    .btn-edit-submit {
+        padding: 8px 22px;
+        border-radius: 8px;
+        border: none;
+        background: #2d6a4f;
+        color: #fff;
+        font-size: .85rem;
+        font-weight: 700;
+        cursor: pointer;
+        font-family: inherit;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        transition: background .15s;
+    }
+    .btn-edit-submit:hover { background: #1e3a2f; }
+    .btn-edit-submit:disabled { background: #9ca3af; cursor: not-allowed; }
+    /* ── Inline Project Proposal Wizard ── */
+    #inlinePWizard {
+        display: none;
+        flex-direction: column;
+        gap: 0;
+        margin-top: 4px;
+    }
+    #inlinePWizard.pw-active { display: flex; }
+
+    /* Step strip */
+    #ipw-steps {
+        display: flex;
+        align-items: center;
+        background: #f4faf7;
+        border: 1px solid #d1e7dc;
+        border-radius: 10px;
+        padding: 10px 14px;
+        margin-bottom: 14px;
+        gap: 0;
+        overflow-x: auto;
+        flex-shrink: 0;
+    }
+    .ipw-step { display:flex; align-items:center; gap:.35rem; flex-shrink:0; }
+    .ipw-step-dot {
+        width:24px; height:24px; border-radius:50%;
+        background:#e2ece7; color:#6b9080;
+        font-size:.68rem; font-weight:700;
+        display:flex; align-items:center; justify-content:center;
+        border:2px solid #c8ddd6; transition:all .2s; flex-shrink:0;
+    }
+    .ipw-step.active .ipw-step-dot { background:#2d6a4f; color:#fff; border-color:#2d6a4f; box-shadow:0 0 0 3px rgba(45,106,79,.15); }
+    .ipw-step.done   .ipw-step-dot { background:#16a34a; color:#fff; border-color:#16a34a; }
+    .ipw-step-label { font-size:.68rem; font-weight:600; color:#6b9080; white-space:nowrap; }
+    .ipw-step.active .ipw-step-label { color:#1a3c2f; }
+    .ipw-step.done   .ipw-step-label { color:#16a34a; }
+    .ipw-step-sep { flex:1; min-width:10px; max-width:22px; height:2px; background:#d1e7dc; margin:0 .25rem; }
+    .ipw-step-sep.done { background:#16a34a; }
+
+    /* Step body */
+    #ipw-body { flex:1; }
+    #ipw-body .pw-section-title {
+        font-size:.75rem; font-weight:800; text-transform:uppercase;
+        letter-spacing:.06em; color:#2d6a4f;
+        margin-bottom:.9rem; padding-bottom:.35rem;
+        border-bottom:2px solid #e2ece7;
+    }
+    #ipw-body .form-group { margin-bottom:.9rem; }
+    #ipw-body .form-group label {
+        display:block; font-size:.82rem; font-weight:600;
+        color:#1e3a2e; margin-bottom:.3rem;
+        text-transform:none; letter-spacing:0;
+    }
+    #ipw-body .form-group label span { color:#dc2626; }
+    #ipw-body input[type=text],
+    #ipw-body input[type=date],
+    #ipw-body input[type=time],
+    #ipw-body textarea,
+    #ipw-body select {
+        width:100%; padding:.6rem .85rem;
+        border:1px solid #cbd5e0; border-radius:10px;
+        font-size:.88rem; font-family:inherit;
+        transition:border .2s; box-sizing:border-box; background:#fff;
+    }
+    #ipw-body input:focus,
+    #ipw-body textarea:focus { border-color:#2d6a4f; outline:none; box-shadow:0 0 0 3px rgba(45,106,79,.1); }
+    #ipw-body textarea { resize:vertical; min-height:68px; }
+    #ipw-body .checkbox-group { display:flex; flex-wrap:wrap; gap:.4rem; }
+    #ipw-body .checkbox-option {
+        display:flex; align-items:center; gap:.35rem;
+        padding:.38rem .75rem; border:1px solid #d1e7dc;
+        border-radius:8px; cursor:pointer; font-size:.83rem;
+        font-weight:500; color:#1e3a2e; transition:all .15s;
+    }
+    #ipw-body .checkbox-option:hover { background:#f0faf5; border-color:#2d6a4f; }
+    #ipw-body .checkbox-option input { width:13px; height:13px; accent-color:#2d6a4f; margin:0; }
+    .ipw-row-2 { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; }
+
+    /* Nav bar inside wizard */
+    #ipw-nav {
+        display:flex; align-items:center; justify-content:space-between;
+        margin-top:12px; padding-top:12px;
+        border-top:1px solid #e2ece7;
+    }
+    #ipw-progress-wrap { display:flex; flex-direction:column; gap:4px; flex:1; margin-right:1rem; }
+    #ipw-progress-bar-bg { background:#e2ece7; border-radius:99px; height:6px; width:100%; overflow:hidden; }
+    #ipw-progress-bar-fill { height:100%; background:#2d6a4f; border-radius:99px; transition:width 0.35s cubic-bezier(0.16,1,0.3,1); width:16.67%; }
+    #ipw-progress { font-size:.75rem; color:#6b9080; font-weight:600; }
+    .ipw-nav-btns { display:flex; gap:.5rem; }
+    #ipw-back-btn {
+        background:#fff; border:1px solid #cbd5e0; color:#374151;
+        padding:.48rem 1.1rem; border-radius:40px; font-weight:600;
+        font-size:.83rem; cursor:pointer; font-family:inherit; transition:background .15s;
+    }
+    #ipw-back-btn:hover { background:#f0f4f2; }
+    #ipw-next-btn {
+        background:#2d6a4f; border:none; color:#fff;
+        padding:.48rem 1.3rem; border-radius:40px; font-weight:700;
+        font-size:.83rem; cursor:pointer; font-family:inherit;
+        display:flex; align-items:center; gap:.4rem; transition:background .15s;
+    }
+    #ipw-next-btn:hover { background:#1e4f3a; }
+    #ipw-next-btn:disabled { background:#9ca3af; cursor:not-allowed; }
+    /* ── Project Proposal expanded modal (2× size) ── */
+    /* Smooth resize when wizard opens/closes */
+    .upload-modal-content {
+        transition: max-width 0.3s cubic-bezier(0.16,1,0.3,1),
+                    width 0.3s cubic-bezier(0.16,1,0.3,1),
+                    max-height 0.3s cubic-bezier(0.16,1,0.3,1),
+                    height 0.3s cubic-bezier(0.16,1,0.3,1);
+    }
+    .upload-modal-content.pw-expanded {
+        max-width: 1600px !important;
+        width: 84vw !important;
+        max-height: 84vh !important;
+        height: 84vh !important;
+    }
+    /* Make sidebar narrower so fields get the extra space */
+    .upload-modal-content.pw-expanded .modal-sidebar {
+        width: 180px;
+        padding: 1.4rem 1.1rem 1.2rem;
+        flex-shrink: 0;
+    }
+    .upload-modal-content.pw-expanded .modal-sidebar-title { font-size: 1rem; }
+    .upload-modal-content.pw-expanded .modal-sidebar-sub   { font-size: 0.7rem; }
+    .upload-modal-content.pw-expanded .modal-sidebar-footer { font-size: 0.63rem; }
+    /* Body takes full remaining height and shows more fields */
+    .upload-modal-content.pw-expanded .modal-main-body {
+        max-height: none;
+        flex: 1;
+        padding: 1.2rem 1.8rem;
+    }
+    /* Inside the expanded modal make the inline wizard 2-column on wide screens */
+    .upload-modal-content.pw-expanded #ipw-body .form-group,
+    .upload-modal-content.pw-expanded #templateFieldsContainer .form-group {
+        margin-bottom: 0.85rem;
+    }
+    .upload-modal-content.pw-expanded #ipw-body {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0 1.4rem;
+        align-items: start;
+    }
+    /* Section title spans both columns */
+    .upload-modal-content.pw-expanded #ipw-body .pw-section-title {
+        grid-column: 1 / -1;
+    }
+    /* Textarea and checkbox groups also span both columns */
+    .upload-modal-content.pw-expanded #ipw-body .form-group:has(textarea),
+    .upload-modal-content.pw-expanded #ipw-body .form-group:has(.checkbox-group),
+    .upload-modal-content.pw-expanded #ipw-body .form-group:has(.ipw-row-2) {
+        grid-column: 1 / -1;
+    }
+    /* Step indicator stays single row */
+    .upload-modal-content.pw-expanded #ipw-steps {
+        padding: 8px 12px;
+    }
+    .upload-modal-content.pw-expanded .ipw-step-label { font-size: .7rem; }
     </style>
 </head>
 <body>
@@ -309,7 +695,13 @@ $osasLogoB64 = $_allOrgLogos['OSAS']['b64'] ?? '';
                         data-status="<?= strtolower($doc['status']) ?>"
                         data-date="<?= date('Y-m-d', strtotime($doc['submitted_at'])) ?>"
                         data-is-template="<?= $isTemplate ? '1' : '0' ?>"
-                        data-submission-data="<?= $safeSubData ?>">
+                        data-submission-data="<?= $safeSubData ?>"
+                        data-submission-id="<?= $doc['submission_id'] ?>"
+                        data-submitted-at="<?= strtotime($doc['submitted_at']) ?>"
+                        data-title-raw="<?= htmlspecialchars($doc['title'], ENT_QUOTES) ?>"
+                        data-description-raw="<?= htmlspecialchars($doc['description'] ?? '', ENT_QUOTES) ?>"
+                        data-remarks="<?= htmlspecialchars($doc['admin_remarks'], ENT_QUOTES) ?>"
+                        data-control-number="<?= htmlspecialchars($doc['control_number'] ?? '', ENT_QUOTES) ?>">
 
                         <td class="row-num"><?= $i + 1 ?></td>
 
@@ -351,6 +743,7 @@ $osasLogoB64 = $_allOrgLogos['OSAS']['b64'] ?? '';
                         </td>
 
                         <td class="actions-cell">
+                            <div class="actions-cell-inner">
                             <?php if ($isTemplate): ?>
                             <button class="btn-action btn-view"
                                     title="View document"
@@ -366,6 +759,14 @@ $osasLogoB64 = $_allOrgLogos['OSAS']['b64'] ?? '';
                             <?php else: ?>
                             <span class="no-file"><i class="fas fa-ban"></i> No file</span>
                             <?php endif; ?>
+                            <?php if ($doc['status'] === 'rejected'): ?>
+                            <button class="btn-action btn-edit"
+                                    title="Edit &amp; Resubmit"
+                                    onclick="openEditResubmit(this.closest('tr'))">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <?php endif; ?>
+                            </div>
                         </td>
                     </tr>
                     <?php endforeach; ?>
@@ -472,14 +873,26 @@ $osasLogoB64 = $_allOrgLogos['OSAS']['b64'] ?? '';
                 <!-- Template Upload -->
                 <div id="template-upload" class="tab-content">
                     <form id="templateForm">
-                        <div class="form-group">
-                            <label for="templateTitle">Document Title <span>*</span></label>
-                            <input type="text" id="templateTitle" name="title" placeholder="Enter document title" required>
+
+                        <!-- Step 1: Document Title — must fill first -->
+                        <div class="form-group tpl-step-group" id="titleStepGroup">
+                            <label for="templateTitle">
+                                <span class="tpl-step-badge">1</span>
+                                Document Title <span>*</span>
+                            </label>
+                            <input type="text" id="templateTitle" name="title"
+                                placeholder="Give your document a title before choosing a templateâ¦" required
+                                autocomplete="off">
                         </div>
-                        <div class="form-group">
-                            <label>Select Template <span>*</span></label>
-                            <select id="templateSelect" name="template_id" required onchange="loadTemplateFields()">
-                                <option value="">Choose a Template </option>
+
+                        <!-- Step 2: Template select — locked until title entered -->
+                        <div class="form-group tpl-step-group select-locked" id="templateSelectGroup">
+                            <label>
+                                <span class="tpl-step-badge tpl-step-badge--locked">2</span>
+                                Select Template <span>*</span>
+                            </label>
+                            <select id="templateSelect" name="template_id" required disabled onchange="loadTemplateFields()">
+                                <option value="">Choose a Template</option>
                                 <option value="meeting_minutes">Meeting Minutes</option>
                                 <option value="event_proposal">Event Proposal</option>
                                 <option value="financial_report">Financial Report</option>
@@ -487,6 +900,10 @@ $osasLogoB64 = $_allOrgLogos['OSAS']['b64'] ?? '';
                                 <option value="membership_form">Membership Form</option>
                                 <option value="project_proposal">Project Proposal</option>
                             </select>
+                            <div id="templateSelectHint" class="tpl-lock-hint">
+                                <i class="fas fa-lock"></i>
+                                Enter a document title above to unlock template selection
+                            </div>
                         </div>
                         <div class="form-group">
                             <label style="cursor:default;">
@@ -530,6 +947,24 @@ $osasLogoB64 = $_allOrgLogos['OSAS']['b64'] ?? '';
                             <input type="hidden" id="organizationTagline" name="organization_tagline" value="<?= htmlspecialchars($orgTaglineFixed) ?>">
                         </div>
                         <div id="templateFieldsContainer" class="template-fields-container"></div>
+
+                        <!-- ── Inline Project Proposal Wizard ── -->
+                        <div id="inlinePWizard">
+                            <div id="ipw-steps"></div>
+                            <div id="ipw-body"></div>
+                            <div id="ipw-nav">
+                                <div id="ipw-progress-wrap">
+                                    <span id="ipw-progress">Step 1 of 6</span>
+                                    <div id="ipw-progress-bar-bg">
+                                        <div id="ipw-progress-bar-fill"></div>
+                                    </div>
+                                </div>
+                                <div class="ipw-nav-btns">
+                                    <button type="button" id="ipw-back-btn" onclick="ipwBack()"><i class="fas fa-arrow-left"></i> Back</button>
+                                    <button type="button" id="ipw-next-btn" onclick="ipwNext()">Next <i class="fas fa-arrow-right"></i></button>
+                                </div>
+                            </div>
+                        </div>
                     </form>
                 </div>
 
@@ -538,7 +973,7 @@ $osasLogoB64 = $_allOrgLogos['OSAS']['b64'] ?? '';
             <div class="modal-main-footer" style="position:relative;">
                 <div id="autosave-indicator" style="font-size:0.75rem;color:#52b788;margin-bottom:0.4rem;opacity:0;transition:opacity 0.4s;min-height:1rem;"></div>
                 <div class="form-actions" id="formActions">
-                    <button type="submit" class="btn-submit" id="submitBtn"><i class="fas fa-paper-plane"></i> Generate &amp; Submit</button>
+                    <button type="submit" class="btn-submit" id="submitBtn"><i class="fas fa-paper-plane"></i> Upload Document</button>
                 </div>
             </div>
         </div><!-- /.modal-main -->
@@ -587,6 +1022,8 @@ $osasLogoB64 = $_allOrgLogos['OSAS']['b64'] ?? '';
 </div>
 
 <script>
+/* ── Logged-in user name for autofill ─────────────────────────────────────── */
+const CURRENT_USER_NAME = <?= json_encode(trim($_lr['full_name'] ?? $_SESSION['full_name'] ?? '')) ?>;
 /* ── Template Preview ─────────────────────────────────────────────────────── */
 const TPL_LABELS = { meeting_minutes:'Meeting Minutes', event_proposal:'Event Proposal', financial_report:'Financial Report', incident_report:'Incident Report', membership_form:'Membership Form', project_proposal:'Project Proposal' };
 const TPL_TEXTAREA_KEYS = new Set(['agenda','discussion','action_items','description','requirements','expense_breakdown','remarks','incident_description','individuals_involved','witnesses','action_taken','recommendations','opening_statement','project_summary','project_goal','project_objectives','expected_outputs','monitoring_details','evaluation_details','security_plan','closing_statement','attendees','skills','availability']);
@@ -609,19 +1046,39 @@ function renderValue(key, val) {
     if (TPL_TEXTAREA_KEYS.has(key) && lines.length > 1) return lines.map(l => '<div style="margin-bottom:3px">'+esc(l)+'</div>').join('');
     return esc(val);
 }
-function buildGenericBody(data) {
+function buildGenericBody(data, ctrlNum) {
     const labels = data.field_labels || {}, fields = data.fields || {};
     let html = '';
+
+    // Control number — shown above all fields, right-aligned
+    if (ctrlNum) {
+        html += `<div style="text-align:right;margin-bottom:12px;">
+            <span style="display:inline-block;background:#f0faf4;border:1.5px solid #2d6a4f;border-radius:6px;padding:3px 12px;font-size:.78rem;font-weight:700;color:#1a4731;letter-spacing:.04em;">
+                <span style="color:#5a9070;font-weight:600;font-size:.72rem;margin-right:4px;">Control No.:</span>${esc(ctrlNum)}
+            </span>
+        </div>`;
+    }
+
     Object.entries(labels).forEach(([key, label]) => {
         const isBlock = TPL_TEXTAREA_KEYS.has(key);
         html += `<div style="margin-bottom:${isBlock?'18px':'10px'}"><div style="font-size:.7rem;font-weight:700;color:#2d6a4f;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">${esc(label)}</div><div style="font-size:.92rem;color:#1e3a3a;line-height:1.55;${isBlock?'background:#f9fbf9;padding:8px 12px;border-radius:8px;':''}">${renderValue(key, fields[key]||'')}</div></div>`;
     });
     return html;
 }
-function buildProjectProposalBody(data) {
+function buildProjectProposalBody(data, ctrlNum) {
     const labels = data.field_labels || {}, fields = data.fields || {};
     const tableKeys = new Set(['organization','project_title','project_type','project_involvement','project_location','proposed_start_date','proposed_end_date','number_participants','budget_source','budget_partner','budget_total']);
     let html = '';
+
+    // Control number — shown above date, right-aligned
+    if (ctrlNum) {
+        html += `<div style="text-align:right;margin-bottom:6px;">
+            <span style="display:inline-block;background:#f0faf4;border:1.5px solid #2d6a4f;border-radius:6px;padding:3px 12px;font-size:.78rem;font-weight:700;color:#1a4731;letter-spacing:.04em;">
+                <span style="color:#5a9070;font-weight:600;font-size:.72rem;margin-right:4px;">Control No.:</span>${esc(ctrlNum)}
+            </span>
+        </div>`;
+    }
+
     PP_SECTIONS.forEach(sec => {
         if (sec.heading) html += `<div style="font-size:.95rem;font-weight:700;color:#fff;background:#2d6a4f;padding:7px 14px;border-radius:6px;margin-bottom:12px;">${esc(sec.heading)}</div>`;
         const isTable = sec.keys.some(k => tableKeys.has(k));
@@ -650,11 +1107,12 @@ const LOGO_MAP = {
 <?php endforeach; ?>
 };
 
-function renderTplPreviewBody(data, title) {
+function renderTplPreviewBody(data, title, controlNumber) {
     const orgName    = data.organization_name    || '';
     const orgTagline = data.organization_tagline || '';
     const collabLogo = data.collaborated_logo || data.collaborated_logo_value || '';
-    const bodyContent = (data.template_id === 'project_proposal') ? buildProjectProposalBody(data) : buildGenericBody(data);
+    const ctrlNum    = controlNumber || data.control_number || '';
+    const bodyContent = (data.template_id === 'project_proposal') ? buildProjectProposalBody(data, ctrlNum) : buildGenericBody(data, ctrlNum);
 
     const LOGO_SIZE = '60px'; // uniform size for all logos
 
@@ -704,12 +1162,13 @@ function renderTplPreviewBody(data, title) {
 window.openTemplatePreview = function(row) {
     const raw = row ? row.getAttribute('data-submission-data') : null;
     const title = row ? (row.querySelector('.doc-title')||{}).textContent||'Document' : 'Document';
+    const controlNumber = row ? (row.getAttribute('data-control-number') || '') : '';
     let data = null;
     if (raw) { try { data = JSON.parse(raw); } catch(e) {} }
     if (!data) { alert('Preview data not available for this submission.'); return; }
     document.getElementById('tplPreviewTitle').textContent = title;
     document.getElementById('tplPreviewSubtitle').textContent = (data.template_name||'') + ' — Template Document';
-    document.getElementById('tplPreviewBody').innerHTML = renderTplPreviewBody(data, title);
+    document.getElementById('tplPreviewBody').innerHTML = renderTplPreviewBody(data, title, controlNumber);
     document.getElementById('tplPreviewModal').style.display = 'flex';
 };
 window._pendingTplData = {};
@@ -918,6 +1377,386 @@ document.getElementById('previewModal').addEventListener('click',function(e){if(
             apply();
         });
     }
+}());
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     EDIT & RESUBMIT MODAL
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div id="editResubmitModal">
+    <div class="edit-modal-box">
+
+        <!-- Header -->
+        <div class="edit-modal-header">
+            <div class="edit-modal-header-icon"><i class="fas fa-edit"></i></div>
+            <div class="edit-modal-header-text">
+                <h3 id="editModalDocTitle">Edit &amp; Resubmit</h3>
+                <p id="editModalDocType">Review the admin's feedback and update the fields below</p>
+            </div>
+            <button class="edit-modal-close" onclick="closeEditModal()" title="Close"><i class="fas fa-times"></i></button>
+        </div>
+
+        <!-- Rejection remarks strip -->
+        <div class="edit-rejection-strip" id="editRejectionStrip">
+            <i class="fas fa-comment-alt rej-icon"></i>
+            <div class="rej-body">
+                <strong><i class="fas fa-exclamation-circle"></i>&nbsp; Admin Feedback</strong>
+                <span id="editRemarksText"></span>
+            </div>
+        </div>
+
+        <!-- Scrollable body — fields injected here by JS -->
+        <div class="edit-modal-body" id="editModalBody"></div>
+
+        <!-- Footer -->
+        <div class="edit-modal-footer">
+            <div class="edit-change-count" id="editChangeCount"></div>
+            <div class="edit-footer-btns">
+                <button class="btn-edit-cancel" onclick="closeEditModal()">Cancel</button>
+                <button class="btn-edit-submit" id="editSubmitBtn" onclick="submitEditResubmit()">
+                    <i class="fas fa-paper-plane"></i> Resubmit
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   EDIT & RESUBMIT — full cached-field edit modal
+   ═══════════════════════════════════════════════════════════════════════════ */
+(function() {
+
+    // ── State ──────────────────────────────────────────────────────────────
+    let _editState = {
+        submissionId : null,
+        isTemplate   : false,
+        ext          : '',
+        origValues   : {},   // field_id → original value
+        templateId   : null,
+        templateName : '',
+    };
+
+    // ── Open ───────────────────────────────────────────────────────────────
+    window.openEditResubmit = function(row) {
+        if (!row) return;
+
+        const isTemplate = row.getAttribute('data-is-template') === '1';
+        const subDataRaw = row.getAttribute('data-submission-data') || '';
+        const titleRaw   = row.getAttribute('data-title-raw') || '';
+        const descRaw    = row.getAttribute('data-description-raw') || '';
+        const remarksRaw = row.getAttribute('data-remarks') || 'No specific remarks provided.';
+        const subId      = row.getAttribute('data-submission-id') || '';
+        // derive ext from the view button onclick attr if possible
+        const viewBtn    = row.querySelector('.btn-view');
+        const extMatch   = viewBtn ? (viewBtn.getAttribute('onclick') || '').match(/'([a-z]+)'/) : null;
+        const ext        = extMatch ? extMatch[1] : 'docx';
+
+        _editState.submissionId = subId;
+        _editState.isTemplate   = isTemplate;
+        _editState.ext          = ext;
+        _editState.origValues   = {};
+
+        // Show remarks
+        document.getElementById('editRemarksText').textContent = remarksRaw;
+
+        if (isTemplate && subDataRaw) {
+            let data = null;
+            try { data = JSON.parse(subDataRaw); } catch(e) {}
+            if (!data) { alert('Could not load cached data for this submission.'); return; }
+
+            _editState.templateId   = data.template_id || '';
+            _editState.templateName = data.template_name || 'Template';
+
+            document.getElementById('editModalDocTitle').textContent = titleRaw || 'Edit & Resubmit';
+            document.getElementById('editModalDocType').textContent  = data.template_name + ' — Template Document';
+
+            buildTemplateEditBody(data, titleRaw);
+        } else {
+            _editState.templateId = null;
+            document.getElementById('editModalDocTitle').textContent = titleRaw || 'Edit & Resubmit';
+            document.getElementById('editModalDocType').textContent  = 'Regular Document Upload';
+            buildRegularEditBody(titleRaw, descRaw);
+        }
+
+        updateChangeCount();
+        document.getElementById('editResubmitModal').classList.add('open');
+    };
+
+    // ── Close ──────────────────────────────────────────────────────────────
+    window.closeEditModal = function() {
+        document.getElementById('editResubmitModal').classList.remove('open');
+        document.getElementById('editModalBody').innerHTML = '';
+        _editState = { submissionId:null, isTemplate:false, ext:'', origValues:{}, templateId:null, templateName:'' };
+    };
+
+    // Close on backdrop click
+    document.getElementById('editResubmitModal').addEventListener('click', function(e) {
+        if (e.target === this) closeEditModal();
+    });
+
+    // ── Build body for TEMPLATE submission ─────────────────────────────────
+    function buildTemplateEditBody(data, titleRaw) {
+        const body = document.getElementById('editModalBody');
+        const fields = data.fields || {};
+        const labels = data.field_labels || {};
+        let html = '';
+
+        // Title card
+        html += sectionHeading('Document Info');
+        html += fieldCard('__title__', 'Document Title', titleRaw, 'text', true);
+
+        // All template field cards
+        html += sectionHeading('Template Fields');
+        Object.keys(labels).forEach(function(key) {
+            const label = labels[key] || key;
+            const val   = fields[key] || '';
+            const isTA  = isTextareaField(key);
+            html += fieldCard(key, label, val, isTA ? 'textarea' : 'text', false);
+        });
+
+        body.innerHTML = html;
+
+        // Store originals
+        _editState.origValues['__title__'] = titleRaw;
+        Object.keys(labels).forEach(function(key) {
+            _editState.origValues[key] = fields[key] || '';
+        });
+
+        attachChangeListeners();
+    }
+
+    // ── Build body for REGULAR file submission ─────────────────────────────
+    function buildRegularEditBody(titleRaw, descRaw) {
+        const body = document.getElementById('editModalBody');
+        const descClean = descRaw.replace(/\s*\|\s*Related Event:.*$/i, '').trim();
+        const eventMatch = descRaw.match(/Related Event:\s*(.+)$/i);
+        const eventVal   = eventMatch ? eventMatch[1].trim() : '';
+
+        const eventOptions = ['', 'Outreach Program', 'Quarterly Meeting', 'Fundraising Gala', 'Team Building'];
+        let eventHtml = '<select id="ef___event__" class="edit-field-input" style="padding-bottom:8px;">';
+        eventOptions.forEach(function(o) {
+            eventHtml += '<option value="' + esc(o) + '"' + (o === eventVal ? ' selected' : '') + '>' + (o || '— None —') + '</option>';
+        });
+        eventHtml += '</select>';
+
+        let html = '';
+        html += sectionHeading('Document Details');
+        html += fieldCard('__title__', 'Document Title', titleRaw, 'text', true);
+        html += fieldCard('__desc__',  'Description (Optional)', descClean, 'textarea', false);
+
+        html += '<div class="edit-field-card" id="efc___event__">';
+        html += '<div class="edit-field-label">Related Event <span class="changed-pill">Changed</span></div>';
+        html += eventHtml + '</div>';
+
+        html += sectionHeading('Replace File');
+        html += `<label for="editFileInput" class="edit-file-zone" id="editFileZone">
+            <div class="zone-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+            <div class="zone-text">Drop a new file here, or <strong>click to browse</strong></div>
+            <div class="zone-text" style="font-size:.75rem;color:#9ca3af;margin-top:2px;">Leave empty to keep the current file &nbsp;·&nbsp; PDF, DOCX, XLSX · Max 50 MB</div>
+            <div class="zone-file" id="editFileLabel"></div>
+        </label>
+        <input type="file" id="editFileInput" accept=".pdf,.docx,.xlsx" style="display:none;">`;
+
+        body.innerHTML = html;
+
+        _editState.origValues['__title__'] = titleRaw;
+        _editState.origValues['__desc__']  = descClean;
+        _editState.origValues['__event__'] = eventVal;
+
+        // File drop zone wiring
+        const zone  = document.getElementById('editFileZone');
+        const input = document.getElementById('editFileInput');
+        const label = document.getElementById('editFileLabel');
+        if (zone && input) {
+            input.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    label.textContent = '📄 ' + this.files[0].name;
+                    zone.classList.add('has-file');
+                }
+                updateChangeCount();
+            });
+            zone.addEventListener('dragover',  function(e){ e.preventDefault(); zone.classList.add('drag-over'); });
+            zone.addEventListener('dragleave', function()  { zone.classList.remove('drag-over'); });
+            zone.addEventListener('drop', function(e) {
+                e.preventDefault(); zone.classList.remove('drag-over');
+                if (e.dataTransfer && e.dataTransfer.files[0]) {
+                    input.files = e.dataTransfer.files;
+                    label.textContent = '📄 ' + e.dataTransfer.files[0].name;
+                    zone.classList.add('has-file');
+                    updateChangeCount();
+                }
+            });
+        }
+
+        attachChangeListeners();
+
+        // Wire event select change detection separately
+        const evSel = document.getElementById('ef___event__');
+        if (evSel) {
+            evSel.addEventListener('change', function() {
+                const card = document.getElementById('efc___event__');
+                if (card) card.classList.toggle('changed', this.value !== _editState.origValues['__event__']);
+                updateChangeCount();
+            });
+        }
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────────────
+    function sectionHeading(text) {
+        return '<div class="edit-section-heading"><i class="fas fa-chevron-right" style="font-size:.6rem;"></i>' + esc(text) + '</div>';
+    }
+
+    function fieldCard(id, label, value, type, required) {
+        const req  = required ? '<span style="color:#ef4444;margin-left:2px;">*</span>' : '';
+        const tag  = type === 'textarea' ? 'textarea' : 'input';
+        const rows = type === 'textarea' ? ' rows="4"' : '';
+        const typeAttr = type === 'textarea' ? '' : ' type="text"';
+        const val  = type === 'textarea' ? esc(value) : '';
+        const valAttr = type === 'textarea' ? '' : ' value="' + esc(value) + '"';
+        return `<div class="edit-field-card" id="efc_${id}">
+            <div class="edit-field-label">${esc(label)}${req}<span class="changed-pill">Changed</span></div>
+            <${tag} id="ef_${id}" class="edit-field-input"${typeAttr}${valAttr}${rows} placeholder="${esc(label)}">${val}${type==='textarea'?'</textarea>':''}
+        </div>`;
+    }
+
+    function attachChangeListeners() {
+        document.querySelectorAll('#editModalBody .edit-field-input').forEach(function(el) {
+            el.addEventListener('input',  onFieldChange);
+            el.addEventListener('change', onFieldChange);
+        });
+    }
+
+    function onFieldChange(e) {
+        const el   = e.target;
+        const id   = el.id.replace(/^ef_/, '');
+        const card = document.getElementById('efc_' + id);
+        if (card) {
+            const orig = _editState.origValues[id] !== undefined ? _editState.origValues[id] : '';
+            card.classList.toggle('changed', el.value !== orig);
+        }
+        updateChangeCount();
+    }
+
+    function updateChangeCount() {
+        let n = 0;
+        document.querySelectorAll('#editModalBody .edit-field-card.changed').forEach(function() { n++; });
+
+        // Also count file change
+        const fileInput = document.getElementById('editFileInput');
+        if (fileInput && fileInput.files && fileInput.files.length) n++;
+
+        const el = document.getElementById('editChangeCount');
+        if (el) {
+            el.innerHTML = n === 0
+                ? 'No changes yet'
+                : '<span>' + n + '</span> field' + (n > 1 ? 's' : '') + ' changed';
+        }
+    }
+
+    function isTextareaField(key) {
+        const taKeys = new Set([
+            'agenda','discussion','action_items','description','requirements',
+            'expense_breakdown','remarks','incident_description','individuals_involved',
+            'witnesses','action_taken','recommendations','opening_statement',
+            'project_summary','project_goal','project_objectives','expected_outputs',
+            'monitoring_details','evaluation_details','security_plan','closing_statement',
+            'attendees','skills','availability',
+            'sender_name','adviser_name','co_adviser_name',
+            'additional_signer_1','additional_signer_2','endorsed_by'
+        ]);
+        return taKeys.has(key);
+    }
+
+    function esc(s) {
+        return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ── Submit ─────────────────────────────────────────────────────────────
+    window.submitEditResubmit = function() {
+        const btn = document.getElementById('editSubmitBtn');
+        const formData = new FormData();
+
+        if (_editState.isTemplate) {
+            // Collect all template field values from the edit modal
+            const titleEl = document.getElementById('ef___title__');
+            const title   = titleEl ? titleEl.value.trim() : '';
+            if (!title) { alert('Document title is required.'); return; }
+
+            formData.append('template_id', _editState.templateId);
+            formData.append('title', title);
+
+            // Collect every rendered template field
+            document.querySelectorAll('#editModalBody .edit-field-input').forEach(function(el) {
+                const id = el.id.replace(/^ef_/, '');
+                if (id === '__title__') return;
+                formData.append(id, el.value);
+            });
+
+            // Pull org name and tagline from hidden fields in upload modal (they don't change)
+            const orgName    = document.getElementById('organizationName');
+            const orgTagline = document.getElementById('organizationTagline');
+            if (orgName)    formData.append('organization_name',    orgName.value);
+            if (orgTagline) formData.append('organization_tagline', orgTagline.value);
+
+        } else {
+            // Regular file resubmit
+            const titleEl = document.getElementById('ef___title__');
+            const descEl  = document.getElementById('ef___desc__');
+            const evEl    = document.getElementById('ef___event__');
+            const fileEl  = document.getElementById('editFileInput');
+
+            const title = titleEl ? titleEl.value.trim() : '';
+            if (!title) { alert('Document title is required.'); return; }
+            if (!fileEl || !fileEl.files || !fileEl.files.length) {
+                alert('Please attach a file. The original file cannot be re-used — please re-upload it (even if unchanged).');
+                return;
+            }
+
+            formData.append('title', title);
+            if (descEl) formData.append('description', descEl.value);
+            if (evEl)   formData.append('related_event', evEl.value);
+            formData.append('file', fileEl.files[0]);
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting…';
+
+        fetch('../php/upload_document.php', { method: 'POST', body: formData })
+            .then(function(r) { return r.text(); })
+            .then(function(text) {
+                try { return JSON.parse(text); }
+                catch(e) {
+                    var preview = text.trim().substring(0, 300) || '(empty response)';
+                    throw new Error('Server error: ' + preview);
+                }
+            })
+            .then(function(data) {
+                if (data.success) {
+                    showEditToast('Resubmitted successfully! Refreshing…', true);
+                    closeEditModal();
+                    setTimeout(function() { location.reload(); }, 1400);
+                } else {
+                    showEditToast('Error: ' + (data.message || 'Submission failed.'), false);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Resubmit';
+                }
+            })
+            .catch(function(err) {
+                showEditToast('Network error: ' + err.message, false);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-paper-plane"></i> Resubmit';
+            });
+    };
+
+    function showEditToast(msg, success) {
+        const t = document.createElement('div');
+        t.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:99999;padding:12px 20px;border-radius:10px;font-size:.88rem;font-weight:600;color:#fff;background:' + (success ? '#2d6a4f' : '#e74c3c') + ';box-shadow:0 4px 20px rgba(0,0,0,.2);transition:opacity .3s;';
+        t.textContent = msg;
+        document.body.appendChild(t);
+        setTimeout(function() { t.style.opacity='0'; setTimeout(function(){ t.remove(); },300); }, 3500);
+    }
+
 }());
 </script>
 </body>

@@ -146,6 +146,10 @@ function handleTemplateUpload($conn) {
         $organizationName = isset($_POST['organization_name']) ? trim($_POST['organization_name']) : null;
         $organizationTagline = isset($_POST['organization_tagline']) ? trim($_POST['organization_tagline']) : null;
         $collaboratedLogo = isset($_POST['collaborated_logo_value']) ? trim($_POST['collaborated_logo_value']) : null;
+        // JS sends 'collaborated_logo' (not 'collaborated_logo_value') — check both
+        if (empty($collaboratedLogo)) {
+            $collaboratedLogo = isset($_POST['collaborated_logo']) ? trim($_POST['collaborated_logo']) : null;
+        }
         if (empty($collaboratedLogo)) $collaboratedLogo = null;
 
         // Tagline is optional — use empty string if blank
@@ -207,11 +211,20 @@ function handleTemplateUpload($conn) {
         // Determine output format: 'docx' (default) or 'pdf'
         $format = (isset($_POST['output_format']) && strtolower($_POST['output_format']) === 'pdf') ? 'pdf' : 'docx';
 
+        // Pre-generate control number so it can be embedded in the document
+        $yearNow = date('Y');
+        $cntStmt = mysqli_prepare($conn, "SELECT COUNT(*) AS cnt FROM submissions WHERE YEAR(submitted_at) = ?");
+        $cntStmt->bind_param("i", $yearNow);
+        $cntStmt->execute();
+        $cntRow = $cntStmt->get_result()->fetch_assoc();
+        $cntStmt->close();
+        $controlNumber = 'CIG-' . $yearNow . '-' . str_pad(($cntRow['cnt'] + 1), 6, '0', STR_PAD_LEFT);
+
         // Generate the document
         if (!function_exists('generateDocument')) {
             throw new Exception('generateDocument() not loaded — check generate_document.php path and syntax.');
         }
-        $generatedPath = generateDocument($template, $data, $title, $format, $collaboratedLogo, $organizationName, $organizationTagline, $orgLogoPath);
+        $generatedPath = generateDocument($template, $data, $title, $format, $collaboratedLogo, $organizationName, $organizationTagline, $orgLogoPath, $controlNumber);
 
         if (!$generatedPath || !file_exists($generatedPath)) {
             $zipOk = class_exists('ZipArchive') ? 'yes' : 'NO — enable zip extension';
@@ -258,15 +271,25 @@ function handleTemplateUpload($conn) {
             'field_labels'         => $template['fields'],
         ], JSON_UNESCAPED_UNICODE);
 
+        // Generate control number: CIG-YYYY-XXXXXX (sequential within year)
+        $yearNow = date('Y');
+        $cntStmt = mysqli_prepare($conn, "SELECT COUNT(*) AS cnt FROM submissions WHERE YEAR(submitted_at) = ?");
+        $cntStmt->bind_param("i", $yearNow);
+        $cntStmt->execute();
+        $cntRow = $cntStmt->get_result()->fetch_assoc();
+        $cntStmt->close();
+        $controlNumber = 'CIG-' . $yearNow . '-' . str_pad(($cntRow['cnt'] + 1), 6, '0', STR_PAD_LEFT);
+
         // Insert into submissions table with file path and JSON snapshot
-        $stmt = mysqli_prepare($conn, "INSERT INTO submissions (user_id, org_id, title, description, submission_data, status, file_name, file_path, submitted_by) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)");
+        $stmt = mysqli_prepare($conn, "INSERT INTO submissions (user_id, org_id, title, description, submission_data, status, file_name, file_path, submitted_by, control_number) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)");
         
         if (!$stmt) {
             throw new Exception('Prepare failed: ' . $conn->error);
         }
         
         // Bind parameters: int, int, string, string, string, string, string, int
-        $stmt->bind_param("iisssssi", $userId, $orgId, $title, $description, $submissionData, $fileName, $dbFilePath, $submittedBy);
+        // Types: i=user_id, i=org_id, s=title, s=description, s=submission_data, s=file_name, s=file_path, i=submitted_by, s=control_number
+        $stmt->bind_param("iisssssis", $userId, $orgId, $title, $description, $submissionData, $fileName, $dbFilePath, $submittedBy, $controlNumber);
         
         if (!$stmt->execute()) {
             $error = $stmt->error;
@@ -300,6 +323,7 @@ function handleTemplateUpload($conn) {
             'submitted_by' => $userData['full_name'] ?? 'User',
             'filename' => $fileName,
             'submission_id' => $submissionId,
+            'control_number' => $controlNumber,
             'submission_data' => $submissionData ?? null
         ]);
         exit;
@@ -378,15 +402,25 @@ function handleRegularUpload($conn) {
     }
     
     try {
+        // Generate control number
+        $yearNow = date('Y');
+        $cntStmt = mysqli_prepare($conn, "SELECT COUNT(*) AS cnt FROM submissions WHERE YEAR(submitted_at) = ?");
+        $cntStmt->bind_param("i", $yearNow);
+        $cntStmt->execute();
+        $cntRow = $cntStmt->get_result()->fetch_assoc();
+        $cntStmt->close();
+        $controlNumber = 'CIG-' . $yearNow . '-' . str_pad(($cntRow['cnt'] + 1), 6, '0', STR_PAD_LEFT);
+
         // Insert into submissions table with file path
-        $stmt = mysqli_prepare($conn, "INSERT INTO submissions (user_id, org_id, title, description, status, file_name, file_path, submitted_by) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)");
+        $stmt = mysqli_prepare($conn, "INSERT INTO submissions (user_id, org_id, title, description, status, file_name, file_path, submitted_by, control_number) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?)");
         
         if (!$stmt) {
             throw new Exception('Prepare failed: ' . $conn->error);
         }
         
         // Bind parameters: int, int, string, string, string, string, int
-        $stmt->bind_param("iissssi", $userId, $orgId, $title, $fullDescription, $fileName, $dbFilePath, $submittedBy);
+        // Types: i=user_id, i=org_id, s=title, s=description, s=file_name, s=file_path, i=submitted_by, s=control_number
+        $stmt->bind_param("iissssis", $userId, $orgId, $title, $fullDescription, $fileName, $dbFilePath, $submittedBy, $controlNumber);
         
         if (!$stmt->execute()) {
             $error = $stmt->error;
@@ -419,7 +453,8 @@ function handleRegularUpload($conn) {
             'message' => 'Document uploaded successfully',
             'submitted_by' => $userData['full_name'] ?? 'User',
             'filename' => $fileName,
-            'submission_id' => $submissionId
+            'submission_id' => $submissionId,
+            'control_number' => $controlNumber
         ]);
         exit;
     } catch (Exception $e) {

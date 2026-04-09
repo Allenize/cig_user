@@ -9,10 +9,10 @@
  *     returns : absolute path to the generated temp file, or false on failure
  */
 
-function generateDocument($template, $data, $title, $format = 'docx', $collaboratedLogo = null, $organizationName = null, $organizationTagline = null, $orgLogoPath = null) {
+function generateDocument($template, $data, $title, $format = 'docx', $collaboratedLogo = null, $organizationName = null, $organizationTagline = null, $orgLogoPath = null, $controlNumber = null) {
     $format = strtolower($format);
 
-    $docxPath = generateDocx($template, $data, $title, $collaboratedLogo, $organizationName, $organizationTagline, $orgLogoPath);
+    $docxPath = generateDocx($template, $data, $title, $collaboratedLogo, $organizationName, $organizationTagline, $orgLogoPath, $controlNumber);
     if (!$docxPath) return false;
 
     if ($format !== 'pdf') return $docxPath;
@@ -51,7 +51,7 @@ function findLibreOffice() {
  * DOCX GENERATION
  * ══════════════════════════════════════════════════════════════════════════════ */
 
-function generateDocx($template, $data, $title, $collaboratedLogo = null, $organizationName = null, $organizationTagline = null, $orgLogoPath = null) {
+function generateDocx($template, $data, $title, $collaboratedLogo = null, $organizationName = null, $organizationTagline = null, $orgLogoPath = null, $controlNumber = null) {
     $tempDir  = sys_get_temp_dir();
     $docxPath = $tempDir . '/' . uniqid('doc_') . '.docx';
 
@@ -66,7 +66,7 @@ function generateDocx($template, $data, $title, $collaboratedLogo = null, $organ
         return false;
     }
 
-    $xmlContent = createDocumentXml($title, $template, $data, $collaboratedLogo, $organizationName, $organizationTagline, $orgLogoPath);
+    $xmlContent = createDocumentXml($title, $template, $data, $collaboratedLogo, $organizationName, $organizationTagline, $orgLogoPath, $controlNumber);
 
     $zip->addFromString('[Content_Types].xml',          getContentTypes());
     $zip->addFromString('_rels/.rels',                  getRelationships());
@@ -133,7 +133,7 @@ function generateDocx($template, $data, $title, $collaboratedLogo = null, $organ
 
 // ── XML helpers ──────────────────────────────────────────────────────────────
 
-function createDocumentXml($title, $template, $data, $collaboratedLogo = null, $organizationName = null, $organizationTagline = null, $orgLogoPath = null) {
+function createDocumentXml($title, $template, $data, $collaboratedLogo = null, $organizationName = null, $organizationTagline = null, $orgLogoPath = null, $controlNumber = null) {
     $docTitle   = htmlspecialchars($title);
     $orgName    = htmlspecialchars($organizationName ?: 'Organization');
     $orgTagline = htmlspecialchars($organizationTagline ?: '');
@@ -170,6 +170,11 @@ function createDocumentXml($title, $template, $data, $collaboratedLogo = null, $
     if (!empty(trim($orgTagline))) {
         $c .= '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:i/><w:sz w:val="20"/></w:rPr><w:t>&#x201C;' . $orgTagline . '&#x201D;</w:t></w:r></w:p>';
     }
+    if (!empty($controlNumber)) {
+        $c .= '<w:p><w:pPr><w:jc w:val="center"/></w:pPr>'
+            . '<w:r><w:rPr><w:sz w:val="18"/><w:color w:val="888888"/></w:rPr>'
+            . '<w:t>Control No.: ' . htmlspecialchars($controlNumber) . '</w:t></w:r></w:p>';
+    }
     $c .= '</w:tc>';
 
     // Right cell — org logo (image3) + collaborated logo (image2), side by side
@@ -195,9 +200,20 @@ function createDocumentXml($title, $template, $data, $collaboratedLogo = null, $
 
     // Body content
     if (isset($template['name']) && $template['name'] === 'Project Proposal') {
-        $c .= buildProjectProposalContent($data, $organizationName);
+        // Make control number accessible inside the content builder via $data
+        if (!empty($controlNumber)) {
+            $data['control_number'] = $controlNumber;
+        }
+        // FEATURE 3 (WYSIWYG): use multi-line-aware builder for accurate output
+        $c .= buildProjectProposalContentWysiwyg($data, $organizationName);
     } else {
         $c .= '<w:p/>';
+        // Control number for non-project-proposal templates — right-aligned, above the title
+        if (!empty($controlNumber)) {
+            $c .= '<w:p><w:pPr><w:jc w:val="right"/></w:pPr>'
+                . '<w:r><w:rPr><w:b/><w:sz w:val="20"/><w:color w:val="2F5233"/></w:rPr>'
+                . '<w:t>Control No.: ' . htmlspecialchars($controlNumber) . '</w:t></w:r></w:p>';
+        }
         $c .= '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="28"/></w:rPr><w:t>' . $docTitle . '</w:t></w:r></w:p>';
         $c .= '<w:p/>';
         foreach ($template['fields'] as $fieldId => $fieldLabel) {
@@ -288,6 +304,13 @@ function getDocumentRelationships($collaboratedLogo = null, $orgLogoPath = null)
 function buildProjectProposalContent($data, $organizationName = null) {
     $c = '';
     $orgName = htmlspecialchars($organizationName ?: ($data['organization'] ?? ''));
+
+    // ── Control Number (right-aligned, above date) ──
+    if (!empty($data['control_number'])) {
+        $c .= '<w:p><w:pPr><w:jc w:val="right"/></w:pPr>'
+            . '<w:r><w:rPr><w:b/><w:sz w:val="20"/><w:color w:val="2F5233"/></w:rPr>'
+            . '<w:t>Control No.: ' . htmlspecialchars($data['control_number']) . '</w:t></w:r></w:p>';
+    }
 
     // ── Date (left-aligned, bold) ──
     if (!empty($data['proposal_date'])) {
@@ -498,5 +521,236 @@ function docxBulletList($text) {
                 . '</w:p>';
         }
     }
+    return $c;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+ * FEATURE 3: WYSIWYG OUTPUT CONSISTENCY — helpers added (non-breaking)
+ * These functions are NEW additions that improve output fidelity.
+ * They do NOT modify or replace any existing function above.
+ * ══════════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * docxTableMultiLine — enhanced table that handles multi-line values in cells.
+ * Replaces the single-paragraph value cell in docxTable with one paragraph
+ * per line, so long text is not cut off in the rendered output.
+ * Called from buildProjectProposalContent via the patched version below.
+ */
+function docxTableMultiLine(array $rows) {
+    $c  = '<w:tbl><w:tblPr>';
+    $c .= '<w:tblW w:w="9000" w:type="dxa"/>';
+    $c .= '<w:tblBorders>'
+        . '<w:top w:val="single" w:sz="12" w:space="1" w:color="000000"/>'
+        . '<w:left w:val="single" w:sz="12" w:space="1" w:color="000000"/>'
+        . '<w:bottom w:val="single" w:sz="12" w:space="1" w:color="000000"/>'
+        . '<w:right w:val="single" w:sz="12" w:space="1" w:color="000000"/>'
+        . '<w:insideH w:val="single" w:sz="12" w:space="1" w:color="000000"/>'
+        . '<w:insideV w:val="single" w:sz="12" w:space="1" w:color="000000"/>'
+        . '</w:tblBorders></w:tblPr>';
+
+    foreach ($rows as [$label, $value]) {
+        $c .= '<w:tr><w:trPr><w:trHeight w:val="400" w:type="auto"/></w:trPr>';
+        // Label cell (bold, grey background)
+        $c .= '<w:tc><w:tcPr><w:tcW w:w="3000" w:type="dxa"/><w:shd w:fill="D3D3D3" w:val="clear"/></w:tcPr>'
+            . '<w:p><w:pPr><w:ind w:left="80"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">' . htmlspecialchars($label) . '</w:t></w:r></w:p></w:tc>';
+
+        // Value cell — render each line as a paragraph to preserve newlines
+        $valueLines = explode("\n", (string)$value);
+        $c .= '<w:tc><w:tcPr><w:tcW w:w="6000" w:type="dxa"/></w:tcPr>';
+        foreach ($valueLines as $li => $line) {
+            $lineText = htmlspecialchars(trim($line));
+            if ($lineText === '') $lineText = ' ';
+            $c .= '<w:p><w:pPr><w:ind w:left="80"/>' . ($li > 0 ? '' : '') . '</w:pPr>'
+                . '<w:r><w:t xml:space="preserve">' . $lineText . '</w:t></w:r></w:p>';
+        }
+        $c .= '</w:tc>';
+
+        $c .= '</w:tr>';
+    }
+    $c .= '</w:tbl>';
+    return $c;
+}
+
+/**
+ * docxIndentedTextWysiwyg — like docxIndentedText but preserves blank separator lines
+ * exactly as the user typed them, producing a WYSIWYG output.
+ */
+function docxIndentedTextWysiwyg($text) {
+    $c = '';
+    $lines = explode("\n", (string)$text);
+    foreach ($lines as $line) {
+        $lineText = htmlspecialchars(trim($line));
+        $c .= '<w:p><w:pPr><w:ind w:left="720"/></w:pPr>'
+            . '<w:r><w:t xml:space="preserve">' . ($lineText !== '' ? $lineText : ' ') . '</w:t></w:r>'
+            . '</w:p>';
+    }
+    return $c;
+}
+
+/**
+ * buildProjectProposalContentWysiwyg — drop-in replacement for buildProjectProposalContent
+ * that uses the multi-line table and wysiwyg text helpers.
+ * Called instead of the original when the template is 'Project Proposal'.
+ */
+function buildProjectProposalContentWysiwyg($data, $organizationName = null) {
+    $c = '';
+    $orgName = htmlspecialchars($organizationName ?: ($data['organization'] ?? ''));
+
+    // ── Control Number ──
+    if (!empty($data['control_number'])) {
+        $c .= '<w:p><w:pPr><w:jc w:val="right"/></w:pPr>'
+            . '<w:r><w:rPr><w:b/><w:sz w:val="20"/><w:color w:val="2F5233"/></w:rPr>'
+            . '<w:t>Control No.: ' . htmlspecialchars($data['control_number']) . '</w:t></w:r></w:p>';
+    }
+
+    // ── Date ──
+    if (!empty($data['proposal_date'])) {
+        $c .= '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>' . htmlspecialchars($data['proposal_date']) . '</w:t></w:r></w:p><w:p/>';
+    }
+
+    // ── Recipient 1 ──
+    if (!empty($data['recipient_1'])) {
+        $c .= '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>' . htmlspecialchars(trim($data['recipient_1'])) . '</w:t></w:r></w:p>';
+        $c .= '<w:p><w:r><w:t>Vice President for Academic Affairs</w:t></w:r></w:p><w:p/>';
+    }
+
+    // ── Recipient 2 ──
+    if (!empty($data['recipient_2'])) {
+        $c .= '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>' . htmlspecialchars(trim($data['recipient_2'])) . '</w:t></w:r></w:p>';
+        $c .= '<w:p><w:r><w:t>Dean, Office of Student Affairs and Services</w:t></w:r></w:p><w:p/>';
+    }
+
+    // ── Dear line ──
+    $dearName = trim($data['recipient_2'] ?? '');
+    if ($dearName) {
+        $c .= '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Dear ' . htmlspecialchars($dearName) . ',</w:t></w:r></w:p>';
+    }
+
+    // ── Opening statement — wysiwyg multi-line ──
+    if (!empty($data['opening_statement'])) {
+        $c .= '<w:p/>';
+        foreach (explode("\n", $data['opening_statement']) as $line) {
+            $lineText = htmlspecialchars(trim($line));
+            $c .= '<w:p><w:r><w:t xml:space="preserve">' . ($lineText ?: ' ') . '</w:t></w:r></w:p>';
+        }
+        $c .= '<w:p/>';
+    }
+
+    // ── PROJECT PROPOSAL heading ──
+    $c .= '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="28"/></w:rPr><w:t>PROJECT PROPOSAL</w:t></w:r></w:p><w:p/>';
+
+    // ── I. Identifying Information — multi-line table ──
+    $c .= '<w:p><w:r><w:rPr><w:b/><w:sz w:val="24"/></w:rPr><w:t>I. Identifying Information</w:t></w:r></w:p>';
+    $c .= docxTableMultiLine([
+        ['Organization',              $data['organization']         ?? ''],
+        ['Project Title',             $data['project_title']        ?? ''],
+        ['Type of Project',           $data['project_type']         ?? ''],
+        ['Project Involvement',       $data['project_involvement']  ?? ''],
+        ['Project Location',          $data['project_location']     ?? ''],
+        ['Proposed Start Date & Time',$data['proposed_start_date']  ?? ''],
+        ['Proposed Completion Date',  $data['proposed_end_date']    ?? ''],
+        ['Number of Participants',    $data['number_participants']  ?? ''],
+    ]);
+    $c .= '<w:p/>';
+
+    // ── II. Project Description ──
+    $c .= '<w:p><w:r><w:rPr><w:b/><w:sz w:val="24"/></w:rPr><w:t>II. Project Description</w:t></w:r></w:p>';
+
+    $c .= '<w:p><w:r><w:rPr><w:b/><w:sz w:val="22"/></w:rPr><w:t>A. SUMMARY OF THE PROJECT</w:t></w:r></w:p>';
+    $c .= docxIndentedTextWysiwyg($data['project_summary'] ?? '');
+    $c .= '<w:p/>';
+
+    $c .= '<w:p><w:r><w:rPr><w:b/><w:sz w:val="22"/></w:rPr><w:t>B. PROJECT GOAL AND OBJECTIVES</w:t></w:r></w:p>';
+    $c .= '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Goal:</w:t></w:r></w:p>';
+    $c .= docxIndentedTextWysiwyg($data['project_goal'] ?? '');
+    $c .= '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Objectives:</w:t></w:r></w:p>';
+    if (!empty($data['project_objectives'])) {
+        $n = 1;
+        foreach (explode("\n", $data['project_objectives']) as $obj) {
+            $obj = trim($obj);
+            if ($obj !== '') {
+                $c .= '<w:p><w:pPr><w:ind w:left="720"/></w:pPr>'
+                    . '<w:r><w:t xml:space="preserve">' . $n++ . '. ' . htmlspecialchars($obj) . '</w:t></w:r></w:p>';
+            }
+        }
+    }
+    $c .= '<w:p/>';
+
+    $c .= '<w:p><w:r><w:rPr><w:b/><w:sz w:val="22"/></w:rPr><w:t>C. EXPECTED OUTPUTS</w:t></w:r></w:p>';
+    $c .= docxBulletList($data['expected_outputs'] ?? '');
+    $c .= '<w:p/>';
+
+    // ── III. Budget — multi-line table ──
+    $c .= '<w:p><w:r><w:rPr><w:b/><w:sz w:val="24"/></w:rPr><w:t>III. Budget</w:t></w:r></w:p>';
+    $c .= docxTableMultiLine([
+        ['Source of Fund',           $data['budget_source']  ?? ''],
+        ['Partner/Donation/Subsidy', $data['budget_partner'] ?? ''],
+        ['Total Project Cost',       $data['budget_total']   ?? ''],
+    ]);
+    $c .= '<w:p/>';
+
+    // ── IV. Monitoring and Evaluation ──
+    $c .= '<w:p><w:r><w:rPr><w:b/><w:sz w:val="24"/></w:rPr><w:t>IV. Monitoring and Evaluation</w:t></w:r></w:p>';
+    $c .= '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Monitoring:</w:t></w:r></w:p>';
+    $c .= docxBulletList($data['monitoring_details'] ?? '');
+    $c .= '<w:p/>';
+    $c .= '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Evaluation Strategy:</w:t></w:r></w:p>';
+    $c .= docxBulletList($data['evaluation_details'] ?? '');
+    $c .= '<w:p/>';
+
+    // ── V. Security Plan ──
+    $c .= '<w:p><w:r><w:rPr><w:b/><w:sz w:val="24"/></w:rPr><w:t>V. Security Plan</w:t></w:r></w:p>';
+    $c .= docxBulletList($data['security_plan'] ?? '');
+    $c .= '<w:p/><w:p/>';
+
+    // ── Closing statement ──
+    if (!empty($data['closing_statement'])) {
+        foreach (explode("\n", $data['closing_statement']) as $line) {
+            $c .= '<w:p><w:r><w:rPr><w:i/></w:rPr>'
+                . '<w:t xml:space="preserve">' . htmlspecialchars(trim($line) ?: ' ') . '</w:t></w:r></w:p>';
+        }
+        $c .= '<w:p/>';
+    }
+
+    // ── Sincerely ──
+    $c .= '<w:p><w:r><w:t>Sincerely,</w:t></w:r></w:p><w:p/><w:p/>';
+
+    // ── Sender ──
+    if (!empty($data['sender_name'])) {
+        $sLines = array_values(array_filter(array_map('trim', explode("\n", $data['sender_name']))));
+        if (!empty($sLines)) {
+            $c .= '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>' . htmlspecialchars($sLines[0]) . '</w:t></w:r></w:p>';
+            for ($li = 1; $li < count($sLines); $li++) {
+                $c .= '<w:p><w:r><w:t>' . htmlspecialchars($sLines[$li]) . '</w:t></w:r></w:p>';
+            }
+        }
+    }
+    $c .= '<w:p/>';
+
+    // ── Noted by ──
+    $noteList = ['adviser_name','co_adviser_name'];
+    for ($si = 1; $si <= 5; $si++) { $noteList[] = 'additional_signer_' . $si; }
+    foreach ($noteList as $sigKey) {
+        if (empty($data[$sigKey])) continue;
+        $sigLines = array_values(array_filter(array_map('trim', explode("\n", $data[$sigKey]))));
+        if (empty($sigLines)) continue;
+        $c .= '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>' . htmlspecialchars($sigLines[0]) . '</w:t></w:r></w:p>';
+        for ($li = 1; $li < count($sigLines); $li++) {
+            $c .= '<w:p><w:r><w:t>' . htmlspecialchars($sigLines[$li]) . '</w:t></w:r></w:p>';
+        }
+        $c .= '<w:p/>';
+    }
+
+    // ── Endorsed by ──
+    if (!empty($data['endorsed_by'])) {
+        $eLines = array_values(array_filter(array_map('trim', explode("\n", $data['endorsed_by']))));
+        if (!empty($eLines)) {
+            $c .= '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>' . htmlspecialchars($eLines[0]) . '</w:t></w:r></w:p>';
+            for ($li = 1; $li < count($eLines); $li++) {
+                $c .= '<w:p><w:r><w:t>' . htmlspecialchars($eLines[$li]) . '</w:t></w:r></w:p>';
+            }
+        }
+    }
+
     return $c;
 }
