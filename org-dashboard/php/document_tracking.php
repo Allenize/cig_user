@@ -4,6 +4,116 @@ require_once __DIR__ . '/db_connection.php';
 
 $userId = $_SESSION['user_id'];
 
+/* ══════════════════════════════════════════════════════════════════════════
+ * AJAX: Status Update Handler (Super Admin)
+ * Handles POST ?action=update_status — responds with JSON and exits.
+ * Status workflow:
+ *   pending / in_review  →  approved_for_recommendation  (Super Admin approves, sends to President)
+ *   approved_for_recommendation  →  approved  (President signs, returns; control number generated)
+ *   any  →  rejected | in_review
+ * Control Number is generated ONLY on final transition to 'approved'.
+ * ══════════════════════════════════════════════════════════════════════════ */
+if (isset($_POST['action']) && $_POST['action'] === 'update_status') {
+    header('Content-Type: application/json');
+
+    $userRole    = $_SESSION['role'] ?? $_SESSION['user_role'] ?? '';
+    $isSuperAdmin = in_array(strtolower($userRole), ['super_admin','superadmin','admin','cig_admin'], true);
+    if (!$isSuperAdmin) {
+        http_response_code(403);
+        exit(json_encode(['success' => false, 'message' => 'Unauthorized. Super Admin access required.']));
+    }
+
+    $submissionId = isset($_POST['submission_id']) ? (int)$_POST['submission_id'] : 0;
+    $newStatus    = isset($_POST['status'])         ? trim($_POST['status'])        : '';
+    $remarks      = isset($_POST['remarks'])        ? trim($_POST['remarks'])       : '';
+
+    $allowed = ['in_review', 'approved_for_recommendation', 'approved', 'rejected'];
+    if (!$submissionId || !in_array($newStatus, $allowed, true)) {
+        http_response_code(400);
+        exit(json_encode(['success' => false, 'message' => 'Invalid submission ID or status.']));
+    }
+
+    // Fetch current record
+    $fetchStmt = mysqli_prepare($conn, "SELECT submission_id, status, control_number FROM submissions WHERE submission_id = ? LIMIT 1");
+    mysqli_stmt_bind_param($fetchStmt, 'i', $submissionId);
+    mysqli_stmt_execute($fetchStmt);
+    $current = mysqli_fetch_assoc(mysqli_stmt_get_result($fetchStmt));
+    mysqli_stmt_close($fetchStmt);
+
+    if (!$current) {
+        http_response_code(404);
+        exit(json_encode(['success' => false, 'message' => 'Submission not found.']));
+    }
+
+    $controlNumber = $current['control_number'];
+
+    // Generate control number ONLY on final approval and only if not already set
+    if ($newStatus === 'approved' && empty($controlNumber)) {
+        $yearNow = date('Y');
+        $cntStmt = mysqli_prepare($conn, "SELECT COUNT(*) AS cnt FROM submissions WHERE status = 'approved' AND YEAR(submitted_at) = ?");
+        $cntStmt->bind_param('i', $yearNow);
+        $cntStmt->execute();
+        $cnt = $cntStmt->get_result()->fetch_assoc()['cnt'];
+        $cntStmt->close();
+        $controlNumber = 'CIG-' . $yearNow . '-' . str_pad($cnt + 1, 6, '0', STR_PAD_LEFT);
+    }
+
+    // Update submission
+    if ($newStatus === 'approved' && !empty($controlNumber)) {
+        $updStmt = mysqli_prepare($conn, "UPDATE submissions SET status = ?, control_number = ?, updated_at = NOW() WHERE submission_id = ?");
+        $updStmt->bind_param('ssi', $newStatus, $controlNumber, $submissionId);
+    } else {
+        $updStmt = mysqli_prepare($conn, "UPDATE submissions SET status = ?, updated_at = NOW() WHERE submission_id = ?");
+        $updStmt->bind_param('si', $newStatus, $submissionId);
+    }
+
+    if (!$updStmt->execute()) {
+        $err = $updStmt->error;
+        $updStmt->close();
+        http_response_code(500);
+        exit(json_encode(['success' => false, 'message' => 'Update failed: ' . $err]));
+    }
+    $updStmt->close();
+
+    // Upsert remarks into reviews table
+    if ($remarks !== '') {
+        $adminId  = (int)$_SESSION['user_id'];
+        $revCheck = mysqli_prepare($conn, "SELECT review_id FROM reviews WHERE submission_id = ? LIMIT 1");
+        $revCheck->bind_param('i', $submissionId);
+        $revCheck->execute();
+        $existingRev = $revCheck->get_result()->fetch_assoc();
+        $revCheck->close();
+
+        if ($existingRev) {
+            $revStmt = mysqli_prepare($conn, "UPDATE reviews SET feedback = ?, reviewed_by = ?, reviewed_at = NOW() WHERE submission_id = ?");
+            $revStmt->bind_param('sii', $remarks, $adminId, $submissionId);
+        } else {
+            $revStmt = mysqli_prepare($conn, "INSERT INTO reviews (submission_id, feedback, reviewed_by, reviewed_at) VALUES (?, ?, ?, NOW())");
+            $revStmt->bind_param('isi', $submissionId, $remarks, $adminId);
+        }
+        $revStmt->execute();
+        $revStmt->close();
+    }
+
+    $statusLabels = [
+        'pending'                     => 'Pending',
+        'in_review'                   => 'Under Review',
+        'approved_for_recommendation' => 'Approved for Recommendation',
+        'approved'                    => 'Approved',
+        'rejected'                    => 'Rejected',
+    ];
+    $statusLabel = $statusLabels[$newStatus] ?? ucfirst(str_replace('_', ' ', $newStatus));
+
+    exit(json_encode([
+        'success'        => true,
+        'message'        => 'Status updated to "' . $statusLabel . '" successfully.',
+        'status'         => $newStatus,
+        'status_label'   => $statusLabel,
+        'control_number' => ($newStatus === 'approved') ? $controlNumber : null,
+    ]));
+}
+/* ══════════════════════════════════════════════════════════════════════════ */
+
 $submissions = [];
 if ($conn) {
     $submissionsQuery = "
@@ -42,6 +152,7 @@ if ($conn) {
     $approved = count(array_filter($submissions, fn($s) => $s['status'] === 'approved'));
     $rejected = count(array_filter($submissions, fn($s) => $s['status'] === 'rejected'));
     $in_review= count(array_filter($submissions, fn($s) => $s['status'] === 'in_review'));
+    $approved_for_recommendation = count(array_filter($submissions, fn($s) => $s['status'] === 'approved_for_recommendation'));
 }
 
 /* ── Helpers ── */
@@ -149,6 +260,19 @@ if (is_dir($_assetsDir)) {
 // CIG and OSAS still available for backwards compat
 $cigLogoB64  = $_allOrgLogos['CIG']['b64']  ?? '';
 $osasLogoB64 = $_allOrgLogos['OSAS']['b64'] ?? '';
+
+// ── Site settings: dean & president names from super admin ──────────────────
+$_siteSettings = [];
+if ($conn) {
+    $_ssq = mysqli_query($conn, "SELECT setting_key, setting_value FROM site_settings WHERE setting_key IN ('dean_name','dean_title','president_name','president_title')");
+    while ($_ssrow = mysqli_fetch_assoc($_ssq)) {
+        $_siteSettings[$_ssrow['setting_key']] = $_ssrow['setting_value'];
+    }
+}
+$deanName      = trim($_siteSettings['dean_name']      ?? 'Name of Dean');
+$deanTitle     = trim($_siteSettings['dean_title']     ?? 'Dean, Office of Student Affairs and Services');
+$presidentName = trim($_siteSettings['president_name'] ?? 'Name of University President');
+$presidentTitle= trim($_siteSettings['president_title']?? 'Interim University President');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -623,7 +747,17 @@ $osasLogoB64 = $_allOrgLogos['OSAS']['b64'] ?? '';
                 </div>
                 <div class="doc-stat-body">
                     <span class="doc-stat-num"><?= $in_review ?? 0 ?></span>
-                    <span class="doc-stat-label">In Review</span>
+                    <span class="doc-stat-label">Under Review</span>
+                </div>
+            </div>
+            <div class="doc-stat-divider"></div>
+            <div class="doc-stat">
+                <div class="doc-stat-icon" style="background:#ede9fe;color:#6d28d9;">
+                    <i class="fas fa-user-check"></i>
+                </div>
+                <div class="doc-stat-body">
+                    <span class="doc-stat-num"><?= $approved_for_recommendation ?? 0 ?></span>
+                    <span class="doc-stat-label">For President</span>
                 </div>
             </div>
             <div class="doc-stat-divider"></div>
@@ -650,7 +784,8 @@ $osasLogoB64 = $_allOrgLogos['OSAS']['b64'] ?? '';
                     <option value="pending">Pending</option>
                     <option value="approved">Approved</option>
                     <option value="rejected">Rejected</option>
-                    <option value="in_review">In Review</option>
+                    <option value="in_review">Under Review</option>
+                    <option value="approved_for_recommendation">Approved for Recommendation</option>
                 </select>
                 <div style="position:relative;display:flex;align-items:center;">
                     <input type="date" id="dateFilter">
@@ -679,6 +814,7 @@ $osasLogoB64 = $_allOrgLogos['OSAS']['b64'] ?? '';
                             <th>Date Submitted</th>
                             <th>Submitted By</th>
                             <th>Status</th>
+                            <th>Control No.</th>
                             <th>Admin Remarks</th>
                             <th>Actions</th>
                         </tr>
@@ -701,7 +837,7 @@ $osasLogoB64 = $_allOrgLogos['OSAS']['b64'] ?? '';
                         data-title-raw="<?= htmlspecialchars($doc['title'], ENT_QUOTES) ?>"
                         data-description-raw="<?= htmlspecialchars($doc['description'] ?? '', ENT_QUOTES) ?>"
                         data-remarks="<?= htmlspecialchars($doc['admin_remarks'], ENT_QUOTES) ?>"
-                        data-control-number="<?= htmlspecialchars($doc['control_number'] ?? '', ENT_QUOTES) ?>">
+                        data-control-number="<?= ($doc['status'] === 'approved') ? htmlspecialchars($doc['control_number'] ?? '', ENT_QUOTES) : '' ?>">
 
                         <td class="row-num"><?= $i + 1 ?></td>
 
@@ -733,9 +869,30 @@ $osasLogoB64 = $_allOrgLogos['OSAS']['b64'] ?? '';
                         </td>
 
                         <td>
-                            <span class="status-badge <?= strtolower($doc['status']) ?>">
-                                <?= ucfirst(str_replace('_', ' ', $doc['status'])) ?>
+                            <?php
+                                $statusClass = strtolower($doc['status']);
+                                $statusLabels = [
+                                    'pending'                    => 'Pending',
+                                    'in_review'                  => 'Under Review',
+                                    'approved_for_recommendation'=> 'Approved for Recommendation',
+                                    'approved'                   => 'Approved',
+                                    'rejected'                   => 'Rejected',
+                                ];
+                                $statusLabel = $statusLabels[$doc['status']] ?? ucfirst(str_replace('_', ' ', $doc['status']));
+                            ?>
+                            <span class="status-badge <?= $statusClass ?>">
+                                <?= htmlspecialchars($statusLabel) ?>
                             </span>
+                        </td>
+
+                        <td class="control-number-cell">
+                            <?php if ($doc['status'] === 'approved' && !empty($doc['control_number'])): ?>
+                                <span class="control-number-badge">
+                                    <i class="fas fa-hashtag" style="font-size:0.7rem;margin-right:3px;opacity:0.7;"></i><?= htmlspecialchars($doc['control_number']) ?>
+                                </span>
+                            <?php else: ?>
+                                <span class="control-number-placeholder">—</span>
+                            <?php endif; ?>
                         </td>
 
                         <td class="remarks-cell" title="<?= htmlspecialchars($doc['admin_remarks']) ?>">
@@ -758,6 +915,14 @@ $osasLogoB64 = $_allOrgLogos['OSAS']['b64'] ?? '';
                             </button>
                             <?php else: ?>
                             <span class="no-file"><i class="fas fa-ban"></i> No file</span>
+                            <?php endif; ?>
+                            <?php if ($doc['status'] === 'approved' && $doc['has_file']): ?>
+                            <a class="btn-action btn-download"
+                               title="Download approved document"
+                               href="../php/file_preview.php?submission_id=<?= $doc['submission_id'] ?>&download=1"
+                               download>
+                                <i class="fas fa-download"></i>
+                            </a>
                             <?php endif; ?>
                             <?php if ($doc['status'] === 'rejected'): ?>
                             <button class="btn-action btn-edit"
@@ -1101,6 +1266,11 @@ function buildProjectProposalBody(data, ctrlNum) {
 }
 const LOGO_ADMISSION = '<?= $admissionB64 ?>';   // Left: PLSP admission/seal
 const LOGO_ORG       = '<?= $orgLogoB64 ?>';       // Right: organization's own logo
+// ── Recipient names locked from super admin site_settings ──
+const DEAN_NAME       = '<?= addslashes(htmlspecialchars($deanName)) ?>';
+const DEAN_TITLE      = '<?= addslashes(htmlspecialchars($deanTitle)) ?>';
+const PRESIDENT_NAME  = '<?= addslashes(htmlspecialchars($presidentName)) ?>';
+const PRESIDENT_TITLE = '<?= addslashes(htmlspecialchars($presidentTitle)) ?>';
 const LOGO_MAP = {
 <?php foreach ($_allOrgLogos as $_key => $_logo): ?>
     '<?= $_logo['file'] ?>': '<?= $_logo['b64'] ?>',
@@ -1111,7 +1281,10 @@ function renderTplPreviewBody(data, title, controlNumber) {
     const orgName    = data.organization_name    || '';
     const orgTagline = data.organization_tagline || '';
     const collabLogo = data.collaborated_logo || data.collaborated_logo_value || '';
-    const ctrlNum    = controlNumber || data.control_number || '';
+    // controlNumber is sourced ONLY from data-control-number on the row,
+    // which is only populated when status === 'approved'. Never read from
+    // data.control_number (JSON snapshot) to prevent leaking pre-assigned numbers.
+    const ctrlNum    = controlNumber || '';
     const bodyContent = (data.template_id === 'project_proposal') ? buildProjectProposalBody(data, ctrlNum) : buildGenericBody(data, ctrlNum);
 
     const LOGO_SIZE = '60px'; // uniform size for all logos

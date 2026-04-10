@@ -30,8 +30,8 @@
 .btn-upload:hover { background: #1e4f3a; transform: translateY(-1px); }
 
 /* ── Stats bar ── */
-.doc-stats-bar { display: flex; align-items: center; background: white; border-radius: 22px; border: 1px solid #e9f0ec; box-shadow: 0 4px 14px rgba(0,30,0,0.03); padding: 1.2rem 2rem; margin-bottom: 1.6rem; flex-wrap: wrap; gap: 1.2rem; }
-.doc-stat { display: flex; align-items: center; gap: 0.85rem; flex: 1; min-width: 120px; }
+.doc-stats-bar { display: flex; align-items: center; background: white; border-radius: 22px; border: 1px solid #e9f0ec; box-shadow: 0 4px 14px rgba(0,30,0,0.03); padding: 1.2rem 1.5rem; margin-bottom: 1.6rem; flex-wrap: wrap; gap: 0.9rem; }
+.doc-stat { display: flex; align-items: center; gap: 0.75rem; flex: 1; min-width: 110px; }
 .doc-stat-divider { width: 1px; height: 40px; background: #e9f0ec; flex-shrink: 0; }
 .doc-stat-icon { width: 42px; height: 42px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
 .doc-stat-body { display: flex; flex-direction: column; }
@@ -103,6 +103,32 @@
 .status-badge.approved  { background: #dcfce7; color: #14532d; }
 .status-badge.rejected  { background: #fee2e2; color: #7f1d1d; }
 .status-badge.in_review { background: #dbeafe; color: #1e3a8a; }
+.status-badge.approved_for_recommendation { background: #ede9fe; color: #4c1d95; font-size: 0.72rem; padding: 0.25rem 0.7rem; }
+
+/* Control Number cell */
+.control-number-cell { white-space: nowrap; }
+.control-number-badge {
+    display: inline-flex; align-items: center;
+    background: #f0fdf4; color: #15803d;
+    border: 1px solid #bbf7d0;
+    border-radius: 6px; padding: 0.2rem 0.55rem;
+    font-size: 0.75rem; font-weight: 700; letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+.control-number-placeholder { color: #d1d5db; font-size: 0.85rem; }
+
+/* Download button */
+.btn-download {
+    background: #eff6ff !important;
+    color: #1d4ed8 !important;
+    border: 1px solid #bfdbfe !important;
+    text-decoration: none !important;
+    display: inline-flex; align-items: center; justify-content: center;
+}
+.btn-download:hover {
+    background: #dbeafe !important;
+    color: #1e40af !important;
+}
 .remarks-cell { max-width: 220px; font-size: 0.84rem; color: #5b6e6a; }
 .remarks-cell div { display: flex; align-items: flex-start; gap: 4px; }
 .remarks-cell span { word-break: break-word; white-space: normal; line-height: 1.5; }

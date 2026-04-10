@@ -26,13 +26,19 @@ if (!in_array($status, ['active','inactive'])) $status = 'active';
 if ($memberId > 0) {
     // ── Update existing member ────────────────────────────────────────────
     // Verify belongs to this org
-    $chk = mysqli_prepare($conn, "SELECT member_id FROM org_members WHERE member_id=? AND org_id=? LIMIT 1");
+    $chk = mysqli_prepare($conn, "SELECT member_id, position FROM org_members WHERE member_id=? AND org_id=? LIMIT 1");
     mysqli_stmt_bind_param($chk, 'ii', $memberId, $orgId);
     mysqli_stmt_execute($chk);
-    if (!mysqli_fetch_assoc(mysqli_stmt_get_result($chk))) {
+    $chkRow = mysqli_fetch_assoc(mysqli_stmt_get_result($chk));
+    if (!$chkRow) {
         echo json_encode(['success'=>false,'message'=>'Member not found.']); exit();
     }
     mysqli_stmt_close($chk);
+
+    // President is managed by super admin only
+    if ($chkRow['position'] === 'president') {
+        echo json_encode(['success'=>false,'message'=>'The president record is managed by the super admin and cannot be edited here.']); exit();
+    }
 
     $stmt = mysqli_prepare($conn,
         "UPDATE org_members SET full_name=?,email=?,phone=?,position=?,program=?,status=? WHERE member_id=? AND org_id=?");

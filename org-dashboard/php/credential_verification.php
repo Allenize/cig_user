@@ -22,8 +22,8 @@ $_SESSION['credentials_verified'] = !empty($user['credentials_verified']);
 $credFields = [
     'org_name'       => ['label' => 'Organization Name',         'icon' => 'fa-building',    'hint' => 'Official registered name at PLSP'],
     'org_code'       => ['label' => 'Organization Code',         'icon' => 'fa-id-badge',    'hint' => 'Unique code assigned by CIG (e.g. ECOS, PDC)'],
-    'contact_person' => ['label' => 'Contact Person',            'icon' => 'fa-user-tie',    'hint' => 'Current President or authorized officer'],
-    'phone'          => ['label' => 'Contact Number',            'icon' => 'fa-phone',       'hint' => 'Active mobile number of the contact person'],
+    'contact_person' => ['label' => 'Organization President',    'icon' => 'fa-user-tie',    'hint' => 'Full name of the current Organization President'],
+    'phone'          => ['label' => 'Contact Number',            'icon' => 'fa-phone',       'hint' => 'Active mobile number of the Organization President'],
     'description'    => ['label' => 'Organization Tagline / Mission', 'icon' => 'fa-quote-left', 'hint' => 'Brief mission statement or tagline'],
 ];
 $credFilled = 0;

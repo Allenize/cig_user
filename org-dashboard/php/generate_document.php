@@ -317,20 +317,19 @@ function buildProjectProposalContent($data, $organizationName = null) {
         $c .= '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>' . htmlspecialchars($data['proposal_date']) . '</w:t></w:r></w:p><w:p/>';
     }
 
-    // ── Recipient 1 ──
-    // Title is fixed: "Vice President for Student Affairs"
-    // Name comes from user input (recipient_1 field)
+    // ── Recipient 1 — name + title from site_settings (super admin controlled) ──
     if (!empty($data['recipient_1'])) {
+        $r1title = htmlspecialchars(trim($data['recipient_1_title'] ?? 'Interim University President'));
         $c .= '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>' . htmlspecialchars(trim($data['recipient_1'])) . '</w:t></w:r></w:p>';
-        $c .= '<w:p><w:r><w:t>Vice President for Academic Affairs</w:t></w:r></w:p>';
+        $c .= '<w:p><w:r><w:t>' . $r1title . '</w:t></w:r></w:p>';
         $c .= '<w:p/>';
     }
 
-    // ── Recipient 2 ──
-    // Title is fixed: "Dean, Office of Student Affairs and Services"
+    // ── Recipient 2 — name + title from site_settings (super admin controlled) ──
     if (!empty($data['recipient_2'])) {
+        $r2title = htmlspecialchars(trim($data['recipient_2_title'] ?? 'Dean, Office of Student Affairs and Services'));
         $c .= '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>' . htmlspecialchars(trim($data['recipient_2'])) . '</w:t></w:r></w:p>';
-        $c .= '<w:p><w:r><w:t>Dean, Office of Student Affairs and Services</w:t></w:r></w:p>';
+        $c .= '<w:p><w:r><w:t>' . $r2title . '</w:t></w:r></w:p>';
         $c .= '<w:p/>';
     }
 
@@ -608,16 +607,18 @@ function buildProjectProposalContentWysiwyg($data, $organizationName = null) {
         $c .= '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>' . htmlspecialchars($data['proposal_date']) . '</w:t></w:r></w:p><w:p/>';
     }
 
-    // ── Recipient 1 ──
+    // ── Recipient 1 — name + title from site_settings ──
     if (!empty($data['recipient_1'])) {
+        $r1title = htmlspecialchars(trim($data['recipient_1_title'] ?? 'Interim University President'));
         $c .= '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>' . htmlspecialchars(trim($data['recipient_1'])) . '</w:t></w:r></w:p>';
-        $c .= '<w:p><w:r><w:t>Vice President for Academic Affairs</w:t></w:r></w:p><w:p/>';
+        $c .= '<w:p><w:r><w:t>' . $r1title . '</w:t></w:r></w:p><w:p/>';
     }
 
-    // ── Recipient 2 ──
+    // ── Recipient 2 — name + title from site_settings ──
     if (!empty($data['recipient_2'])) {
+        $r2title = htmlspecialchars(trim($data['recipient_2_title'] ?? 'Dean, Office of Student Affairs and Services'));
         $c .= '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>' . htmlspecialchars(trim($data['recipient_2'])) . '</w:t></w:r></w:p>';
-        $c .= '<w:p><w:r><w:t>Dean, Office of Student Affairs and Services</w:t></w:r></w:p><w:p/>';
+        $c .= '<w:p><w:r><w:t>' . $r2title . '</w:t></w:r></w:p><w:p/>';
     }
 
     // ── Dear line ──

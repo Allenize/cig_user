@@ -3,6 +3,25 @@
  * Handles: PDF export, Excel export, Save Report modal, Delete Report
  */
 
+// ── Event Status Helper ───────────────────────────────────────────────────────
+function getEventStatus(startStr, endStr) {
+    if (!startStr || !endStr) return '—';
+    const now = new Date();
+
+    // proposed_start_date format: "April 10, 2026 at 09:44 AM"
+    // Normalize "at" separator so Date() can parse it
+    const startNorm = startStr.replace(' at ', ' ');
+    const start = new Date(startNorm);
+
+    // proposed_end_date format: "2026-04-10" — treat as end of day
+    const end = new Date(endStr);
+    end.setHours(23, 59, 59, 999);
+
+    if (isNaN(start) || isNaN(end)) return '—';
+    if (now >= start && now <= end) return 'Ongoing';
+    return 'Completed';
+}
+
 // ── Toast ─────────────────────────────────────────────────────────────────────
 function showToast(msg, type = 'success') {
     const C = { success:'#10b981', error:'#ef4444', info:'#3b82f6', warning:'#f59e0b' };
@@ -39,7 +58,7 @@ document.getElementById('btnExportPDF').addEventListener('click', () => {
     doc.rect(0, 0, 210, 32, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(18); doc.setFont('helvetica', 'bold');
-    doc.text('Organization Report', 14, 14);
+    doc.text('Accomplishment Report', 14, 14);
     doc.setFontSize(9); doc.setFont('helvetica', 'normal');
     doc.text(d.orgName, 14, 21);
     doc.text(`Generated: ${now}`, 14, 27);
@@ -53,12 +72,12 @@ document.getElementById('btnExportPDF').addEventListener('click', () => {
         startY: 46,
         head: [['Metric', 'Value']],
         body: [
-            ['Total Submissions', d.stats.total],
-            ['Approved',          d.stats.approved],
-            ['Pending / In Review', d.stats.pending],
-            ['Rejected',          d.stats.rejected],
-            ['Total Members',     d.stats.members],
-            ['Approval Rate',     d.stats.rate + '%'],
+            ['Total Reports',        d.stats.total],
+            ['Approved',             d.stats.approved],
+            ['Pending / In Review',  d.stats.pending],
+            ['Rejected',             d.stats.rejected],
+            ['Points Issued',        d.stats.points],
+            ['Approval Rate',        d.stats.rate + '%'],
         ],
         headStyles:  { fillColor: [45, 106, 79], textColor: 255, fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [240, 249, 244] },
@@ -87,10 +106,11 @@ document.getElementById('btnExportPDF').addEventListener('click', () => {
         doc.text('Recent Submissions', 14, doc.lastAutoTable.finalY + 12);
         doc.autoTable({
             startY: doc.lastAutoTable.finalY + 16,
-            head: [['Title', 'Status', 'Submitted']],
+            head: [['Title', 'Status', 'Event Status', 'Submitted']],
             body: d.recent.map(r => [
                 r.title,
                 r.status.charAt(0).toUpperCase() + r.status.slice(1),
+                getEventStatus(r.event_start, r.event_end),
                 new Date(r.submitted_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })
             ]),
             headStyles: { fillColor: [45, 106, 79], textColor: 255, fontStyle: 'bold' },
@@ -112,54 +132,54 @@ document.getElementById('btnExportPDF').addEventListener('click', () => {
     showToast('PDF exported successfully!', 'success');
 });
 
-// ── Excel Export ──────────────────────────────────────────────────────────────
+// ── CSV Export ────────────────────────────────────────────────────────────────
 document.getElementById('btnExportExcel').addEventListener('click', () => {
-    const d  = REPORT_DATA;
-    const wb = XLSX.utils.book_new();
-
-    // Summary sheet
-    const summaryData = [
-        ['ORGANIZATION REPORT'],
+    const d = REPORT_DATA;
+    const rows = [
+        ['ACCOMPLISHMENT REPORT'],
         ['Organization', d.orgName],
-        ['Generated',    d.generated],
+        ['Generated', d.generated],
         [],
         ['SUMMARY STATISTICS'],
         ['Metric', 'Value'],
-        ['Total Submissions', d.stats.total],
-        ['Approved',          d.stats.approved],
+        ['Total Reports', d.stats.total],
+        ['Approved', d.stats.approved],
         ['Pending / In Review', d.stats.pending],
-        ['Rejected',          d.stats.rejected],
-        ['Total Members',     d.stats.members],
-        ['Approval Rate',     d.stats.rate + '%'],
+        ['Rejected', d.stats.rejected],
+        ['Points Issued', d.stats.points],
+        ['Approval Rate', d.stats.rate + '%'],
     ];
-    const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
-    wsSummary['!cols'] = [{ wch: 28 }, { wch: 18 }];
-    XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
 
-    // Monthly sheet
     if (d.monthly.length > 0) {
-        const monthlyRows = [['Month', 'Total', 'Approved', 'Pending', 'Rejected'],
-            ...d.monthly.map(m => [m.month, m.total, m.approved, m.pending, m.rejected])];
-        const wsMonthly = XLSX.utils.aoa_to_sheet(monthlyRows);
-        wsMonthly['!cols'] = [{ wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }];
-        XLSX.utils.book_append_sheet(wb, wsMonthly, 'Monthly');
+        rows.push([], ['MONTHLY BREAKDOWN'], ['Month','Total','Approved','Pending','Rejected']);
+        d.monthly.forEach(m => rows.push([m.month, m.total, m.approved, m.pending, m.rejected]));
     }
 
-    // Recent submissions sheet
     if (d.recent.length > 0) {
-        const recentRows = [['#', 'Title', 'Status', 'Submitted'],
-            ...d.recent.map((r, i) => [
-                i + 1, r.title,
-                r.status.charAt(0).toUpperCase() + r.status.slice(1),
-                new Date(r.submitted_at).toLocaleDateString('en-US')
-            ])];
-        const wsRecent = XLSX.utils.aoa_to_sheet(recentRows);
-        wsRecent['!cols'] = [{ wch: 5 }, { wch: 36 }, { wch: 14 }, { wch: 16 }];
-        XLSX.utils.book_append_sheet(wb, wsRecent, 'Submissions');
+        rows.push([], ['RECENT SUBMISSIONS'], ['#','Title','Status','Event Status','Submitted']);
+        d.recent.forEach((r, i) => rows.push([
+            i + 1, r.title,
+            r.status.charAt(0).toUpperCase() + r.status.slice(1),
+            getEventStatus(r.event_start, r.event_end),
+            new Date(r.submitted_at).toLocaleDateString('en-US')
+        ]));
     }
 
-    XLSX.writeFile(wb, `${d.orgName.replace(/\s+/g,'-')}_report.xlsx`);
-    showToast('Excel exported successfully!', 'success');
+    const csv = rows.map(row => row.map(cell => {
+        const s = String(cell ?? '');
+        return s.includes(',') || s.includes('"') || s.includes('\n')
+            ? '"' + s.replace(/"/g, '""') + '"'
+            : s;
+    }).join(',')).join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = `${d.orgName.replace(/\s+/g, '-')}_accomplishment_report.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('CSV exported successfully!', 'success');
 });
 
 // ── Save Report Modal ─────────────────────────────────────────────────────────

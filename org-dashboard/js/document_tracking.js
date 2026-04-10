@@ -561,6 +561,7 @@ function addTableRow(title, submittedBy, submissionId, ext, isTemplate, submissi
     tr.setAttribute('data-is-template', isTemplate ? '1' : '0');
     tr.setAttribute('data-title-raw', escHtml(title));
     tr.setAttribute('data-remarks', '');
+    tr.setAttribute('data-control-number', '');
     if (isTemplate && safeData) tr.setAttribute('data-submission-data', safeData);
     tr.innerHTML = `
         <td class="row-num">—</td>
@@ -576,9 +577,10 @@ function addTableRow(title, submittedBy, submissionId, ext, isTemplate, submissi
         <td class="date-cell">${today}</td>
         <td><span class="submitter-name">${escHtml(submittedBy)}</span></td>
         <td><span class="status-badge pending">Pending</span></td>
+        <td class="control-number-cell"><span class="control-number-placeholder">—</span></td>
         <td class="remarks-cell">Awaiting review</td>
         <td class="actions-cell">
-            <div class="doc-actions">${viewBtn}</div>
+            <div class="actions-cell-inner">${viewBtn}</div>
         </td>`;
     tbody.insertBefore(tr, tbody.firstChild);
 }
@@ -885,8 +887,8 @@ const IPW_STEPS = [
         roman: 'I. Letter Header',
         fields: [
             { id:'proposal_date',     label:'Date',                            type:'date',     req:true },
-            { id:'recipient_1',       label:'VP for Academic Affairs (Name)',   type:'text',     req:true, placeholder:'e.g. Dr. Preciosa Villacruel' },
-            { id:'recipient_2',       label:'Dean, OSAS (Name)',                type:'text',     req:true, placeholder:'e.g. Sherwin D. Quizon, MSIT' },
+            { id:'recipient_1',       label:'Interim University President',          type:'locked',   req:true },
+            { id:'recipient_2',       label:'Dean, OSAS',                       type:'locked',   req:true },
             { id:'opening_statement', label:'Opening Statement',                type:'textarea', req:true, placeholder:'This is to express our intent to seek your approval…' },
         ]
     },
@@ -1057,6 +1059,36 @@ function _ipwRender() {
             return;
         }
 
+        // ── Locked (read-only, auto-filled from site_settings via PHP) ──
+        if (f.type === 'locked') {
+            // Determine value + subtitle from the site_settings constants
+            let lockedName = '', lockedTitle = '';
+            if (f.id === 'recipient_1') {
+                lockedName  = (typeof PRESIDENT_NAME  !== 'undefined') ? PRESIDENT_NAME  : '';
+                lockedTitle = (typeof PRESIDENT_TITLE !== 'undefined') ? PRESIDENT_TITLE : 'Interim University President';
+            } else if (f.id === 'recipient_2') {
+                lockedName  = (typeof DEAN_NAME  !== 'undefined') ? DEAN_NAME  : '';
+                lockedTitle = (typeof DEAN_TITLE !== 'undefined') ? DEAN_TITLE : 'Dean, Office of Student Affairs and Services';
+            }
+            const lockedVal = lockedName; // only the name is stored as the field value
+            // Always keep _ipwData in sync with the locked value
+            _ipwData[f.id] = lockedVal;
+            html += `<div class="form-group">
+                <label>${f.label}</label>
+                <div style="display:flex;align-items:center;gap:10px;background:#f4faf7;border:1.5px solid #b7e4cc;border-radius:10px;padding:10px 14px;">
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-weight:700;font-size:.92rem;color:#1a3028;">${lockedName || '<em style="color:#9ca3af">Not set — contact your admin</em>'}</div>
+                        <div style="font-size:.76rem;color:#6b9080;margin-top:2px;">${lockedTitle}</div>
+                    </div>
+                    <span style="display:inline-flex;align-items:center;gap:4px;font-size:.7rem;color:#2d6a4f;font-weight:700;background:#e3f2eb;border-radius:20px;padding:3px 9px;white-space:nowrap;flex-shrink:0;">
+                        <i class="fas fa-lock" style="font-size:.6rem;"></i> Set by Admin
+                    </span>
+                </div>
+                <input type="hidden" id="ipw_${f.id}" name="${f.id}" value="${lockedVal}">
+            </div>`;
+            return;
+        }
+
         // ── Date + Time ──
         if (f.type === 'datetime') {
             const parts    = saved.split(' at ');
@@ -1154,6 +1186,7 @@ function _ipwValidate() {
     if (!nextBtn) return;
     const allOk = IPW_STEPS[_ipwStep].fields.every(f => {
         if (!f.req) return true;
+        if (f.type === 'locked') return true; // always valid — set by admin
         const el = document.getElementById(`ipw_${f.id}`);
         return el && el.value.trim() !== '';
     });
@@ -1162,6 +1195,12 @@ function _ipwValidate() {
 
 function _ipwCollect() {
     IPW_STEPS[_ipwStep].fields.forEach(f => {
+        if (f.type === 'locked') {
+            // Always re-seed from the admin-set constants — never from user input
+            if (f.id === 'recipient_1') _ipwData['recipient_1'] = (typeof PRESIDENT_NAME !== 'undefined') ? PRESIDENT_NAME : _ipwData['recipient_1'] || '';
+            if (f.id === 'recipient_2') _ipwData['recipient_2'] = (typeof DEAN_NAME !== 'undefined') ? DEAN_NAME : _ipwData['recipient_2'] || '';
+            return;
+        }
         const el = document.getElementById(`ipw_${f.id}`);
         if (el) _ipwData[f.id] = el.value;
     });
@@ -1449,6 +1488,7 @@ document.addEventListener('change', e => { if (e.target.closest('#ipw-body')) _i
         if (typeof IPW_STEPS !== 'undefined' && typeof _ipwStep !== 'undefined') {
             IPW_STEPS[_ipwStep].fields.forEach(f => {
                 if (!f.req) return;
+                if (f.type === 'locked') return; // never highlight locked fields
                 const el = document.getElementById('ipw_' + f.id);
                 if (!el || el.value.trim()) return;
                 el.classList.add('ipw-field-error');
@@ -1834,7 +1874,7 @@ document.addEventListener('change', e => { if (e.target.closest('#ipw-body')) _i
         // Recipient 1
         if (f.recipient_1) {
             html += `<p style="font-weight:700;margin:0;">${esc(f.recipient_1)}</p>`;
-            html += `<p style="margin:0 0 8px;">Vice President for Academic Affairs</p>`;
+            html += `<p style="margin:0 0 8px;">${(typeof PRESIDENT_TITLE !== 'undefined' && PRESIDENT_TITLE) ? PRESIDENT_TITLE : 'Interim University President'}</p>`;
         }
         // Recipient 2
         if (f.recipient_2) {
@@ -1950,7 +1990,9 @@ document.addEventListener('change', e => { if (e.target.closest('#ipw-body')) _i
             const orgName    = data.organization_name    || '';
             const orgTagline = data.organization_tagline || '';
             const collabLogo = data.collaborated_logo || data.collaborated_logo_value || '';
-            const ctrlNum    = controlNumber || data.control_number || '';
+            // controlNumber comes only from data-control-number on the row (approved only).
+            // Never fall back to data.control_number to avoid leaking pre-assigned numbers.
+            const ctrlNum    = controlNumber || '';
             const bodyContent = buildWysiwygPPBody(data, ctrlNum);
 
             const LOGO_SIZE = '60px';

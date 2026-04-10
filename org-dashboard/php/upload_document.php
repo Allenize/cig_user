@@ -202,6 +202,21 @@ function handleTemplateUpload($conn) {
         foreach ($template['fields'] as $fieldId => $fieldLabel) {
             $data[$fieldId] = $_POST[$fieldId] ?? '';
         }
+
+        // ── Lock recipient_1 & recipient_2 from site_settings (super admin only) ──
+        // These fields are never editable by org users — always pulled from DB.
+        if ($templateId === 'project_proposal') {
+            $_ssLock = [];
+            $_ssLockQ = mysqli_query($conn, "SELECT setting_key, setting_value FROM site_settings WHERE setting_key IN ('dean_name','dean_title','president_name','president_title')");
+            while ($_ssLockRow = mysqli_fetch_assoc($_ssLockQ)) {
+                $_ssLock[$_ssLockRow['setting_key']] = trim($_ssLockRow['setting_value']);
+            }
+            $data['recipient_1'] = $_ssLock['president_name'] ?? 'Name of University President';
+            $data['recipient_2'] = $_ssLock['dean_name']      ?? 'Name of Dean';
+            // Also store titles for DOCX rendering
+            $data['recipient_1_title'] = $_ssLock['president_title'] ?? 'Interim University President';
+            $data['recipient_2_title'] = $_ssLock['dean_title']      ?? 'Dean, Office of Student Affairs and Services';
+        }
         // Collect dynamic additional signers (not in template definition)
         for ($si = 1; $si <= 5; $si++) {
             $key = 'additional_signer_' . $si;
@@ -220,20 +235,11 @@ function handleTemplateUpload($conn) {
         // Determine output format: 'docx' (default) or 'pdf'
         $format = (isset($_POST['output_format']) && strtolower($_POST['output_format']) === 'pdf') ? 'pdf' : 'docx';
 
-        // Pre-generate control number so it can be embedded in the document
-        $yearNow = date('Y');
-        $cntStmt = mysqli_prepare($conn, "SELECT COUNT(*) AS cnt FROM submissions WHERE YEAR(submitted_at) = ?");
-        $cntStmt->bind_param("i", $yearNow);
-        $cntStmt->execute();
-        $cntRow = $cntStmt->get_result()->fetch_assoc();
-        $cntStmt->close();
-        $controlNumber = 'CIG-' . $yearNow . '-' . str_pad(($cntRow['cnt'] + 1), 6, '0', STR_PAD_LEFT);
-
-        // Generate the document
+        // Generate the document (no control number yet — assigned only upon final approval)
         if (!function_exists('generateDocument')) {
             throw new Exception('generateDocument() not loaded — check generate_document.php path and syntax.');
         }
-        $generatedPath = generateDocument($template, $data, $title, $format, $collaboratedLogo, $organizationName, $organizationTagline, $orgLogoPath, $controlNumber);
+        $generatedPath = generateDocument($template, $data, $title, $format, $collaboratedLogo, $organizationName, $organizationTagline, $orgLogoPath, null);
 
         if (!$generatedPath || !file_exists($generatedPath)) {
             $zipOk = class_exists('ZipArchive') ? 'yes' : 'NO — enable zip extension';
@@ -280,25 +286,18 @@ function handleTemplateUpload($conn) {
             'field_labels'         => $template['fields'],
         ], JSON_UNESCAPED_UNICODE);
 
-        // Generate control number: CIG-YYYY-XXXXXX (sequential within year)
-        $yearNow = date('Y');
-        $cntStmt = mysqli_prepare($conn, "SELECT COUNT(*) AS cnt FROM submissions WHERE YEAR(submitted_at) = ?");
-        $cntStmt->bind_param("i", $yearNow);
-        $cntStmt->execute();
-        $cntRow = $cntStmt->get_result()->fetch_assoc();
-        $cntStmt->close();
-        $controlNumber = 'CIG-' . $yearNow . '-' . str_pad(($cntRow['cnt'] + 1), 6, '0', STR_PAD_LEFT);
+        // Control number is NOT assigned at upload time.
+        // It will be generated only when the Super Admin sets status to 'approved'.
 
         // Insert into submissions table with file path and JSON snapshot
-        $stmt = mysqli_prepare($conn, "INSERT INTO submissions (user_id, org_id, title, description, submission_data, status, file_name, file_path, submitted_by, control_number) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)");
+        $stmt = mysqli_prepare($conn, "INSERT INTO submissions (user_id, org_id, title, description, submission_data, status, file_name, file_path, submitted_by) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)");
         
         if (!$stmt) {
             throw new Exception('Prepare failed: ' . $conn->error);
         }
         
-        // Bind parameters: int, int, string, string, string, string, string, int
-        // Types: i=user_id, i=org_id, s=title, s=description, s=submission_data, s=file_name, s=file_path, i=submitted_by, s=control_number
-        $stmt->bind_param("iisssssis", $userId, $orgId, $title, $description, $submissionData, $fileName, $dbFilePath, $submittedBy, $controlNumber);
+        // Bind parameters: i=user_id, i=org_id, s=title, s=description, s=submission_data, s=file_name, s=file_path, i=submitted_by
+        $stmt->bind_param("iissssi", $userId, $orgId, $title, $description, $submissionData, $fileName, $dbFilePath, $submittedBy);
         
         if (!$stmt->execute()) {
             $error = $stmt->error;
@@ -332,7 +331,7 @@ function handleTemplateUpload($conn) {
             'submitted_by' => $userData['full_name'] ?? 'User',
             'filename' => $fileName,
             'submission_id' => $submissionId,
-            'control_number' => $controlNumber,
+            'control_number' => null,
             'submission_data' => $submissionData ?? null
         ]);
         exit;
@@ -411,25 +410,18 @@ function handleRegularUpload($conn) {
     }
     
     try {
-        // Generate control number
-        $yearNow = date('Y');
-        $cntStmt = mysqli_prepare($conn, "SELECT COUNT(*) AS cnt FROM submissions WHERE YEAR(submitted_at) = ?");
-        $cntStmt->bind_param("i", $yearNow);
-        $cntStmt->execute();
-        $cntRow = $cntStmt->get_result()->fetch_assoc();
-        $cntStmt->close();
-        $controlNumber = 'CIG-' . $yearNow . '-' . str_pad(($cntRow['cnt'] + 1), 6, '0', STR_PAD_LEFT);
+        // Control number is NOT assigned at upload time.
+        // It will be generated only when Super Admin sets status to 'approved'.
 
         // Insert into submissions table with file path
-        $stmt = mysqli_prepare($conn, "INSERT INTO submissions (user_id, org_id, title, description, status, file_name, file_path, submitted_by, control_number) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?)");
+        $stmt = mysqli_prepare($conn, "INSERT INTO submissions (user_id, org_id, title, description, status, file_name, file_path, submitted_by) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)");
         
         if (!$stmt) {
             throw new Exception('Prepare failed: ' . $conn->error);
         }
         
-        // Bind parameters: int, int, string, string, string, string, int
-        // Types: i=user_id, i=org_id, s=title, s=description, s=file_name, s=file_path, i=submitted_by, s=control_number
-        $stmt->bind_param("iissssis", $userId, $orgId, $title, $fullDescription, $fileName, $dbFilePath, $submittedBy, $controlNumber);
+        // Bind parameters: i=user_id, i=org_id, s=title, s=description, s=file_name, s=file_path, i=submitted_by
+        $stmt->bind_param("iisssi", $userId, $orgId, $title, $fullDescription, $fileName, $dbFilePath, $submittedBy);
         
         if (!$stmt->execute()) {
             $error = $stmt->error;
@@ -463,7 +455,7 @@ function handleRegularUpload($conn) {
             'submitted_by' => $userData['full_name'] ?? 'User',
             'filename' => $fileName,
             'submission_id' => $submissionId,
-            'control_number' => $controlNumber
+            'control_number' => null
         ]);
         exit;
     } catch (Exception $e) {

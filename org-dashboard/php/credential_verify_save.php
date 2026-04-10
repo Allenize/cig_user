@@ -30,7 +30,7 @@ $orgRow = mysqli_fetch_assoc(mysqli_stmt_get_result($orgStmt));
 mysqli_stmt_close($orgStmt);
 
 $editableLabels = [
-    'contact_person' => 'Contact Person',
+    'contact_person' => 'Organization President',
     'phone'          => 'Contact Number',
     'description'    => 'Organization Tagline / Mission',
 ];
@@ -56,6 +56,36 @@ $ok = mysqli_stmt_execute($stmt);
 mysqli_stmt_close($stmt);
 
 if ($ok) {
+    // ── Auto-upsert president into org_members ────────────────────────────
+    // Check if a president row already exists for this org
+    $chkPres = mysqli_prepare($conn,
+        "SELECT member_id FROM org_members WHERE org_id=? AND position='president' LIMIT 1");
+    mysqli_stmt_bind_param($chkPres, 'i', $userId);
+    mysqli_stmt_execute($chkPres);
+    $presRow = mysqli_fetch_assoc(mysqli_stmt_get_result($chkPres));
+    mysqli_stmt_close($chkPres);
+
+    if ($presRow) {
+        // Update existing president row (name + phone)
+        $upPres = mysqli_prepare($conn,
+            "UPDATE org_members SET full_name=?, phone=?, status='active', updated_at=NOW()
+             WHERE member_id=? AND org_id=?");
+        mysqli_stmt_bind_param($upPres, 'ssii',
+            $data['contact_person'], $data['phone'], $presRow['member_id'], $userId);
+        mysqli_stmt_execute($upPres);
+        mysqli_stmt_close($upPres);
+    } else {
+        // Insert new president member row
+        $insPres = mysqli_prepare($conn,
+            "INSERT INTO org_members (org_id, full_name, phone, position, status)
+             VALUES (?, ?, ?, 'president', 'active')");
+        mysqli_stmt_bind_param($insPres, 'iss',
+            $userId, $data['contact_person'], $data['phone']);
+        mysqli_stmt_execute($insPres);
+        mysqli_stmt_close($insPres);
+    }
+    // ─────────────────────────────────────────────────────────────────────
+
     echo json_encode(['success'=>true,'message'=>'Profile saved. Your documents are now under review by the admin.']);
 } else {
     echo json_encode(['success'=>false,'message'=>'Database error. Please try again.']);

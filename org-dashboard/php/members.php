@@ -18,6 +18,41 @@ $result = mysqli_stmt_get_result($res);
 while ($row = mysqli_fetch_assoc($result)) $members[] = $row;
 mysqli_stmt_close($res);
 
+// ── If no president in org_members, sync from users.contact_person ───────
+$hasPresident = !empty(array_filter($members, fn($m) => $m['position'] === 'president'));
+if (!$hasPresident) {
+    $uStmt = mysqli_prepare($conn,
+        "SELECT contact_person, phone FROM users WHERE user_id = ? LIMIT 1");
+    mysqli_stmt_bind_param($uStmt, 'i', $orgId);
+    mysqli_stmt_execute($uStmt);
+    $uRow = mysqli_fetch_assoc(mysqli_stmt_get_result($uStmt));
+    mysqli_stmt_close($uStmt);
+
+    if (!empty(trim($uRow['contact_person'] ?? ''))) {
+        // Auto-insert into org_members so it persists
+        $insPres = mysqli_prepare($conn,
+            "INSERT INTO org_members (org_id, full_name, phone, position, status)
+             VALUES (?, ?, ?, 'president', 'active')");
+        mysqli_stmt_bind_param($insPres, 'iss',
+            $orgId, $uRow['contact_person'], $uRow['phone']);
+        mysqli_stmt_execute($insPres);
+        $newPresId = mysqli_insert_id($conn);
+        mysqli_stmt_close($insPres);
+
+        // Prepend to the top of the members list
+        array_unshift($members, [
+            'member_id'  => $newPresId,
+            'full_name'  => $uRow['contact_person'],
+            'email'      => '',
+            'phone'      => $uRow['phone'] ?? '',
+            'position'   => 'president',
+            'program'    => '',
+            'status'     => 'active',
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+    }
+}
+
 // ── Stats ─────────────────────────────────────────────────────────────────
 $total      = count($members);
 $officers   = count(array_filter($members, fn($m) => $m['position'] !== 'member'));
@@ -205,6 +240,11 @@ function initials(string $name): string {
                     </td>
                     <td class="date-cell"><?= $joined ?></td>
                     <td class="actions-cell">
+                        <?php if ($position === 'president'): ?>
+                        <span title="Managed by super admin" style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.72rem;font-weight:600;color:#64748b;background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:20px;padding:0.25rem 0.7rem;white-space:nowrap;">
+                            <i class="fas fa-lock" style="font-size:0.65rem;"></i> Admin Only
+                        </span>
+                        <?php else: ?>
                         <button class="btn-action btn-edit" title="Edit"
                             onclick="openEditModal(<?= $m['member_id'] ?>,'<?= addslashes($m['full_name']??'') ?>','<?= $position ?>','<?= addslashes($m['phone']??'') ?>','<?= addslashes($m['email']??'') ?>','<?= addslashes($m['program']??'') ?>','<?= $status ?>')">
                             <i class="fas fa-pen"></i>
@@ -213,6 +253,7 @@ function initials(string $name): string {
                             onclick="openDeleteModal(<?= $m['member_id'] ?>,'<?= addslashes($m['full_name']??'') ?>')">
                             <i class="fas fa-trash"></i>
                         </button>
+                        <?php endif; ?>
                     </td>
                 </tr>
                 <?php endforeach; ?>
