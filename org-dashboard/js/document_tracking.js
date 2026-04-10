@@ -1481,10 +1481,38 @@ document.addEventListener('change', e => { if (e.target.closest('#ipw-body')) _i
    On modal reopen: auto-restores title, template, and all field values directly
    into each input — no dropdowns, no UI, just pre-filled fields.
    On successful submission: clears saved state so next open starts fresh.
+   Signatory fields (names/titles) are saved permanently and always pre-filled.
    ══════════════════════════════════════════════════════════════════════════════ */
 (function () {
     const SAVE_KEY    = 'tpl_last_session_v3';
-    const HISTORY_KEY = 'autofill_history_v1'; // field-level per-field last value
+    const HISTORY_KEY = 'autofill_history_v1';
+    // Signatory fields saved permanently — never cleared on submission
+    const SIG_KEY     = 'tpl_signatories_v1';
+    const SIG_FIELDS  = [
+        'sender_name','adviser_name','co_adviser_name',
+        'additional_signer_1','additional_signer_2',
+        'additional_signer_3','additional_signer_4','additional_signer_5',
+        'endorsed_by'
+    ];
+
+    /* ── Signatory persistent store (never cleared) ── */
+    function getSigStore() {
+        try { return JSON.parse(localStorage.getItem(SIG_KEY) || '{}'); } catch(e) { return {}; }
+    }
+    function saveSigStore(obj) {
+        try { localStorage.setItem(SIG_KEY, JSON.stringify(obj)); } catch(e) {}
+    }
+    function recordSignatories(ipwData) {
+        if (!ipwData) return;
+        const store = getSigStore();
+        SIG_FIELDS.forEach(k => {
+            if (ipwData[k] && ipwData[k].trim()) store[k] = ipwData[k].trim();
+        });
+        saveSigStore(store);
+    }
+    function getSavedSignatory(fieldId) {
+        return getSigStore()[fieldId] || '';
+    }
 
     /* ── Per-field last-value store ── */
     function getFieldHistory() {
@@ -1518,12 +1546,10 @@ document.addEventListener('change', e => { if (e.target.closest('#ipw-body')) _i
             collabLogo: '',
         };
 
-        // Wizard fields
         if (typeof _ipwData !== 'undefined') {
             snap.ipwData = Object.assign({}, _ipwData);
         }
 
-        // Non-wizard template container fields
         document.querySelectorAll(
             '#templateFieldsContainer input:not([type=hidden]):not([type=checkbox]),' +
             '#templateFieldsContainer textarea'
@@ -1546,16 +1572,20 @@ document.addEventListener('change', e => { if (e.target.closest('#ipw-body')) _i
         if (!snap) return;
         try { localStorage.setItem(SAVE_KEY, JSON.stringify(snap)); } catch(e) {}
 
-        // Also record per-field last values for direct pre-fill on next open
+        // Record per-field last values
         if (snap.ipwData) {
             Object.entries(snap.ipwData).forEach(([k, v]) => { if (v) recordField(k, v); });
         }
         Object.entries(snap.fields).forEach(([k, v]) => {
             if (!k.startsWith('_') && v) recordField(k, v);
         });
+
+        // Always persist signatory fields separately (survives submission clear)
+        recordSignatories(snap.ipwData);
     }
 
     function clearSaved() {
+        // Only clear the session snapshot — NOT the signatory store
         try { localStorage.removeItem(SAVE_KEY); } catch(e) {}
     }
 
@@ -1565,7 +1595,6 @@ document.addEventListener('change', e => { if (e.target.closest('#ipw-body')) _i
         try { snap = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch(e) {}
         if (!snap || !snap.docTitle) return;
 
-        // 1. Restore title → unlocks template select
         const titleEl = document.getElementById('templateTitle');
         if (titleEl) {
             titleEl.value = snap.docTitle;
@@ -1573,7 +1602,6 @@ document.addEventListener('change', e => { if (e.target.closest('#ipw-body')) _i
             if (typeof window._applyTitleGate === 'function') window._applyTitleGate();
         }
 
-        // 2. Restore template selection → triggers field/wizard rendering
         const selEl = document.getElementById('templateSelect');
         if (selEl && snap.templateId) {
             selEl.disabled = false;
@@ -1581,16 +1609,13 @@ document.addEventListener('change', e => { if (e.target.closest('#ipw-body')) _i
             selEl.dispatchEvent(new Event('change'));
         }
 
-        // 3. After render, fill all fields directly
         setTimeout(() => {
-            // Wizard (project_proposal)
             if (snap.templateId === 'project_proposal' &&
                 typeof _ipwData !== 'undefined' && Object.keys(snap.ipwData || {}).length) {
                 Object.assign(_ipwData, snap.ipwData);
                 if (typeof _ipwRender === 'function') _ipwRender();
             }
 
-            // Non-wizard fields
             Object.entries(snap.fields || {}).forEach(([k, v]) => {
                 if (k.startsWith('_chk_')) {
                     const cb = document.getElementById(k.slice(5));
@@ -1601,7 +1626,6 @@ document.addEventListener('change', e => { if (e.target.closest('#ipw-body')) _i
                 }
             });
 
-            // Collaborated logo
             if (snap.collabOn) {
                 const cb = document.getElementById('useColloborated');
                 if (cb && !cb.checked) { cb.checked = true; if (typeof toggleColloboratedPicker === 'function') toggleColloboratedPicker(cb); }
@@ -1613,13 +1637,13 @@ document.addEventListener('change', e => { if (e.target.closest('#ipw-body')) _i
         }, 350);
     }
 
-    /* ── Pre-fill individual fields from last-used values when wizard renders ──
-       Called after each wizard step renders, fills empty fields with their
-       last recorded value directly — no dropdown, just pre-populated input.     */
+    /* ── Pre-fill fields when wizard step renders ──
+       Signatory fields always get pre-filled from the permanent store.
+       Other fields use the session snapshot or per-field history.            */
     function prefillRenderedFields() {
-        // Only pre-fill if no full snapshot is being restored
         let snap;
         try { snap = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch(e) {}
+        const sigStore = getSigStore();
 
         document.querySelectorAll(
             '#ipw-body input[type=text], #ipw-body textarea,' +
@@ -1629,9 +1653,15 @@ document.addEventListener('change', e => { if (e.target.closest('#ipw-body')) _i
             if (el.value.trim()) return; // already has a value — don't overwrite
             const rawId = el.id.replace(/^ipw_/, '');
 
-            // Try snapshot first, then per-field history
             let val = '';
-            if (snap && snap.ipwData && snap.ipwData[rawId]) val = snap.ipwData[rawId];
+
+            // Signatory fields: always use the persistent store first
+            if (SIG_FIELDS.includes(rawId)) {
+                val = sigStore[rawId] || '';
+            }
+
+            // Fall back to session snapshot, then per-field history
+            if (!val && snap && snap.ipwData && snap.ipwData[rawId]) val = snap.ipwData[rawId];
             if (!val && snap && snap.fields && snap.fields[rawId]) val = snap.fields[rawId];
             if (!val) val = getLastValueFor(rawId);
 
@@ -1639,6 +1669,16 @@ document.addEventListener('change', e => { if (e.target.closest('#ipw-body')) _i
                 el.value = val;
                 el.dispatchEvent(new Event('input', { bubbles: true }));
             }
+        });
+    }
+
+    /* ── Also seed _ipwData with signatory values before wizard opens ──
+       So even step 6 renders pre-filled when user navigates to it.         */
+    function seedSignatoriesToIpwData() {
+        if (typeof _ipwData === 'undefined') return;
+        const store = getSigStore();
+        SIG_FIELDS.forEach(k => {
+            if (store[k] && !_ipwData[k]) _ipwData[k] = store[k];
         });
     }
 
@@ -1651,20 +1691,20 @@ document.addEventListener('change', e => { if (e.target.closest('#ipw-body')) _i
 
     /* ── Init ── */
     document.addEventListener('DOMContentLoaded', () => {
-        // Save on every input/change inside the template tab
         document.addEventListener('input',  e => { if (e.target.closest('#template-upload')) schedule(); });
         document.addEventListener('change', e => { if (e.target.closest('#template-upload')) schedule(); });
 
-        // Restore on modal open
         const openBtn = document.getElementById('openUploadModal');
         if (openBtn) {
             openBtn.addEventListener('click', () => {
                 setTimeout(() => {
+                    // Always seed signatory store into _ipwData so wizard pre-fills them
+                    seedSignatoriesToIpwData();
+
                     let snap;
                     try { snap = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch(e) {}
                     if (!snap || !snap.docTitle) return;
 
-                    // Auto-switch to template tab
                     const tplTab = document.querySelector('[data-tab="template-upload"]');
                     if (tplTab && !tplTab.classList.contains('active')) tplTab.click();
 
@@ -1685,7 +1725,16 @@ document.addEventListener('change', e => { if (e.target.closest('#ipw-body')) _i
                 .observe(tfc, { childList: true });
         }
 
-        // Clear after successful submission → next open starts fresh
+        // Also seed _ipwData whenever the inline wizard opens
+        const _origOpen = window.openInlinePWizard;
+        if (typeof _origOpen === 'function') {
+            window.openInlinePWizard = function() {
+                _origOpen.apply(this, arguments);
+                setTimeout(seedSignatoriesToIpwData, 50);
+            };
+        }
+
+        // Clear session (but NOT signatories) after successful submission
         const origShowToast = window.showToast;
         if (typeof origShowToast === 'function') {
             window.showToast = function(msg, success) {
@@ -1693,7 +1742,11 @@ document.addEventListener('change', e => { if (e.target.closest('#ipw-body')) _i
                     msg.toLowerCase().includes('generated') ||
                     msg.toLowerCase().includes('uploaded') ||
                     msg.toLowerCase().includes('submitted')
-                )) { clearSaved(); }
+                )) {
+                    // Save current signatories before clearing session
+                    if (typeof _ipwData !== 'undefined') recordSignatories(_ipwData);
+                    clearSaved();
+                }
                 origShowToast.apply(this, arguments);
             };
         }

@@ -117,10 +117,13 @@ function getTemplateData($templateId) {
                 'monitoring_details' => 'Monitoring (bulleted)',
                 'evaluation_details' => 'Evaluation Strategy (bulleted)',
                 'security_plan' => 'V. SECURITY PLAN (bulleted)',
-                'closing_statement' => 'Closing Statement',
-                'sender_name' => 'Sender Name & Title',
-                'noted_by' => 'Noted by (comma-separated names with titles)',
-                'endorsed_by' => 'Endorsed by (name and title)'
+                'closing_statement'   => 'Closing Statement',
+                'sender_name'         => 'Sender Name & Title',
+                'adviser_name'        => 'Noted by – Adviser (Name, Title, Org)',
+                'co_adviser_name'     => 'Noted by – Co-Adviser (Name, Title, Org)',
+                'additional_signer_1' => 'Additional Noted by #1',
+                'additional_signer_2' => 'Additional Noted by #2',
+                'endorsed_by'         => 'Endorsed by (name and title)'
             ]
         ]
     ];
@@ -202,9 +205,15 @@ function handleTemplateUpload($conn) {
         // Collect dynamic additional signers (not in template definition)
         for ($si = 1; $si <= 5; $si++) {
             $key = 'additional_signer_' . $si;
-            if (!empty($_POST[$key])) {
+            if (!empty($_POST[$key]) && !isset($data[$key])) {
                 $data[$key] = trim($_POST[$key]);
                 $template['fields'][$key] = 'Additional Noted by #' . $si;
+            }
+        }
+        // Defensive: always pull adviser fields from POST even if not in $data yet
+        foreach (['adviser_name', 'co_adviser_name'] as $_k) {
+            if (!isset($data[$_k]) && !empty($_POST[$_k])) {
+                $data[$_k] = trim($_POST[$_k]);
             }
         }
 
